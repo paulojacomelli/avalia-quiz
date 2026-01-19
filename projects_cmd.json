@@ -1,0 +1,49 @@
+{
+  "status": "success",
+  "result": [
+    {
+      "projectId": "avalia-jw-quiz",
+      "projectNumber": "524494397074",
+      "displayName": "Avalia Quiz",
+      "name": "projects/avalia-jw-quiz",
+      "resources": {
+        "hostingSite": "avalia-jw-quiz"
+      },
+      "state": "ACTIVE",
+      "etag": "1_21693c17-c38a-4c4c-97bf-df5928327f35"
+    },
+    {
+      "projectId": "campo-branco",
+      "projectNumber": "660553166328",
+      "displayName": "Campo Branco",
+      "name": "projects/campo-branco",
+      "resources": {
+        "hostingSite": "campo-branco"
+      },
+      "state": "ACTIVE",
+      "etag": "1_0aa6b279-6cd0-452c-8e45-e86293879491"
+    },
+    {
+      "projectId": "dev-campobranco",
+      "projectNumber": "119049153566",
+      "displayName": "dev-campobranco",
+      "name": "projects/dev-campobranco",
+      "resources": {
+        "hostingSite": "dev-campobranco"
+      },
+      "state": "ACTIVE",
+      "etag": "1_fff31356-4a98-4865-8586-8e20d272150c"
+    },
+    {
+      "projectId": "teste-9889c",
+      "projectNumber": "219911711748",
+      "displayName": "teste",
+      "name": "projects/teste-9889c",
+      "resources": {
+        "hostingSite": "teste-9889c"
+      },
+      "state": "ACTIVE",
+      "etag": "1_1f7d380f-a05b-49c8-b1b6-3d6851601705"
+    }
+  ]
+}
