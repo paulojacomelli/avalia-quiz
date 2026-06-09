@@ -1,0 +1,17 @@
+{
+  "name": "@avalia/services",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "lint": "eslint \"src/**/*.ts*\""
+  },
+  "dependencies": {
+    "@google/genai": "^1.33.0",
+    "@avalia/core": "*"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.2"
+  }
+}

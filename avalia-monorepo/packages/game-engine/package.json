@@ -1,0 +1,15 @@
+{
+  "name": "@avalia/game-engine",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "@avalia/core": "*",
+    "@avalia/services": "*",
+    "@avalia/design-system": "*",
+    "firebase": "^12.8.0"
+  }
+}

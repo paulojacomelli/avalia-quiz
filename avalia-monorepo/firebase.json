@@ -1,0 +1,16 @@
+{
+  "hosting": [
+    {
+      "target": "avalia-quiz",
+      "public": "apps/avalia-quiz/dist",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{ "source": "**", "destination": "/index.html" }]
+    },
+    {
+      "target": "avalia-jw-quiz",
+      "public": "apps/avalia-jw-quiz/dist",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{ "source": "**", "destination": "/index.html" }]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "@avalia/jw-quiz",
+  "private": true,
+  "version": "1.4.1-beta",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "deploy": "npm run build && firebase deploy",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@avalia/design-system": "*",
+    "@avalia/core": "*",
+    "@avalia/services": "*",
+    "@avalia/game-engine": "*",
+    "@google/genai": "^1.33.0",
+    "firebase": "^12.8.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.1.2",
+    "typescript": "~5.8.2",
+    "vite": "^7.3.0",
+    "vite-plugin-pwa": "^1.2.0"
+  }
+}

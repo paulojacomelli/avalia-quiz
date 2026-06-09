@@ -1,0 +1,60 @@
+# Dependências
+node_modules/
+**/node_modules/
+
+# Builds
+dist/
+build/
+.next/
+out/
+**/dist/
+**/build/
+**/.next/
+**/out/
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+
+# Cache
+.turbo/
+.cache/
+**/.turbo/
+**/.cache/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Firebase
+.firebase/
+firebase-debug.log
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Diretórios de agentes e config interna
+.agents/
+.kilocode/
+
+# Arquivos temporários e de backup
+bkp/
+*.bak
+*.tmp
+
+# Arquivos de doc interna (não devem ir ao repo público)
+chatgpt.md
+gemini.md
+libras-integration-guide.md
+geminiservices legados/

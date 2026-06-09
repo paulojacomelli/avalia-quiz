@@ -1,0 +1,28 @@
+{
+    "name": "avalia-monorepo",
+    "version": "1.0.0",
+    "private": true,
+    "workspaces": [
+        "packages/*",
+        "apps/*",
+        "apps/*/*"
+    ],
+    "scripts": {
+        "build": "turbo run build",
+        "build:generic": "turbo run build --filter=@avalia/quiz",
+        "build:jw": "turbo run build --filter=@avalia/jw-quiz",
+        "deploy:generic": "npm run build:generic && firebase deploy --only hosting:generic",
+        "deploy:jw": "npm run build:jw && firebase deploy --only hosting:jw",
+        "dev": "turbo run dev --parallel",
+        "dev:generic": "turbo run dev --filter=@avalia/quiz",
+        "dev:jw": "turbo run dev --filter=@avalia/jw-quiz",
+        "lint": "turbo run lint",
+        "typecheck": "turbo run typecheck"
+    },
+    "devDependencies": {
+        "autoprefixer": "^10.5.0",
+        "postcss": "^8.5.15",
+        "tailwindcss": "^3.4.19",
+        "turbo": "^1.11.3"
+    }
+}

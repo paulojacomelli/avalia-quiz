@@ -1,0 +1,6 @@
+{
+  "name": "@avalia/llm-client",
+  "version": "1.0.0",
+  "main": "src/interfaces.ts",
+  "types": "src/interfaces.ts"
+}
