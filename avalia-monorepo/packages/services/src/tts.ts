@@ -1,5 +1,5 @@
 import { generateSpeech } from './geminiService';
-import { playAudioData, stopCurrentAudio } from './audio';
+import { playAudioData, playAudioUrl, stopCurrentAudio } from './audio';
 import { TTSConfig, QuizQuestion, AiProvider } from '@avalia/core';
 
 // State to track if we are currently speaking via Gemini Audio
@@ -28,20 +28,38 @@ export const getQuestionReadAloudText = (question: QuizQuestion, activeTeamName?
   return textToRead;
 };
 
-export const speakText = async (text: string, config: TTSConfig, apiKey?: string, preGeneratedAudio?: string, provider: AiProvider = 'google-ai') => {
-  // Stop any ongoing speech (both Gemini Audio and Browser TTS)
+export const speakText = async (
+  text: string,
+  config: TTSConfig,
+  apiKey?: string,
+  preGeneratedAudio?: string,
+  provider: AiProvider = 'google-ai',
+  audioUrl?: string
+) => {
   stopSpeech();
 
-  if (!text && !preGeneratedAudio) return;
+  if (!text && !preGeneratedAudio && !audioUrl) return;
 
-  // 0. Use Pre-generated Audio if available (Instant Playback)
-  // Only use pre-generated audio if the engine is set to Gemini (Natural)
+  // 0a. URL permanente do Storage — reprodução instantânea sem decodificação
+  if (config.engine === 'gemini' && audioUrl) {
+    try {
+      isSpeakingState = true;
+      await playAudioUrl(audioUrl, config.rate);
+    } catch (e) {
+      console.error('Error playing audio URL', e);
+    } finally {
+      isSpeakingState = false;
+    }
+    return;
+  }
+
+  // 0b. Base64 pré-gerado em memória (fallback quando URL não está disponível)
   if (config.engine === 'gemini' && preGeneratedAudio) {
       try {
           isSpeakingState = true;
           await playAudioData(preGeneratedAudio, config.rate);
       } catch (e) {
-          console.error("Error playing pre-generated audio", e);
+          console.error('Error playing pre-generated audio', e);
       } finally {
           isSpeakingState = false;
       }

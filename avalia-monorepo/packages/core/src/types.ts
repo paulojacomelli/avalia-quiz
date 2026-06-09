@@ -35,7 +35,8 @@ export interface QuizQuestion {
   hint: string; // Dica amigável para ajudar o jogador
   explanation: string; // Explicação breve e didática do porquê a resposta é correta
   glosa?: string; // Glosa em Libras formatada para o VLibras (MAIÚSCULAS, sem artigos/preposições)
-  audioBase64?: string; // Áudio da pergunta pré-gerado via TTS, codificado em Base64
+  audioBase64?: string; // Áudio da pergunta pré-gerado via TTS, codificado em Base64 (temporário — descartado após upload)
+  audioUrl?: string;    // URL permanente no Firebase Storage (substitui audioBase64 após upload)
 }
 
 export interface Team {

@@ -183,6 +183,26 @@ export const stopCurrentAudio = () => {
     }
 }
 
+/**
+ * Reproduz áudio a partir de uma URL (ex: Firebase Storage).
+ * Mesma lógica de controle de velocidade do playAudioData.
+ */
+export const playAudioUrl = async (url: string, rate: number = 1.0): Promise<void> => {
+  stopCurrentAudio();
+  if (!url) return;
+  try {
+    const audio = new Audio(url);
+    audio.playbackRate = rate;
+    currentTtsAudio = audio;
+    await audio.play();
+    audio.onended = () => {
+      if (currentTtsAudio === audio) currentTtsAudio = null;
+    };
+  } catch (error) {
+    console.error('Audio URL Playback Error:', error);
+  }
+};
+
 // Spaced beat sound for loading state (Batida espaçada)
 export const startLoadingDrone = () => {
   if (!isSoundEnabled) return;

@@ -8,7 +8,7 @@ import {
   generateQuizContent, generateReplacementQuestion, preGenerateQuizAudio,
   playSound, playTimerTick, setGlobalSoundState, playCountdownTick, playGoSound, startLoadingDrone, stopLoadingDrone, resumeAudioContext,
   speakText, stopSpeech, getQuestionReadAloudText,
-  getGlobalKeywords, saveGeneratedQuiz, getRandomPrebuiltQuiz, getAvailableLibraryThemes, db
+  getGlobalKeywords, saveGeneratedQuiz, uploadQuizAudiosToStorage, getRandomPrebuiltQuiz, getAvailableLibraryThemes, db
 } from '@avalia/services';
 import { 
   CookieBanner, PrivacyPolicyModal, ReadyCheck,
@@ -532,7 +532,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
         const textToRead = getQuestionReadAloudText(q, teamIntro);
 
         // Always use the latest global ttsConfig for playback
-        speakText(textToRead, ttsConfig, apiKey || undefined, q.audioBase64);
+        speakText(textToRead, ttsConfig, apiKey || undefined, q.audioBase64, undefined, q.audioUrl);
 
       }, 500);
       return () => {
@@ -849,28 +849,40 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
         const fullQuiz = await getRandomPrebuiltQuiz(appName, finalConfig.mode, finalConfig.subTopic);
         if (!fullQuiz) throw new Error("Não encontramos nenhum quiz para este tema na biblioteca.");
 
-        // Slice based on user selection
         data = {
           ...fullQuiz,
           questions: fullQuiz.questions.slice(0, finalConfig.count)
         };
 
-        // Update config with actual count
         finalConfig.count = data.questions.length;
         setQuizConfig({ ...finalConfig });
+
+        // --- PRÉ-GERAR ÁUDIO APENAS PARA QUESTÕES SEM audioUrl SALVO ---
+        if (ttsEnabled && finalConfig.tts.engine === 'gemini' && apiKey) {
+          const questionsNeedingAudio = data.questions.filter(q => !q.audioUrl);
+          if (questionsNeedingAudio.length > 0) {
+            setLoadingMessage("Gerando áudio da partida...");
+            const teamNameList = tempTeams.map(t => t.name);
+            data = await preGenerateQuizAudio(apiKey, data, finalConfig.tts, finalConfig.isTeamMode ? teamNameList : []);
+          }
+        }
       } else {
         data = await generateQuizContent(apiKey!, finalConfig, globalExclusions, provider);
-        // --- SAVE TO FIREBASE ---
-        saveGeneratedQuiz(data, appName, finalConfig.mode, finalConfig.subTopic || finalConfig.specificTopic);
-      }
 
-      // --- PRE-GENERATE AUDIO IF TTS IS ENABLED ---
-      if (ttsEnabled && finalConfig.tts.engine === 'gemini') {
-        const ttsKey = apiKey || "";
-        if (ttsKey) {
+        // --- PRÉ-GERAR ÁUDIO (antes de salvar para incluir URLs no Firestore) ---
+        if (ttsEnabled && finalConfig.tts.engine === 'gemini' && apiKey) {
           setLoadingMessage("Gerando áudio da partida...");
           const teamNameList = tempTeams.map(t => t.name);
-          data = await preGenerateQuizAudio(ttsKey, data, finalConfig.tts, finalConfig.isTeamMode ? teamNameList : []);
+          data = await preGenerateQuizAudio(apiKey, data, finalConfig.tts, finalConfig.isTeamMode ? teamNameList : []);
+        }
+
+        // --- SALVAR NO FIRESTORE (obtém docId para uso no Storage) ---
+        const docId = await saveGeneratedQuiz(data, appName, finalConfig.mode, finalConfig.subTopic || finalConfig.specificTopic);
+
+        // --- UPLOAD DOS ÁUDIOS PARA O STORAGE (se TTS gerou base64) ---
+        if (docId && data.questions.some(q => q.audioBase64)) {
+          setLoadingMessage("Salvando áudios...");
+          data = await uploadQuizAudiosToStorage(data, docId);
         }
       }
 
