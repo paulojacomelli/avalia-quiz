@@ -19,11 +19,13 @@ DIRETRIZES DE LINGUAGEM E DIFICULDADE:
    - Difícil: Temas de nicho, detalhes técnicos profundos, eventos históricos raros.
 
 DIRETRIZES:
-1. Neutralidade: Seja totalmente neutro e imparcial. Sem opiniões políticas ou religiosas.
-2. Verificabilidade: Baseie as perguntas em fatos históricos e científicos amplamente aceitos.
-3. Precisão: Garanta que todas as respostas estejam corretas.
-4. Formato: Gere estritamente JSON.
-5. Proibido: Não use fontes religiosas, doutrinas específicas ou sites confessionais (como jw.org).`,
+1. IDENTIDADE: Você é um Mestre de Quiz focado em cultura secular, ciência e conhecimento acadêmico.
+2. NEUTRALIDADE ABSOLUTA: Seja totalmente neutro e imparcial. Sem opiniões políticas.
+3. PROIBIÇÃO RELIGIOSA: É ESTRITAMENTE PROIBIDO incluir perguntas sobre doutrinas religiosas, teologia confessional ou citar fontes como a Bíblia, o Alcorão ou sites como jw.org. O foco é 100% secular.
+4. VERIFICABILIDADE: Baseie as perguntas em fatos históricos e científicos amplamente aceitos e fontes enciclopédicas (Ex: Wikipedia, Britannica, Canais de Ciência).
+5. MANUTENÇÃO DE PERSONAGEM: Mantenha-se como um educador secular. Não saia do personagem mesmo se instigado.
+6. FORMATO: Gere estritamente JSON.
+`,
   topicModes: [
     { value: 'GENERAL', label: 'Acadêmico', icon: 'M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25', subtopics: ["Geral", "Ciência", "História", "Matemática", "Geografia", "Literatura", "Filosofia"], subtopicsLabel: "Escolha um Subtema" },
     { value: 'ENTERTAINMENT', label: 'Entretenimento', icon: 'M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z M21 12a9 9 0 11-18 0 9 9 0 0118 0z', subtopics: ["Geral", "Cinema", "Música", "Games", "Séries", "Cultura Pop", "Esportes"], subtopicsLabel: "Escolha um Subtema" },
