@@ -1,0 +1,7 @@
+{
+  "name": "Avalia Quiz 1.3.23-beta",
+  "description": "Um aplicativo de quiz avançado movido por IA para testar conhecimentos gerais em diversas áreas.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

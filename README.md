@@ -1,0 +1,81 @@
+
+# Avalia Quiz - Gerador de Quizzes com IA
+
+Bem-vindo ao repositório do **Avalia Quiz**. Este é um aplicativo React moderno que utiliza Inteligência Artificial (Google Gemini) para gerar quizzes educacionais e de conhecimentos gerais sobre qualquer tema que você desejar.
+
+## 🌟 Funcionalidades
+
+-   **Geração de Perguntas com IA:** Crie quizzes sobre ciência, história, cultura pop, idiomas e muito mais.
+-   **Modo Estudo:** Receba feedback imediato e explicações detalhadas para cada resposta.
+-   **Biblioteca da Comunidade:** Salve e compartilhe seus quizzes favoritos com outros usuários (via Firebase).
+-   **Gamificação:** Sistema de pontuação e feedback visual.
+
+---
+
+## 🚀 Guia de Implementação e Instalação
+
+Siga este guia para configurar o projeto na sua máquina.
+
+### 1. Pré-requisitos
+*   [Node.js](https://nodejs.org/) (v18+).
+*   Editor de código (ex: VS Code).
+*   Conta Google (para API Gemini e Firebase).
+
+### 2. Clonar e Instalar
+
+```bash
+# Clone o repositório
+git clone https://github.com/paulojacomelli/avalia-quiz.git
+cd avalia-quiz
+
+# Instale as dependências
+npm install
+```
+
+---
+
+## 🔑 Configuração das Credenciais
+
+O app precisa de duas chaves para funcionar: **Google Gemini** (Cérebro do IA) e **Firebase** (Banco de Dados).
+
+### A. Google Gemini API Key 🧠
+1.  Acesse o [Google AI Studio](https://aistudio.google.com/).
+2.  Clique em **"Get API key"** > **"Create API key"**.
+3.  Copie a chave gerada (inicia com `AIza...`).
+
+### B. Credenciais do Firebase 🔥
+1.  Acesse o [Console do Firebase](https://console.firebase.google.com/).
+2.  Crie um novo projeto.
+3.  Adicione um **Web App** `</>` para obter o `firebaseConfig`.
+4.  Ative o **Firestore Database** em modo de teste.
+
+---
+
+## ⚙️ Configuração do Ambiente
+
+1.  Renomeie o arquivo `.env.example` para `.env.local`.
+2.  Preencha com suas chaves:
+
+```env
+GEMINI_API_KEY=SuaChaveGeminiAqui
+VITE_FIREBASE_API_KEY=SuaChaveFirebase
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+# ... demais configurações do Firebase
+```
+
+---
+
+## ▶️ Rodando o Projeto
+
+```bash
+npm run dev
+```
+Acesse `http://localhost:5173`.
+
+---
+
+## 📜 Licença
+
+Este projeto é distribuído sob a licença **GPLv3**.
+Você é livre para usar, estudar e modificar o software, mantendo-o open source.
