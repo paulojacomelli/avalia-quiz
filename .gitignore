@@ -34,6 +34,7 @@ yarn-error.log*
 # Firebase
 .firebase/
 firebase-debug.log
+*-*.json  # Service account keys
 
 # Sistema
 .DS_Store
