@@ -1,4 +1,4 @@
-// Auto-generated canary logo config
+// Auto-generated official logo config
 export const CANARY_LOGO_CONFIG = {
   enabled: false,
   appName: 'avalia-jw-quiz'

@@ -55,6 +55,13 @@ apps/
 npm run apply-canary-assets
 ```
 
+#### Restaurar ícones e logos oficiais (local, pré-commit)
+```bash
+npm run apply-official-assets
+```
+> [!IMPORTANT]
+> Execute `npm run apply-official-assets` localmente antes de realizar commits ou pushes. Isso garante que os assets oficiais estejam commitados no Git, de modo que o deploy da branch `main` use os ícones corretos de produção.
+
 #### Build com ícones e logos canary
 ```bash
 npm run build:dev              # Build de todos os apps
