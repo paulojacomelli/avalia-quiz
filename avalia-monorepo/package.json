@@ -16,6 +16,10 @@
         "dev": "turbo run dev --parallel",
         "dev:generic": "turbo run dev --filter=@avalia/quiz",
         "dev:jw": "turbo run dev --filter=@avalia/jw-quiz",
+        "apply-canary-assets": "node scripts/apply-canary-assets.js",
+        "build:dev": "npm run apply-canary-assets && turbo run build",
+        "build:dev:generic": "npm run apply-canary-assets && turbo run build --filter=@avalia/quiz",
+        "build:dev:jw": "npm run apply-canary-assets && turbo run build --filter=@avalia/jw-quiz",
         "lint": "turbo run lint",
         "typecheck": "turbo run typecheck"
     },

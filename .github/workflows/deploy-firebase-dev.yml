@@ -24,6 +24,10 @@ jobs:
         working-directory: ./avalia-monorepo
         run: npm ci
 
+      - name: Apply canary assets (dev icons)
+        working-directory: ./avalia-monorepo
+        run: node scripts/apply-canary-assets.js
+
       - name: Setup environment variables (avalia-quiz)
         run: |
           cat > ./avalia-monorepo/apps/avalia-quiz/.env << EOF
