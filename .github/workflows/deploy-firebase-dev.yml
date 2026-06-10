@@ -66,13 +66,7 @@ jobs:
         working-directory: ./avalia-monorepo
         run: npm run build
 
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
-
       - name: Deploy to Firebase Hosting (Dev Sites)
         working-directory: ./avalia-monorepo
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/serviceAccountKey.json
         run: |
-          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}" > serviceAccountKey.json
-          firebase deploy --only hosting:avaliaquizdev,hosting:avaliajwquizdev --non-interactive
+          npx firebase-tools deploy --only hosting:avaliaquizdev,hosting:avaliajwquizdev --non-interactive --token "${{ secrets.FIREBASE_TOKEN }}"
