@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { playSound } from "@avalia/services";
 
 export type ThemeMode = "system" | "light" | "dark";
-export type TtsMode = "gemini" | "browser" | "off";
+export type TtsMode = "gemini" | "off";
 
 type SettingsMenuProps = {
     open: boolean;
@@ -17,6 +17,7 @@ type SettingsMenuProps = {
 
     ttsMode: TtsMode;
     onTtsChange: (mode: TtsMode) => void;
+    ttsDisabled?: boolean;
 
     zoomLabel?: string;
     zoomValue: number;
@@ -43,6 +44,7 @@ export function SettingsMenu(props: SettingsMenuProps) {
         isFullscreen, onToggleFullscreen,
         onOpenGuide, onGoHome, onLogout,
         interfaceLanguage, onLanguageChange,
+        ttsDisabled = false,
         zoomLabel = "Zoom",
     } = props;
 
@@ -149,17 +151,23 @@ export function SettingsMenu(props: SettingsMenuProps) {
                         {/* TTS */}
                         <div className="flex flex-col gap-2 p-3 bg-black/20 rounded-xl mt-1">
                             <span className="px-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Narração (TTS)</span>
-                            <div className="grid grid-cols-3 gap-1">
-                                {(['gemini', 'browser', 'off'] as TtsMode[]).map((m) => (
-                                    <button
-                                        key={m}
-                                        onClick={() => handleAction(() => onTtsChange(m))}
-                                        className={`text-[10px] py-2 rounded-lg font-bold border transition-all ${ttsMode === m ? 'bg-jw-blue border-jw-blue text-white shadow-lg' : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'}`}
-                                    >
-                                        {m === 'gemini' ? 'IA' : m === 'browser' ? 'Nativa' : 'Off'}
-                                    </button>
-                                ))}
-                            </div>
+                            {ttsDisabled ? (
+                                <div className="text-[11px] font-semibold text-red-400/80 px-1 py-1 italic">
+                                    Indisponível para este provedor
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-1">
+                                    {(['gemini', 'off'] as TtsMode[]).map((m) => (
+                                        <button
+                                            key={m}
+                                            onClick={() => handleAction(() => onTtsChange(m))}
+                                            className={`text-[10px] py-2 rounded-lg font-bold border transition-all ${ttsMode === m ? 'bg-jw-blue border-jw-blue text-white shadow-lg' : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'}`}
+                                        >
+                                            {m === 'gemini' ? 'IA' : 'Off'}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Idioma da Interface */}

@@ -10,11 +10,45 @@ const getSDKInstance = (apiKey: string) => {
   return new GoogleGenAI({ apiKey });
 };
 
-const getTextModel = (): string => {
+const getFetchHeaders = (apiKey: string, provider: AiProvider) => {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${apiKey}`
+  };
+  if (provider === 'openrouter') {
+    headers["HTTP-Referer"] = "https://avalia-quiz.web.app";
+    headers["X-Title"] = "Avalia Quiz";
+  }
+  return headers;
+};
+const getTextModel = (): string => {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('gemini_text_model') || import.meta.env.VITE_GEMINI_MODEL || "gemini-3.5-flash";
   }
   return import.meta.env.VITE_GEMINI_MODEL || "gemini-3.5-flash";
+};
+
+const getActiveTextModel = (provider: AiProvider): string => {
+  const model = getTextModel();
+  if (provider === 'deepseek') {
+    if (model.startsWith('gemini')) {
+      return 'deepseek-chat';
+    }
+    return model;
+  }
+  if (provider === 'groq') {
+    if (model.startsWith('gemini')) {
+      return 'llama-3.3-70b-versatile';
+    }
+    return model;
+  }
+  if (provider === 'openrouter') {
+    if (model.startsWith('gemini')) {
+      return 'meta-llama/llama-3.3-70b-instruct:free';
+    }
+    return model;
+  }
+  return model;
 };
 
 const getTtsModel = (): string => {
@@ -54,6 +88,115 @@ const getFormatInstruction = (config: QuizConfig) => {
 
 export const validateApiKey = async (apiKey: string, provider: AiProvider = 'google-ai'): Promise<boolean> => {
   if (!apiKey) return false;
+  
+  if (provider === 'deepseek') {
+    try {
+      const activeModel = getActiveTextModel(provider);
+      const response = await fetch("https://api.deepseek.com/chat/completions", {
+        method: "POST",
+        headers: getFetchHeaders(apiKey, provider),
+        body: JSON.stringify({
+          model: activeModel,
+          messages: [
+            { role: "user", content: "Reply 'OK'." }
+          ],
+          max_tokens: 5
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("DeepSeek validation failed:", response.status, errorText);
+        
+        let apiMessage = "";
+        try {
+          const errObj = JSON.parse(errorText);
+          apiMessage = errObj.error?.message || errObj.message || "";
+        } catch (e) {}
+
+        if (response.status === 401) {
+          throw new Error("Chave de API incorreta ou inativa no DeepSeek.");
+        }
+        if (response.status === 402) {
+          if (apiMessage === "Insufficient Balance") {
+            throw new Error("Saldo insuficiente na sua conta DeepSeek. Adicione créditos para continuar.");
+          }
+          throw new Error("Pagamento exigido ou saldo insuficiente no DeepSeek (erro 402).");
+        }
+        
+        if (apiMessage) {
+          throw new Error(`Erro da API do DeepSeek: ${apiMessage}`);
+        }
+        throw new Error(`Erro na API do DeepSeek (${response.status}): ${errorText}`);
+      }
+      
+      const data = await response.json();
+      return !!data.choices?.[0]?.message?.content;
+    } catch (error: any) {
+      console.error("DeepSeek Validation Error:", error);
+      if (error.message && (error.message.includes("Failed to fetch") || error.message.includes("fetch"))) {
+        throw new Error("Erro de conexão com o DeepSeek. Pode ser devido a restrições de CORS no navegador ou falta de internet.");
+      }
+      throw error;
+    }
+  }
+
+  if (provider === 'groq' || provider === 'openrouter') {
+    const baseUrl = provider === 'groq' ? "https://api.groq.com/openai/v1" : "https://openrouter.ai/api/v1";
+    const displayName = provider === 'groq' ? "Groq" : "OpenRouter";
+    try {
+      const activeModel = provider === 'openrouter' 
+        ? 'meta-llama/llama-3.2-3b-instruct:free' 
+        : getActiveTextModel(provider);
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: getFetchHeaders(apiKey, provider),
+        body: JSON.stringify({
+          model: activeModel,
+          messages: [
+            { role: "user", content: "Reply 'OK'." }
+          ],
+          max_tokens: 5
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`${displayName} validation failed:`, response.status, errorText);
+        
+        let apiMessage = "";
+        try {
+          const errObj = JSON.parse(errorText);
+          apiMessage = errObj.error?.message || errObj.message || "";
+        } catch (e) {}
+
+        if (response.status === 401) {
+          throw new Error(`Chave de API incorreta ou inativa no ${displayName}.`);
+        }
+        if (response.status === 402) {
+          throw new Error(`Saldo insuficiente ou pagamento exigido no ${displayName}. Adicione créditos para continuar.`);
+        }
+        if (response.status === 429) {
+          throw new Error(`Limite de requisições excedido no ${displayName}. Aguarde alguns instantes.`);
+        }
+        
+        if (apiMessage) {
+          throw new Error(`Erro da API do ${displayName}: ${apiMessage}`);
+        }
+        throw new Error(`Erro na API do ${displayName} (${response.status}): ${errorText}`);
+      }
+      
+      const data = await response.json();
+      return !!data.choices?.[0]?.message?.content;
+    } catch (error: any) {
+      console.error(`${displayName} Validation Error:`, error);
+      if (error.message && (error.message.includes("Failed to fetch") || error.message.includes("fetch"))) {
+        throw new Error(`Erro de conexão com o ${displayName}. Pode ser devido a restrições de CORS no navegador ou falta de internet.`);
+      }
+      throw error;
+    }
+  }
+
   try {
     const genAI = getSDKInstance(apiKey);
     const result = await genAI.models.generateContent({
@@ -61,14 +204,113 @@ export const validateApiKey = async (apiKey: string, provider: AiProvider = 'goo
       contents: [{ role: "user", parts: [{ text: "Reply 'OK'." }] }]
     });
     return !!result.text;
-  } catch (error) {
+  } catch (error: any) {
     console.error("API Validation Error:", error);
-    return false;
+    throw new Error(error.message || "Chave incorreta ou inativa. O Google recusou a conexão.");
   }
 };
 
 export const generateQuizContent = async (apiKey: string, config: QuizConfig, globalExclusions: string[] = [], provider: AiProvider = 'google-ai'): Promise<GeneratedQuiz> => {
   if (!apiKey) throw new Error("Chave de API não fornecida.");
+
+  if (provider === 'deepseek' || provider === 'groq' || provider === 'openrouter') {
+    const activeModel = getActiveTextModel(provider);
+    const topicPrompt = getTopicPrompt(config);
+    const formatInstruction = getFormatInstruction(config);
+    const allExclusions = Array.from(new Set([...(config.usedTopics || []), ...globalExclusions]));
+    const exclusionList = allExclusions.length > 0
+      ? `PROIBIDO: Não aborde temas diretamente relacionados a estas palavras-chave: ${allExclusions.join(', ')}.`
+      : '';
+
+    const prompt = `
+      Crie um quiz com ${config.count} perguntas.
+      Tema: ${topicPrompt}.
+      Dificuldade Solicitada: ${config.difficulty} (Texto de leitura simples, dificuldade por profundidade de tema).
+      ${formatInstruction}
+      ${exclusionList}
+      VARIAÇÃO: Escolha um subtema criativo e inovador dentro da área especificada.
+      PALAVRAS-CHAVE: Ao final, extraia APENAS UM termo (keyword) principal que define o foco deste quiz para controle de entropia futura.
+      REGRAS: Busque fatos curiosos e condizentes com a dificuldade solicitada. O título deve ser cativante.
+      IMPORTANTE: Responda APENAS com o JSON estruturado abaixo.
+      
+      A resposta deve obrigatoriamente seguir este formato JSON exatamente:
+      {
+        "titulo": "O título cativante do quiz.",
+        "palavrasChave": ["Termos principais que definem o foco temático"],
+        "perguntas": [
+          {
+            "id": "Identificador único da pergunta (UUID curto)",
+            "enunciado": "O texto da pergunta.",
+            "opcoes": ["Alternativa 1", "Alternativa 2", "Alternativa 3", "Alternativa 4"], // ou array vazio se Resposta Livre
+            "indiceRespostaCorreta": 0, // Índice da alternativa correta no array de opcoes (usar -1 para Resposta Livre)
+            "textoRespostaCorreta": "O texto da resposta correta.",
+            "referencia": "Fonte, link ou contexto que embasa a resposta correta.",
+            "justificativa": "A explicação do porquê a resposta está correta.",
+            "glosa": "Tradução adaptada para a estrutura gramatical da Língua Brasileira de Sinais.",
+            "dica": "Uma dica curta para ajudar o jogador."
+          }
+        ]
+      }
+    `;
+
+    const apiUrl = provider === 'deepseek' 
+      ? "https://api.deepseek.com/chat/completions" 
+      : provider === 'groq' 
+        ? "https://api.groq.com/openai/v1/chat/completions" 
+        : "https://openrouter.ai/api/v1/chat/completions";
+    const displayName = provider === 'deepseek' ? "DeepSeek" : provider === 'groq' ? "Groq" : "OpenRouter";
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: getFetchHeaders(apiKey, provider),
+      body: JSON.stringify({
+        model: activeModel,
+        messages: [
+          { role: "system", content: getSystemInstruction(config.librasEnabled, config.systemPrompt) + "\nResponda APENAS em JSON." },
+          { role: "user", content: prompt }
+        ],
+        temperature: config.temperature,
+        response_format: { type: "json_object" }
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`${displayName} API Error:`, response.status, errorText);
+      throw new Error(`Erro na API do ${displayName}: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content;
+    if (!text) throw new Error(`Falha ao gerar conteúdo com ${displayName}.`);
+
+    try {
+      const raw = cleanJson(text);
+      const parsedPt = JSON.parse(raw);
+      
+      const parsed: GeneratedQuiz = {
+        title: parsedPt.titulo || "Quiz",
+        keywords: parsedPt.palavrasChave || [],
+        focalTheme: parsedPt.palavrasChave?.[0] || "Dinâmico",
+        questions: (parsedPt.perguntas || []).map((p: any) => ({
+          id: p.id || `q-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          question: p.enunciado,
+          options: p.opcoes || [],
+          correctAnswerIndex: p.indiceRespostaCorreta ?? -1,
+          correctAnswerText: p.textoRespostaCorreta,
+          reference: p.referencia || "",
+          explanation: p.justificativa || "",
+          glosa: p.glosa || "",
+          hint: p.dica || ""
+        }))
+      };
+      return parsed;
+    } catch (e: any) {
+      console.error(`${displayName} JSON Parse Error:`, e, "Text:", text);
+      throw new Error(`Erro ao processar JSON do ${displayName}: ${e?.message || 'Inválido'}.`);
+    }
+  }
+
   const genAI = getSDKInstance(apiKey);
   const model = getTextModel();
   const topicPrompt = getTopicPrompt(config);
@@ -161,6 +403,81 @@ export const generateQuizContent = async (apiKey: string, config: QuizConfig, gl
 
 export const generateReplacementQuestion = async (apiKey: string, config: QuizConfig, avoidQuestionText: string, provider: AiProvider = 'google-ai'): Promise<QuizQuestion> => {
   if (!apiKey) throw new Error("Chave de API não fornecida.");
+
+  if (provider === 'deepseek' || provider === 'groq' || provider === 'openrouter') {
+    const activeModel = getActiveTextModel(provider);
+    const topicPrompt = getTopicPrompt(config);
+    const formatInstruction = getFormatInstruction(config);
+    const prompt = `
+      Gere uma nova pergunta para o tema: ${topicPrompt}. 
+      Dificuldade: ${config.difficulty}. 
+      NÃO repita esta ideia: "${avoidQuestionText}". 
+      ${formatInstruction}
+      
+      A resposta deve ser um objeto JSON seguindo exatamente este formato:
+      {
+        "id": "Identificador único.",
+        "enunciado": "Texto da pergunta.",
+        "opcoes": ["Alternativa 1", "Alternativa 2", "Alternativa 3", "Alternativa 4"],
+        "indiceRespostaCorreta": 0,
+        "textoRespostaCorreta": "Texto da resposta correta.",
+        "referencia": "Fonte que embasa a pergunta.",
+        "justificativa": "A explicação.",
+        "glosa": "Tradução para Libras.",
+        "dica": "Dica curta."
+      }
+    `;
+
+    const apiUrl = provider === 'deepseek' 
+      ? "https://api.deepseek.com/chat/completions" 
+      : provider === 'groq' 
+        ? "https://api.groq.com/openai/v1/chat/completions" 
+        : "https://openrouter.ai/api/v1/chat/completions";
+    const displayName = provider === 'deepseek' ? "DeepSeek" : provider === 'groq' ? "Groq" : "OpenRouter";
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: getFetchHeaders(apiKey, provider),
+      body: JSON.stringify({
+        model: activeModel,
+        messages: [
+          { role: "system", content: getSystemInstruction(config.librasEnabled, config.systemPrompt) + "\nResponda APENAS em JSON." },
+          { role: "user", content: prompt }
+        ],
+        temperature: config.temperature,
+        response_format: { type: "json_object" }
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`${displayName} API Error:`, response.status, errorText);
+      throw new Error(`Erro na API do ${displayName}: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content;
+    if (!text) throw new Error(`Falha ao gerar pergunta de substituição com ${displayName}.`);
+
+    try {
+      const p = JSON.parse(cleanJson(text));
+      const question: QuizQuestion = {
+        id: `sub-${Date.now()}`,
+        question: p.enunciado,
+        options: p.opcoes || [],
+        correctAnswerIndex: p.indiceRespostaCorreta ?? -1,
+        correctAnswerText: p.textoRespostaCorreta,
+        reference: p.referencia || "",
+        explanation: p.justificativa || "",
+        glosa: p.glosa || "",
+        hint: p.dica || ""
+      };
+      return question;
+    } catch (e) {
+      throw new Error(`Erro ao processar substituição do ${displayName}.`);
+    }
+  }
+
   const genAI = getSDKInstance(apiKey);
   const model = getTextModel();
   const topicPrompt = getTopicPrompt(config);
@@ -215,6 +532,54 @@ export const generateReplacementQuestion = async (apiKey: string, config: QuizCo
 
 export const evaluateFreeResponse = async (apiKey: string, question: string, modelAnswer: string, userAnswer: string, provider: AiProvider = 'google-ai'): Promise<EvaluationResult> => {
   if (!apiKey) throw new Error("Chave de API não fornecida.");
+
+  if (provider === 'deepseek' || provider === 'groq' || provider === 'openrouter') {
+    const activeModel = getActiveTextModel(provider);
+    const prompt = `
+      Avalie a resposta: 
+      Pergunta: "${question}", 
+      Gabarito: "${modelAnswer}", 
+      Jogador disse: "${userAnswer}".
+      
+      A resposta deve ser um objeto JSON seguindo exatamente este formato:
+      {
+        "score": 0.8, // Pontuação de 0.0 a 1.0 (float)
+        "feedback": "Sua resposta foi boa, mas...",
+        "isCorrect": true // true se o score for >= 0.7 ou conforme o gabarito
+      }
+    `;
+
+    const apiUrl = provider === 'deepseek' 
+      ? "https://api.deepseek.com/chat/completions" 
+      : provider === 'groq' 
+        ? "https://api.groq.com/openai/v1/chat/completions" 
+        : "https://openrouter.ai/api/v1/chat/completions";
+    const displayName = provider === 'deepseek' ? "DeepSeek" : provider === 'groq' ? "Groq" : "OpenRouter";
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: getFetchHeaders(apiKey, provider),
+      body: JSON.stringify({
+        model: activeModel,
+        messages: [
+          { role: "system", content: getSystemInstruction(false) + "\nResponda APENAS em JSON." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.3,
+        response_format: { type: "json_object" }
+      })
+    });
+
+    if (!response.ok) {
+      console.error(`${displayName} API Error:`, response.status, await response.text());
+      throw new Error(`Erro na API do ${displayName}: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content;
+    return JSON.parse(cleanJson(text || "{}"));
+  }
+
   const genAI = getSDKInstance(apiKey);
   const model = getTextModel();
   const prompt = `Avalie a resposta: Pergunta: "${question}", Gabarito: "${modelAnswer}", Jogador disse: "${userAnswer}". JSON: {score, feedback, isCorrect}`;
@@ -236,6 +601,39 @@ export const evaluateFreeResponse = async (apiKey: string, question: string, mod
 
 export const askAiAboutQuestion = async (apiKey: string, question: QuizQuestion, userQuery: string, provider: AiProvider = 'google-ai'): Promise<string> => {
   if (!apiKey) throw new Error("Chave de API não fornecida.");
+
+  if (provider === 'deepseek' || provider === 'groq' || provider === 'openrouter') {
+    const activeModel = getActiveTextModel(provider);
+    const prompt = `Dúvida do jogador sobre a questão: ${question.question}. O usuário pergunta: "${userQuery}". Responda de forma rápida e instrutiva.`;
+
+    const apiUrl = provider === 'deepseek' 
+      ? "https://api.deepseek.com/chat/completions" 
+      : provider === 'groq' 
+        ? "https://api.groq.com/openai/v1/chat/completions" 
+        : "https://openrouter.ai/api/v1/chat/completions";
+    const displayName = provider === 'deepseek' ? "DeepSeek" : provider === 'groq' ? "Groq" : "OpenRouter";
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: getFetchHeaders(apiKey, provider),
+      body: JSON.stringify({
+        model: activeModel,
+        messages: [
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.7
+      })
+    });
+
+    if (!response.ok) {
+      console.error(`${displayName} API Error:`, response.status, await response.text());
+      throw new Error(`Erro na API do ${displayName}: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "Sem resposta.";
+  }
+
   const genAI = getSDKInstance(apiKey);
   const model = getTextModel();
   const prompt = `Dúvida do jogador sobre a questão: ${question.question}. O usuário pergunta: "${userQuery}". Responda de forma rápida e instrutiva.`;
@@ -249,6 +647,9 @@ export const askAiAboutQuestion = async (apiKey: string, question: QuizQuestion,
 
 export const generateSpeech = async (apiKey: string, text: string, config: TTSConfig, provider: AiProvider = 'google-ai'): Promise<string | null> => {
   if (!apiKey) return null;
+  if (provider === 'deepseek' || provider === 'groq' || provider === 'openrouter') {
+    return null;
+  }
   const genAI = getSDKInstance(apiKey);
   const voiceName = config.gender === 'male' ? 'Fenrir' : 'Kore';
   try {

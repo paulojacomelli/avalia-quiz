@@ -109,7 +109,7 @@ export interface ApiErrorDetail {
   code: string;
 }
 
-export type AiProvider = 'google-ai' | 'vertex';
+export type AiProvider = 'google-ai' | 'vertex' | 'deepseek' | 'groq' | 'openrouter';
 
 export interface AppConfig {
   appName: string;

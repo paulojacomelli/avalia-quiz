@@ -347,7 +347,13 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                           } else {
                             setSubTopic('Geral');
                           }
-                          if (interfaceLanguage === 'libras') handleNextStep();
+                          if (interfaceLanguage === 'libras') {
+                            if (onPlayGlosa) {
+                              const glosa = OPTION_GLOSAS[opt.value] || opt.label.toUpperCase();
+                              onPlayGlosa(glosa, 'feliz');
+                            }
+                            handleNextStep();
+                          }
                         }}
                         className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all duration-300 ${mode === opt.value
                           ? 'bg-jw-blue border-jw-blue text-white shadow-lg shadow-jw-blue/30 transform scale-[1.02]'
@@ -444,7 +450,16 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                 <div className="flex gap-2">
                   {DIFFICULTY_OPTIONS.map((opt) => (
                     <label key={opt.value} className="flex-1 cursor-pointer group" onMouseEnter={() => playSound('hover')}>
-                      <input type="radio" name="difficulty" value={opt.value} checked={difficulty === opt.value} onChange={() => { setDifficulty(opt.value); if (interfaceLanguage === 'libras') handleNextStep(); }} className="sr-only" />
+                      <input type="radio" name="difficulty" value={opt.value} checked={difficulty === opt.value} onChange={() => {
+                        setDifficulty(opt.value);
+                        if (interfaceLanguage === 'libras') {
+                          if (onPlayGlosa) {
+                            const glosa = OPTION_GLOSAS[opt.value] || opt.label.toUpperCase();
+                            onPlayGlosa(glosa);
+                          }
+                          handleNextStep();
+                        }
+                      }} className="sr-only" />
                       <div className={`text-center py-2 rounded-lg text-sm border transition-all ${difficulty === opt.value ? 'bg-jw-blue text-white font-bold border-transparent shadow-md' : 'border-gray-400 dark:border-gray-600 bg-jw-hover text-gray-600 dark:text-gray-300 hover:border-jw-blue/50'} ${highlightedValue === 'difficulty' && difficulty === opt.value ? 'ring-4 ring-yellow-400' : ''}`}>
                         {opt.label}
                       </div>
@@ -480,7 +495,13 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                   <div className="flex gap-2">
                     {FORMAT_OPTIONS.map((opt) => (
                       <label key={opt.value} className="flex-1 cursor-pointer group">
-                        <input type="radio" name="format" value={opt.value} checked={quizFormat === opt.value} onChange={() => setQuizFormat(opt.value as QuizFormat)} className="sr-only" />
+                        <input type="radio" name="format" value={opt.value} checked={quizFormat === opt.value} onChange={() => {
+                          setQuizFormat(opt.value as QuizFormat);
+                          if (interfaceLanguage === 'libras' && onPlayGlosa) {
+                            const glosa = OPTION_GLOSAS[opt.value] || opt.label.toUpperCase();
+                            onPlayGlosa(glosa);
+                          }
+                        }} className="sr-only" />
                         <div className={`text-center py-2 rounded-lg text-sm border transition-all ${quizFormat === opt.value ? 'bg-jw-blue text-white font-bold border-transparent shadow-md' : 'border-gray-400 dark:border-gray-600 bg-jw-hover text-gray-600 dark:text-gray-300 hover:border-jw-blue/50'} ${highlightedValue === 'format' && quizFormat === opt.value ? 'ring-4 ring-yellow-400' : ''}`}>
                           {opt.label}
                         </div>
@@ -494,13 +515,23 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Modo de Interação Livre</label>
                     <div className="flex gap-2">
                       <label className="flex-1 cursor-pointer group">
-                        <input type="radio" name="openEndedMode" value="normal" checked={openEndedMode === 'normal'} onChange={() => setOpenEndedMode('normal')} className="sr-only" />
+                        <input type="radio" name="openEndedMode" value="normal" checked={openEndedMode === 'normal'} onChange={() => {
+                          setOpenEndedMode('normal');
+                          if (interfaceLanguage === 'libras' && onPlayGlosa) {
+                            onPlayGlosa('RESPOSTA');
+                          }
+                        }} className="sr-only" />
                         <div className={`text-center py-2 rounded-lg text-sm border transition-all ${openEndedMode === 'normal' ? 'bg-jw-blue text-white font-bold border-transparent shadow-md' : 'border-gray-400 dark:border-gray-600 bg-jw-hover text-gray-600 dark:text-gray-300 hover:border-jw-blue/50'}`}>
                           Normal (Texto)
                         </div>
                       </label>
                       <label className="flex-1 cursor-pointer group">
-                        <input type="radio" name="openEndedMode" value="live" checked={openEndedMode === 'live'} onChange={() => setOpenEndedMode('live')} className="sr-only" />
+                        <input type="radio" name="openEndedMode" value="live" checked={openEndedMode === 'live'} onChange={() => {
+                          setOpenEndedMode('live');
+                          if (interfaceLanguage === 'libras' && onPlayGlosa) {
+                            onPlayGlosa('RESPOSTA');
+                          }
+                        }} className="sr-only" />
                         <div className={`text-center py-2 rounded-lg text-sm border transition-all ${openEndedMode === 'live' ? 'bg-indigo-600 text-white font-bold border-transparent shadow-md' : 'border-gray-400 dark:border-gray-600 bg-jw-hover text-gray-600 dark:text-gray-300 hover:border-indigo-500/50'}`}>
                           Live (Voz & IA)
                         </div>
@@ -612,7 +643,13 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                     <button
                       key={opt.value}
                       type="button"
-                      onClick={() => toggleHintType(opt.value)}
+                      onClick={() => {
+                        toggleHintType(opt.value);
+                        if (interfaceLanguage === 'libras' && onPlayGlosa) {
+                          const glosa = OPTION_GLOSAS[opt.value] || opt.label.toUpperCase();
+                          onPlayGlosa(glosa);
+                        }
+                      }}
                       className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all duration-200 ${isSelected
                         ? 'bg-jw-blue text-white border-transparent shadow-md'
                         : 'bg-jw-hover border-transparent text-gray-500 dark:text-gray-400 hover:text-jw-text hover:border-gray-500'

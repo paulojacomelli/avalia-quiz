@@ -10,17 +10,25 @@ const path = require('path');
 
 const CANARY_APPS = [
   {
-    source: 'apps/quiz-canary',
-    target: 'apps/avalia-quiz/public',
-    configTarget: 'apps/avalia-quiz/src/config',
+    source: path.resolve(__dirname, '../../public/quiz-canary'),
+    target: path.resolve(__dirname, '../apps/avalia-quiz/public'),
+    configTarget: path.resolve(__dirname, '../apps/avalia-quiz/src/config'),
     name: 'avalia-quiz'
   },
   {
-    source: 'apps/jwquiz-canary',
-    target: 'apps/avalia-jw-quiz/public',
-    configTarget: 'apps/avalia-jw-quiz/src/config',
+    source: path.resolve(__dirname, '../../public/jwquiz-canary'),
+    target: path.resolve(__dirname, '../apps/avalia-jw-quiz/public'),
+    configTarget: path.resolve(__dirname, '../apps/avalia-jw-quiz/src/config'),
     name: 'avalia-jw-quiz'
   }
+];
+
+const GLOBAL_PUBLIC_DIR = path.resolve(__dirname, '../../public');
+
+const PROVIDER_LOGOS = [
+  'deepseek-01.svg',
+  'groq.svg',
+  'openrouter.svg'
 ];
 
 const ICON_FILES = [
@@ -79,8 +87,8 @@ CANARY_APPS.forEach(app => {
     fs.mkdirSync(configDir, { recursive: true });
   }
   
-  // Copiar ícones
-  console.log('  📷 Ícones:');
+  // Copiar ícones canary
+  console.log('  📷 Ícones Canary:');
   ICON_FILES.forEach(file => {
     const sourceFile = path.join(app.source, file);
     const targetFile = path.join(publicDir, file);
@@ -90,8 +98,8 @@ CANARY_APPS.forEach(app => {
     }
   });
   
-  // Copiar logos
-  console.log('  🎨 Logos:');
+  // Copiar logos canary
+  console.log('  🎨 Logos Canary:');
   let hasLogoAssets = false;
   LOGO_FILES.forEach(file => {
     const sourceFile = path.join(app.source, file);
@@ -100,6 +108,19 @@ CANARY_APPS.forEach(app => {
     if (fs.existsSync(sourceFile)) {
       copyFile(sourceFile, targetFile);
       hasLogoAssets = true;
+    }
+  });
+
+  // Copiar logos oficiais dos provedores de IA
+  console.log('  🤖 Logos dos Provedores de IA:');
+  PROVIDER_LOGOS.forEach(file => {
+    const sourceFile = path.join(GLOBAL_PUBLIC_DIR, file);
+    const targetFile = path.join(publicDir, file);
+    
+    if (fs.existsSync(sourceFile)) {
+      copyFile(sourceFile, targetFile);
+    } else {
+      console.warn(`  ⚠ Logo do provedor não encontrado no caminho global: ${file}`);
     }
   });
   

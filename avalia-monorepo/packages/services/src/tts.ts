@@ -85,39 +85,8 @@ export const speakText = async (
       return;
   }
 
-  // 2. Fallback to Browser TTS (Legacy) or if Engine is set to 'browser'
-  if (synth) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'pt-BR';
-      utterance.rate = config.rate; // Browser rate handles speed but keeps pitch somewhat stable
-      utterance.volume = config.volume;
-      
-      // Force Male voice (Daniel priority) for Classic Voice
-      const voices = synth.getVoices();
-      
-      // Hierarchy for Male Voice Selection:
-      // 1. "Daniel" (Common male voice on many platforms)
-      // 2. Explicit "Male" tag
-      // 3. Known male names (Felipe, Luciano)
-      // 4. Fallback: Any PT-BR that isn't explicitly female
-      const maleVoice = voices.find(v => 
-          v.lang.includes('pt') && 
-          (
-             v.name.toLowerCase().includes('daniel') || 
-             v.name.toLowerCase().includes('male') || 
-             v.name.toLowerCase().includes('felipe') || 
-             v.name.toLowerCase().includes('luciano')
-          )
-      ) || voices.find(v => v.lang.includes('pt') && !v.name.toLowerCase().includes('female'));
-      
-      if (maleVoice) {
-          utterance.voice = maleVoice;
-      }
-
-      utterance.onend = () => { isSpeakingState = false; };
-      isSpeakingState = true;
-      synth.speak(utterance);
-  }
+  // 2. Fallback to Browser TTS (Legacy) — desativado por solicitação do usuário.
+  return;
 };
 
 export const stopSpeech = () => {

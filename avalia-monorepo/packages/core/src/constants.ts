@@ -93,9 +93,9 @@ export const TUTORIAL_CONFIG: QuizConfig = {
   tts: {
     enabled: true,
     autoRead: true,
-    engine: 'browser',
+    engine: 'gemini',
     gender: 'female',
-    rate: 1.2,
+    rate: 1.5,
     volume: 1.0
   }
 };

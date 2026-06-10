@@ -12,22 +12,56 @@ interface LoginScreenProps {
   apiError?: ApiErrorDetail | null;
   onClearError?: () => void;
   title?: React.ReactNode;
-  onLoginWithCode: (code: string) => Promise<void>;
+  onLoginWithCode: (code: string, provider: AiProvider) => Promise<void>;
   onLoginWithApiKey: (key: string, provider: AiProvider) => Promise<void>;
 }
 
 interface ModelOption {
   value: string;
   label: string;
-  status: 'Estável' | 'Pré-lançamento' | 'Legado';
+  status?: string;
+  icon?: React.ReactNode;
 }
 
 const TEXT_MODELS: ModelOption[] = [
-  { value: "gemini-3.5-flash", label: "gemini-3.5-flash", status: "Estável" },
-  { value: "gemini-3.1-flash-lite", label: "gemini-3.1-flash-lite", status: "Estável" },
+  { value: "gemini-3.5-flash", label: "gemini-3.5-flash" },
+  { value: "gemini-3.1-flash-lite", label: "gemini-3.1-flash-lite" },
   { value: "gemini-2.5-flash", label: "gemini-2.5-flash", status: "Legado" },
   { value: "gemini-2.5-flash-lite", label: "gemini-2.5-flash-lite", status: "Legado" },
   { value: "gemini-2.5-pro", label: "gemini-2.5-pro", status: "Legado" }
+];
+
+const DEEPSEEK_MODELS: ModelOption[] = [
+  { value: "deepseek-chat", label: "deepseek-chat (V3)" },
+  { value: "deepseek-reasoner", label: "deepseek-reasoner (R1)" }
+];
+
+const GROQ_MODELS: ModelOption[] = [
+  { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B" },
+  { value: "llama-3.1-8b-instant", label: "Llama 3.1 8B (Rápido)" }
+];
+
+const OPENROUTER_MODELS: ModelOption[] = [
+  { value: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B (Grátis)", status: "Grátis" },
+  { value: "meta-llama/llama-3.2-3b-instruct:free", label: "Llama 3.2 3B (Grátis)", status: "Grátis" },
+  { value: "google/gemini-3.5-flash", label: "Gemini 3.5 Flash", status: "Pago" },
+  { value: "google/gemini-3.1-flash-lite", label: "Gemini 3.1 Flash Lite", status: "Pago" },
+  { value: "~anthropic/claude-fable-latest", label: "Claude Fable Latest", status: "Pago" },
+  { value: "anthropic/claude-fable-5", label: "Claude Fable 5", status: "Pago" },
+  { value: "nex-agi/nex-n2-pro:free", label: "Nex-N2-Pro (Grátis)", status: "Grátis" },
+  { value: "nvidia/nemotron-3.5-content-safety:free", label: "Nemotron 3.5 Content Safety (Grátis)", status: "Grátis" },
+  { value: "nvidia/nemotron-3-ultra-550b-a55b:free", label: "Nemotron 3 Ultra (Grátis)", status: "Grátis" },
+  { value: "nvidia/nemotron-3-ultra-550b-a55b", label: "Nemotron 3 Ultra", status: "Pago" },
+  { value: "qwen/qwen3.7-plus", label: "Qwen 3.7 Plus", status: "Pago" },
+  { value: "qwen/qwen3.7-max", label: "Qwen 3.7 Max", status: "Pago" },
+  { value: "minimax/minimax-m3", label: "MiniMax M3", status: "Pago" },
+  { value: "stepfun/step-3.7-flash", label: "Step 3.7 Flash", status: "Pago" },
+  { value: "anthropic/claude-opus-4.8-fast", label: "Claude Opus 4.8 Fast", status: "Pago" },
+  { value: "anthropic/claude-opus-4.8", label: "Claude Opus 4.8", status: "Pago" },
+  { value: "anthropic/claude-opus-4.7-fast", label: "Claude Opus 4.7 Fast", status: "Pago" },
+  { value: "x-ai/grok-build-0.1", label: "Grok Build 0.1", status: "Pago" },
+  { value: "perceptron/perceptron-mk1", label: "Perceptron MK1", status: "Pago" },
+  { value: "inclusionai/ring-2.6-1t", label: "Ring 2.6 1T", status: "Pago" }
 ];
 
 const TTS_MODELS: ModelOption[] = [
@@ -41,16 +75,35 @@ const LIVE_MODELS: ModelOption[] = [
   { value: "gemini-2.5-flash-native-audio-preview-12-2025", label: "gemini-2.5-flash-native-audio-preview", status: "Legado" }
 ];
 
+const CODE_TEXT_MODELS: ModelOption[] = [
+  { value: "gemini-3.1-flash-lite", label: "gemini-3.1-flash-lite" }
+];
+
+const CODE_TTS_MODELS: ModelOption[] = [
+  { value: "gemini-3.1-flash-tts-preview", label: "gemini-3.1-flash-tts-preview", status: "Pré-lançamento" }
+];
+
+const CODE_LIVE_MODELS: ModelOption[] = [
+  { value: "gemini-3.1-flash-live-preview", label: "gemini-3.1-flash-live-preview", status: "Pré-lançamento" }
+];
+
 const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'Estável': return 'bg-green-500/10 text-green-400 border-green-500/20';
-    case 'Pré-lançamento': return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
-    case 'Legado': return 'bg-red-500/10 text-red-400 border-red-500/20';
-    default: return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+  if (status === 'Estável' || status === 'Grátis' || status.includes('0.00') || status.toLowerCase().includes('grátis')) {
+    return 'bg-green-500/10 text-green-400 border-green-500/20';
   }
+  if (status === 'Pré-lançamento') {
+    return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+  }
+  if (status === 'Legado') {
+    return 'bg-red-500/10 text-red-400 border-red-500/20';
+  }
+  if (status === 'Pago' || status.includes('$') || status.includes('/') || /\d/.test(status)) {
+    return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+  }
+  return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
 };
 
-const CustomSelect = ({ value, onChange, options, placeholder }: { value: string, onChange: (v: string) => void, options: ModelOption[], placeholder?: string }) => {
+const CustomSelect = ({ value, onChange, options, placeholder, disableCustom = false }: { value: string, onChange: (v: string) => void, options: ModelOption[], placeholder?: string, disableCustom?: boolean }) => {
   const [isOpen, setIsOpen] = useState(false);
   const selectedOption = options.find(o => o.value === value);
 
@@ -62,8 +115,13 @@ const CustomSelect = ({ value, onChange, options, placeholder }: { value: string
         className="w-full bg-[#262626] border border-white/5 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium flex justify-between items-center"
       >
         <span className="flex items-center gap-2 truncate">
-          {selectedOption ? selectedOption.label : (value === 'custom' ? 'Outro Modelo (Personalizado)' : placeholder)}
-          {selectedOption?.status && (
+          {selectedOption ? (
+            <>
+              {selectedOption.icon && <span className="shrink-0 flex items-center justify-center">{selectedOption.icon}</span>}
+              {selectedOption.label}
+            </>
+          ) : (value === 'custom' ? 'Outro Modelo (Personalizado)' : placeholder)}
+          {selectedOption?.status && selectedOption.status !== 'Estável' && (
             <span className={`text-[10px] px-2 py-0.5 rounded-full border ${getStatusColor(selectedOption.status)} shrink-0 uppercase tracking-wider font-bold`}>
               {selectedOption.status}
             </span>
@@ -85,24 +143,29 @@ const CustomSelect = ({ value, onChange, options, placeholder }: { value: string
                 onClick={() => { onChange(opt.value); setIsOpen(false); }}
                 className={`w-full text-left px-4 py-3 hover:bg-white/5 flex items-center justify-between transition-colors border-b border-white/5 last:border-0 ${value === opt.value ? 'bg-jw-blue/10 text-jw-blue' : 'text-gray-300'}`}
               >
-                <span className="text-sm font-medium">{opt.label}</span>
-                {opt.status && (
+                <span className="text-sm font-medium flex items-center gap-2">
+                  {opt.icon && <span className="shrink-0 flex items-center justify-center">{opt.icon}</span>}
+                  {opt.label}
+                </span>
+                {opt.status && opt.status !== 'Estável' && (
                   <span className={`text-[10px] px-2 py-0.5 rounded-full border ${getStatusColor(opt.status)} uppercase tracking-wider font-bold`}>
                     {opt.status}
                   </span>
                 )}
               </button>
             ))}
-            <button
-              type="button"
-              onClick={() => { onChange('custom'); setIsOpen(false); }}
-              className={`w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-t border-white/10 flex items-center gap-2 ${value === 'custom' ? 'bg-jw-blue/10 text-jw-blue' : 'text-gray-400'}`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-              </svg>
-              <span className="text-sm font-medium italic">Outro Modelo (Personalizado)</span>
-            </button>
+            {!disableCustom && (
+              <button
+                type="button"
+                onClick={() => { onChange('custom'); setIsOpen(false); }}
+                className={`w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-t border-white/10 flex items-center gap-2 ${value === 'custom' ? 'bg-jw-blue/10 text-jw-blue' : 'text-gray-400'}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                </svg>
+                <span className="text-sm font-medium italic">Outro Modelo (Personalizado)</span>
+              </button>
+            )}
           </div>
         </>
       )}
@@ -126,6 +189,48 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [inputKey, setInputKey] = useState('');
   const [error, setError] = useState('');
   const [isValidating, setIsValidating] = useState(false);
+  const [openRouterModels, setOpenRouterModels] = useState<ModelOption[]>(OPENROUTER_MODELS);
+
+  useEffect(() => {
+    const fetchOpenRouterPrices = async () => {
+      try {
+        const response = await fetch('https://openrouter.ai/api/v1/models');
+        if (!response.ok) return;
+        const json = await response.json();
+        if (json && Array.isArray(json.data)) {
+          const apiModels = json.data;
+          setOpenRouterModels(prev => 
+            prev.map(model => {
+              const apiMatch = apiModels.find((m: any) => m.id === model.value);
+              if (apiMatch && apiMatch.pricing) {
+                const promptPrice = parseFloat(apiMatch.pricing.prompt) * 1000000;
+                const completionPrice = parseFloat(apiMatch.pricing.completion) * 1000000;
+                if (promptPrice === 0 && completionPrice === 0) {
+                  return { ...model, status: 'Grátis' };
+                } else {
+                  const format = (val: number) => {
+                    if (val === 0) return '0';
+                    if (val < 0.01) return val.toFixed(4);
+                    if (val < 0.1) return val.toFixed(3);
+                    return val.toFixed(2);
+                  };
+                  return { 
+                    ...model, 
+                    status: `$${format(promptPrice)}/$${format(completionPrice)}` 
+                  };
+                }
+              }
+              return model;
+            })
+          );
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar preços do OpenRouter:', err);
+      }
+    };
+
+    fetchOpenRouterPrices();
+  }, []);
 
   const [textModelOption, setTextModelOption] = useState(() => {
     const saved = localStorage.getItem('gemini_text_model');
@@ -169,17 +274,36 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     if (modelToSave) localStorage.setItem('gemini_live_model', modelToSave);
   }, [liveModelOption, customLiveModel]);
 
+  // Modelos do modo código agora são definidos de forma flexível pelo usuário na tela
+
   // Auto-detecção de provedor baseada no prefixo da chave
   useEffect(() => {
     if (loginMode === 'api' && inputKey.trim()) {
       const key = inputKey.trim();
       if (key.startsWith('AIzaSy')) {
         setProvider('google-ai');
-      } else if (key.startsWith('AQ.Ab')) {
-        setProvider('vertex');
+      } else if (key.startsWith('gsk_')) {
+        setProvider('groq');
+      } else if (key.startsWith('sk-or-')) {
+        setProvider('openrouter');
+      } else if (key.startsWith('sk-')) {
+        setProvider('deepseek');
       }
     }
   }, [inputKey, loginMode]);
+
+  // Sincroniza o modelo padrão se o provedor mudar
+  useEffect(() => {
+    let models = TEXT_MODELS;
+    if (provider === 'deepseek') models = DEEPSEEK_MODELS;
+    else if (provider === 'groq') models = GROQ_MODELS;
+    else if (provider === 'openrouter') models = openRouterModels;
+
+    const isModelValid = models.some(m => m.value === textModelOption) || textModelOption === 'custom';
+    if (!isModelValid && models.length > 0) {
+      setTextModelOption(models[0].value);
+    }
+  }, [provider, textModelOption, openRouterModels]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,7 +318,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
       setIsValidating(true);
       try {
-        await onLoginWithCode(cleanedCode);
+        await onLoginWithCode(cleanedCode, provider);
       } catch (err: any) {
         setError(err.message || 'Erro ao validar o código.');
       } finally {
@@ -206,10 +330,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         setError('Por favor, insira uma chave de API.');
         return;
       }
-      if (!cleanedKey.startsWith('AIza') && provider === 'google-ai') {
-        setError('A chave parece inválida para o Google AI Studio. Chaves geralmente começam com "AIzaSy".');
-        return;
-      }
+
       
       setIsValidating(true);
       try {
@@ -267,111 +388,181 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
 
         <form onSubmit={handleSubmit} className="w-full space-y-8">
-          {loginMode === 'code' ? (
-            <div className="animate-fade-in flex flex-col">
-              <label className="text-xs font-bold text-gray-500 mb-3 tracking-wide">Código de Acesso</label>
-              <input
-                type="password"
-                value={accessCode}
-                onChange={(e) => { setAccessCode(e.target.value); setError(''); }}
-                placeholder="Digite o código..."
-                className="w-full bg-[#262626] border border-white/5 rounded-xl px-4 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium"
-              />
-              <p className="mt-4 text-[11px] text-gray-500 font-medium opacity-60">Não tem um código? Solicite ao administrador do sistema.</p>
-            </div>
-          ) : (
-            <div className="animate-fade-in flex flex-col text-left">
-              <label className="text-xs font-bold text-gray-500 mb-3 tracking-wide text-left">
-                Sua Chave de API (Google AI Studio ou Vertex)
-              </label>
-              <input
-                type="password"
-                value={inputKey}
-                onChange={(e) => { setInputKey(e.target.value); setError(''); }}
-                placeholder={provider === 'vertex' ? "AQ.Ab..." : "AIzaSy..."}
-                className="w-full bg-[#262626] border border-white/5 rounded-xl px-4 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium mb-3"
-              />
-              <div className="flex justify-end">
-                <a
-                  href={provider === 'vertex' ? "https://console.cloud.google.com/vertex-ai" : "https://aistudio.google.com/app/api-keys"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[11px] font-bold text-[#F7D33C] hover:opacity-80 flex items-center gap-1 transition-opacity"
-                >
-                  Obter chave gratuita
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                  </svg>
-                </a>
+          <div className="animate-fade-in flex flex-col text-left space-y-6">
+            {loginMode === 'code' && (
+              <div>
+                <label className="text-xs font-bold text-gray-500 mb-2 block tracking-wide text-left">Código de Acesso</label>
+                <input
+                  type="password"
+                  value={accessCode}
+                  onChange={(e) => { setAccessCode(e.target.value); setError(''); }}
+                  placeholder="Digite o código..."
+                  className="w-full bg-[#262626] border border-white/5 rounded-xl px-4 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium"
+                />
+                <p className="mt-2 text-[11px] text-gray-500 font-medium opacity-60">Não tem um código? Solicite ao administrador do sistema.</p>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Seletores de Modelos - Globais para ambas as abas */}
-          <div className="animate-fade-in flex flex-col relative z-20 mt-4 space-y-4">
+            <div>
+              <label className="text-xs font-bold text-gray-500 mb-2 block tracking-wide text-left">Provedor de API</label>
+              <CustomSelect
+                value={provider}
+                onChange={(val) => {
+                  const nextProvider = val as AiProvider;
+                  setProvider(nextProvider);
+                  let models = TEXT_MODELS;
+                  if (nextProvider === 'deepseek') models = DEEPSEEK_MODELS;
+                  else if (nextProvider === 'groq') models = GROQ_MODELS;
+                  else if (nextProvider === 'openrouter') models = openRouterModels;
+                  
+                  if (models.length > 0) {
+                    setTextModelOption(models[0].value);
+                  }
+                }}
+                options={[
+                  { 
+                    value: "google-ai", 
+                    label: "Google",
+                    icon: (
+                      <svg viewBox="0 0 24 24" className="w-4 h-4">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                      </svg>
+                    )
+                  },
+                  { 
+                    value: "deepseek", 
+                    label: "DeepSeek",
+                    icon: (
+                      <img src="/deepseek-01.svg" className="w-4 h-4 object-contain" alt="DeepSeek" />
+                    )
+                  },
+                  { 
+                    value: "groq", 
+                    label: "Groq",
+                    icon: (
+                      <img src="/groq.svg" className="w-4 h-4 object-contain" alt="Groq" />
+                    )
+                  },
+                  { 
+                    value: "openrouter", 
+                    label: "OpenRouter",
+                    icon: (
+                      <img src="/openrouter.svg" className="w-4 h-4 object-contain" alt="OpenRouter" />
+                    )
+                  }
+                ]}
+                placeholder="Selecione o provedor..."
+              />
+            </div>
+
+            {loginMode === 'api' && (
+              <div>
+                <label className="text-xs font-bold text-gray-500 mb-2 block tracking-wide text-left">
+                  {provider === 'deepseek' ? "Chave de API do DeepSeek" : provider === 'groq' ? "Chave de API do Groq" : provider === 'openrouter' ? "Chave de API do OpenRouter" : "Chave de API do Google"}
+                </label>
+                <input
+                  type="password"
+                  value={inputKey}
+                  onChange={(e) => { setInputKey(e.target.value); setError(''); }}
+                  placeholder={provider === 'deepseek' ? "sk-..." : provider === 'groq' ? "gsk_..." : provider === 'openrouter' ? "sk-or-..." : "AIzaSy..."}
+                  className="w-full bg-[#262626] border border-white/5 rounded-xl px-4 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium mb-3"
+                />
+                <div className="flex justify-end">
+                  <a
+                    href={provider === 'deepseek' ? "https://platform.deepseek.com/api_keys" : provider === 'groq' ? "https://console.groq.com/keys" : provider === 'openrouter' ? "https://openrouter.ai/keys" : "https://aistudio.google.com/app/api-keys"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] font-bold text-[#F7D33C] hover:opacity-80 flex items-center gap-1 transition-opacity"
+                  >
+                    Obter chave
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                    </svg>
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Seletores de Modelos - Apenas na aba de Chave API */}
+          {loginMode !== 'code' && (
+            <div className="animate-fade-in flex flex-col relative z-20 mt-4 space-y-4">
             {/* Text Model Selection */}
             <div>
               <label className="text-xs font-bold text-gray-500 mb-2 block tracking-wide text-left">Agente de Texto</label>
               <CustomSelect
                 value={textModelOption}
                 onChange={setTextModelOption}
-                options={TEXT_MODELS}
+                options={provider === 'deepseek' ? DEEPSEEK_MODELS : provider === 'groq' ? GROQ_MODELS : provider === 'openrouter' ? openRouterModels : TEXT_MODELS}
                 placeholder="Selecione um modelo..."
               />
               {textModelOption === 'custom' && (
-                <input
-                  type="text"
-                  value={customTextModel}
-                  onChange={(e) => setCustomTextModel(e.target.value)}
-                  placeholder="Digite o nome do modelo (ex: gemini-4.0-flash)"
-                  className="w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium"
-                />
-              )}
-            </div>
+                  <input
+                    type="text"
+                    value={customTextModel}
+                    onChange={(e) => setCustomTextModel(e.target.value)}
+                    placeholder={
+                      provider === 'deepseek' ? "Digite o nome do modelo (ex: deepseek-chat)" :
+                      provider === 'groq' ? "Digite o nome do modelo (ex: llama-3.3-70b-versatile)" :
+                      provider === 'openrouter' ? "Digite o nome do modelo (ex: google/gemini-2.5-flash)" :
+                      "Digite o nome do modelo (ex: gemini-4.0-flash)"
+                    }
+                    className="w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium"
+                  />
+                )}
+              </div>
 
-            {/* TTS Model Selection */}
-            <div>
-              <label className="text-xs font-bold text-gray-500 mb-2 block tracking-wide text-left">Motor de Voz (TTS)</label>
-              <CustomSelect
-                value={ttsModelOption}
-                onChange={setTtsModelOption}
-                options={TTS_MODELS}
-                placeholder="Selecione um modelo TTS..."
-              />
-              {ttsModelOption === 'custom' && (
-                <input
-                  type="text"
-                  value={customTtsModel}
-                  onChange={(e) => setCustomTtsModel(e.target.value)}
-                  placeholder="Digite o nome do modelo TTS"
-                  className="w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium"
-                />
-              )}
-            </div>
+              {provider !== 'deepseek' && provider !== 'groq' && provider !== 'openrouter' && (
+                <>
+                  {/* TTS Model Selection */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 mb-2 block tracking-wide text-left">Motor de Voz (TTS)</label>
+                    <CustomSelect
+                      value={ttsModelOption}
+                      onChange={setTtsModelOption}
+                      options={TTS_MODELS}
+                      placeholder="Selecione um modelo TTS..."
+                    />
+                    {ttsModelOption === 'custom' && (
+                      <input
+                        type="text"
+                        value={customTtsModel}
+                        onChange={(e) => setCustomTtsModel(e.target.value)}
+                        placeholder="Digite o nome do modelo TTS"
+                        className="w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium"
+                      />
+                    )}
+                  </div>
 
-            {/* Live Model Selection */}
-            <div>
-              <label className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-2 tracking-wide text-left">
-                Modo Live (Multimodal)
-                <span className="bg-gray-700/30 border border-gray-600/50 text-[9px] px-1.5 py-0.5 rounded text-gray-400">Em Breve</span>
-              </label>
-              <CustomSelect
-                value={liveModelOption}
-                onChange={setLiveModelOption}
-                options={LIVE_MODELS}
-                placeholder="Selecione um modelo Live..."
-              />
-              {liveModelOption === 'custom' && (
-                <input
-                  type="text"
-                  value={customLiveModel}
-                  onChange={(e) => setCustomLiveModel(e.target.value)}
-                  placeholder="Digite o nome do modelo Live"
-                  className="w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium"
-                />
+                  {/* Live Model Selection */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-2 tracking-wide text-left">
+                      Modo Live (Multimodal)
+                      <span className="bg-gray-700/30 border border-gray-600/50 text-[9px] px-1.5 py-0.5 rounded text-gray-400">Em Breve</span>
+                    </label>
+                    <CustomSelect
+                      value={liveModelOption}
+                      onChange={setLiveModelOption}
+                      options={LIVE_MODELS}
+                      placeholder="Selecione um modelo Live..."
+                    />
+                    {liveModelOption === 'custom' && (
+                      <input
+                        type="text"
+                        value={customLiveModel}
+                        onChange={(e) => setCustomLiveModel(e.target.value)}
+                        placeholder="Digite o nome do modelo Live"
+                        className="w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium"
+                      />
+                    )}
+                  </div>
+                </>
               )}
             </div>
-          </div>
+          )}
 
           {error && <p className="text-xs text-red-500 font-bold animate-pulse">{error}</p>}
 

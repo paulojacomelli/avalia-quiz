@@ -354,11 +354,11 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
     }
 
     // Restore TTS Settings
-    const isTTSActive = savedTTS === 'true';
+    const isTTSActive = (provider === 'deepseek' || provider === 'groq' || provider === 'openrouter') ? false : savedTTS === 'true';
     setTtsEnabled(isTTSActive);
 
-    // Apply logic for engine/gender/rate based on saved engine or default
-    const initialEngine = (savedEngine === 'browser' ? 'browser' : 'gemini');
+    // Apply logic for engine/gender/rate based on default
+    const initialEngine = 'gemini';
     updateTTSConfigState(initialEngine, isTTSActive);
 
     // Listener to update state if user presses Esc
@@ -569,21 +569,28 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
   // --- TTS Logic ---
 
   // Helper to centralize TTS config updates based on engine rules
-  const updateTTSConfigState = (engine: 'browser' | 'gemini', enabled: boolean) => {
+  const updateTTSConfigState = (engine: 'gemini', enabled: boolean) => {
     const newConfig: TTSConfig = {
       enabled: enabled,
       autoRead: true,
       engine: engine,
-      // Voz Clássica (Browser) = Male (Daniel), Voz Natural (Gemini) = Female (Kore)
-      gender: engine === 'browser' ? 'male' : 'female',
+      gender: 'female',
       rate: 1.5, // Fixed 1.5x speed as requested
       volume: 1.0
     };
-    // Fix: Corrected typo from setTsetTtsConfig to setTtsConfig
     setTtsConfig(newConfig);
     // Persist engine choice
     localStorage.setItem(`${storagePrefix}-tts-engine`, engine);
   };
+
+  // Forçar TTS desativado quando o provedor for o DeepSeek, Groq ou OpenRouter
+  useEffect(() => {
+    if ((provider === 'deepseek' || provider === 'groq' || provider === 'openrouter') && ttsEnabled) {
+      setTtsEnabled(false);
+      localStorage.setItem(`${storagePrefix}-tts`, 'false');
+      stopSpeech();
+    }
+  }, [provider, ttsEnabled, storagePrefix]);
 
   // Ensure we stop speech if TTS is disabled globally
   useEffect(() => {
@@ -738,18 +745,17 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
     });
   };
 
-  const handleTTSSelection = (selection: 'browser' | 'gemini' | 'off') => {
+  const handleTTSSelection = (selection: 'gemini' | 'off') => {
     playSound('click');
     if (selection === 'off') {
       setTtsEnabled(false);
       localStorage.setItem(`${storagePrefix}-tts`, 'false');
       stopSpeech();
     } else {
+      if (provider === 'deepseek' || provider === 'groq' || provider === 'openrouter') return;
       setTtsEnabled(true);
-      // Removed undefined setTtsEngine call.
-      // State is managed via ttsConfig and ttsEnabled.
       localStorage.setItem(`${storagePrefix}-tts`, 'true');
-      updateTTSConfigState(selection, true);
+      updateTTSConfigState('gemini', true);
     }
     setIsTTSMenuOpen(false);
   };
@@ -1398,26 +1404,58 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
           loadingMessage={loadingMessage}
           apiError={errorDetail}
           onClearError={() => setErrorDetail(null)}
-          onLoginWithCode={async (code) => {
+          onLoginWithCode={async (code, selectedProvider) => {
             const docRef = doc(db, "auth", "config");
             const docSnap = await getDoc(docRef);
 
             if (docSnap.exists()) {
               const data = docSnap.data();
               if (data.secret_code === code) {
-                const adminKey = data.admin_key;
-                const adminProvider = (data.ai_provider as AiProvider) || 'google-ai';
+                // Obter a chave correspondente ao provedor selecionado
+                let adminKey = '';
+                if (selectedProvider === 'google-ai') {
+                  adminKey = data.admin_key_google_ai || data.admin_key || '';
+                } else if (selectedProvider === 'deepseek') {
+                  adminKey = data.admin_key_deepseek || data.deepseek_key || '';
+                } else if (selectedProvider === 'groq') {
+                  adminKey = data.admin_key_groq || data.groq_key || '';
+                } else if (selectedProvider === 'openrouter') {
+                  adminKey = data.admin_key_openrouter || data.openrouter_key || '';
+                }
+
                 if (adminKey) {
-                  // Assuming validateApiKey is imported from @avalia/services in App.tsx (Wait, it's not imported. I need to fix it)
                   const { validateApiKey } = await import('@avalia/services');
-                  const isValid = await validateApiKey(adminKey, adminProvider);
+                  const isValid = await validateApiKey(adminKey, selectedProvider);
                   if (isValid) {
-                    login(adminKey, adminProvider);
+                    // Gravar o modelo padrão configurado no Firestore para o respectivo provedor (ou usar o padrão estável)
+                    let defaultModel = '';
+                    if (selectedProvider === 'google-ai') {
+                      defaultModel = data.admin_model_google_ai || data.admin_model || 'gemini-3.5-flash';
+                    } else if (selectedProvider === 'deepseek') {
+                      defaultModel = data.admin_model_deepseek || 'deepseek-chat';
+                    } else if (selectedProvider === 'groq') {
+                      defaultModel = data.admin_model_groq || 'llama-3.3-70b-versatile';
+                    } else if (selectedProvider === 'openrouter') {
+                      defaultModel = data.admin_model_openrouter || 'meta-llama/llama-3.3-70b-instruct:free';
+                    }
+                    if (defaultModel) {
+                      localStorage.setItem('gemini_text_model', defaultModel);
+                    }
+
+                    // Se for google-ai, também grava no LocalStorage o TTS e o Live configurados ou os padrões recomendados
+                    if (selectedProvider === 'google-ai') {
+                      const ttsModel = data.admin_model_tts || 'gemini-3.1-flash-tts-preview';
+                      const liveModel = data.admin_model_live || 'gemini-3.1-flash-live-preview';
+                      localStorage.setItem('gemini_tts_model', ttsModel);
+                      localStorage.setItem('gemini_live_model', liveModel);
+                    }
+
+                    login(adminKey, selectedProvider);
                   } else {
-                    throw new Error('Erro técnico: A chave do administrador está inválida ou recusada pelo provedor.');
+                    throw new Error(`Erro técnico: A chave do administrador para o provedor ${selectedProvider} está inválida ou recusada.`);
                   }
                 } else {
-                  throw new Error('Erro técnico: Chave do administrador não encontrada.');
+                  throw new Error(`Erro técnico: Chave do administrador para o provedor ${selectedProvider} não encontrada no Firestore.`);
                 }
               } else {
                 throw new Error('Código de acesso incorreto.');
@@ -1428,11 +1466,15 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
           }}
           onLoginWithApiKey={async (key, prov) => {
             const { validateApiKey } = await import('@avalia/services');
-            const isValid = await validateApiKey(key, prov);
-            if (isValid) {
-              login(key, prov);
-            } else {
-              throw new Error('Chave incorreta ou recusada pelo provedor selecionado.');
+            try {
+              const isValid = await validateApiKey(key, prov);
+              if (isValid) {
+                login(key, prov);
+              } else {
+                throw new Error('Chave incorreta ou recusada pelo provedor selecionado.');
+              }
+            } catch (err: any) {
+              throw new Error(err.message || 'Chave incorreta ou recusada pelo provedor selecionado.');
             }
           }}
         />
@@ -1535,8 +1577,9 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
                     onToggleSound={handleSoundToggle}
                     theme={theme}
                     onThemeChange={(m) => setTheme(m)}
-                    ttsMode={ttsEnabled ? ttsConfig.engine : 'off'}
+                    ttsMode={ttsEnabled && ttsConfig.engine === 'gemini' ? 'gemini' : 'off'}
                     onTtsChange={(m) => handleTTSSelection(m)}
+                    ttsDisabled={provider === 'deepseek' || provider === 'groq' || provider === 'openrouter'}
                     zoomValue={zoomLevel}
                     onZoomIn={() => setZoomLevel(prev => Math.min(1.5, prev + 0.05))}
                     onZoomOut={() => setZoomLevel(prev => Math.max(0.75, prev - 0.05))}
@@ -1839,6 +1882,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
                               onClearHistory={() => setPendingAction('CLEAR_HISTORY')}
                               isPrebuiltQuiz={isPrebuiltQuiz}
                               availableThemes={availableThemes}
+                              onPlayGlosa={playGlosaSegura}
                             />
                           </div>
                         ) : (
