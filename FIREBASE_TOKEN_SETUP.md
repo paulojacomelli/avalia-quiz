@@ -1,62 +1,92 @@
 # 🔐 Setup Firebase Token para GitHub Actions
 
-O workflow de deploy para dev agora usa autenticação por token em vez de arquivo JSON.
+O workflow de deploy para dev usa autenticação via `FIREBASE_TOKEN` environment variable.
 
-## ⚠️ O que precisa ser feito:
+## ⚠️ O que precisa ser feito AGORA:
 
 ### 1. Gerar o Token Firebase Localmente
 
-Execute o comando:
+Execute em seu terminal (na pasta do projeto):
 ```bash
 firebase login:ci
 ```
 
 Este comando vai:
 - Abrir o navegador para você fazer login no Firebase
-- Gerar um token de autenticação
-- Exibir um token longo (salve este token!)
+- Gerar um token de autenticação longo
+- **Copie este token inteiro** - você vai precisar dele
 
-### 2. Adicionar o Token como Secret no GitHub
+Exemplo de token (NÃO use este, é só exemplo):
+```
+1//0gGZz... [token muito longo] ...abcdef123456
+```
 
-1. Vá para seu repositório no GitHub
-2. Acesse **Settings → Secrets and variables → Actions**
-3. Clique em **"New repository secret"**
-4. Nome: `FIREBASE_TOKEN`
-5. Valor: Cole o token gerado no passo anterior
-6. Clique em **"Add secret"**
+### 2. ⭐ Adicionar o Token como Secret no GitHub
 
-### 3. Verificar se funciona
+**PASSO CRÍTICO - SEM ISSO NÃO VAI FUNCIONAR!**
 
-Faça um push para a branch `dev`:
+1. Vá para: https://github.com/paulojacomelli/avalia-quiz/settings/secrets/actions
+2. Clique em **"New repository secret"** (botão verde)
+3. **Name**: `FIREBASE_TOKEN` (exatamente assim, maiúsculas)
+4. **Secret**: Cole o token gerado no passo anterior
+5. Clique em **"Add secret"**
+
+### 3. Verificar se foi adicionado
+
+Depois de adicionar, você deve ver `FIREBASE_TOKEN` na lista de secrets.
+
+### 4. Testar o Deploy
+
+Faça um push qualquer para `dev`:
 ```bash
 git add .
-git commit -m "test: trigger deploy"
+git commit -m "test: trigger deploy workflow"
 git push origin dev
 ```
 
-Vá para **Actions** no GitHub e veja se o workflow executa com sucesso!
+Vá para: https://github.com/paulojacomelli/avalia-quiz/actions
 
-## 🔑 O que é o FIREBASE_TOKEN?
+Veja se a workflow rodou com sucesso!
 
-- É um token de autenticação pessoal para o Firebase
-- Permite que o GitHub Actions acesse sua conta Firebase sem arquivo JSON
-- Tem validade indefinida (mas pode ser revogado a qualquer momento)
-- Está armazenado de forma segura no GitHub (encriptado)
+## 🔍 Debugar se não funcionar
 
-## ⚡ Verificação Rápida
+1. **"Failed to authenticate"?**
+   - Verifique se o secret foi adicionado corretamente
+   - O nome DEVE ser `FIREBASE_TOKEN` (case-sensitive)
+   - Regenere o token com `firebase login:ci` novamente
 
-Para verificar se o token está funcionando localmente:
+2. **Token expirou?**
+   - Firebase tokens têm validade indefinida
+   - Mas às vezes precisam ser regenerados
+   - Execute `firebase login:ci` de novo
+
+3. **Acessos insuficientes?**
+   - Verifique se sua conta Firebase tem permissão para deploy
+   - A conta precisa ser "Owner" ou ter role "Firebase Admin"
+
+## 📚 Verificação Local
+
+Para testar se o token funciona:
 ```bash
-firebase deploy --token "SEU_TOKEN_AQUI" --only hosting:avaliaquizdev,hosting:avaliajwquizdev --non-interactive
+firebase deploy --token "SEU_TOKEN_AQUI" --only hosting:avaliaquizdev,hosting:avaliajwquizdev
 ```
 
-## 🚨 Se algo der errado
+## 🎯 Resumo do que o workflow faz:
 
-1. **Token expirou?** Gere um novo com `firebase login:ci`
-2. **Acessos insuficientes?** Verifique as permissões do seu usuário Firebase
-3. **Projeto errado?** Verifique se o projeto está correto no `firebase.json` com `.firebaserc`
+1. Faz checkout do código
+2. Setup Node.js 22
+3. Instala dependências com `npm ci`
+4. Aplica ícones canary com o script
+5. Setup variáveis de ambiente
+6. Faz build dos apps
+7. **Faz deploy com o FIREBASE_TOKEN**
 
-## 📚 Referências
+## ✅ Checklist
 
-- [Firebase CLI Documentation](https://firebase.google.com/docs/cli)
-- [GitHub Actions Secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
+- [ ] Executei `firebase login:ci` localmente
+- [ ] Copiei o token gerado
+- [ ] Adicionei como secret `FIREBASE_TOKEN` no GitHub
+- [ ] Fiz push para `dev`
+- [ ] Workflow executou com sucesso
+
+Sem completar estes passos, o deploy não vai funcionar!
