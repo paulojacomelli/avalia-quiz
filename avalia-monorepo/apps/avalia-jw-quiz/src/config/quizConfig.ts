@@ -1,3 +1,5 @@
+import { JW_QUIZ_LOGO_PREMIUM } from './jwLogoSvg';
+
 export const QUIZ_CONFIG = {
   appName: 'JW Quiz',
   storagePrefix: 'jw-quiz',
@@ -5,6 +7,7 @@ export const QUIZ_CONFIG = {
     primaryColor: '#5b3c88',
     accentColor: '#F7D33C',
   },
+  customLogo: JW_QUIZ_LOGO_PREMIUM,
   formRules: {
     hideDomainSource: true,
     allowedPageDomains: ['jw.org'],

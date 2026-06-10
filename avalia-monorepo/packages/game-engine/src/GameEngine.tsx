@@ -1356,10 +1356,21 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
               <div className="w-20 h-20 bg-jw-blue/10 rounded-full flex items-center justify-center mb-8 relative">
                 <div className="absolute inset-0 rounded-full bg-jw-blue/10 blur-xl"></div>
                 <div className="relative w-14 h-14 rounded-full border border-transparent flex items-center justify-center text-jw-blue">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 drop-shadow-[0_0_8px_rgba(66,135,245,0.6)]">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    <path d="m9 12 2 2 4-4" />
-                  </svg>
+                  {appConfig?.customLogo ? (
+                    typeof appConfig.customLogo === 'string' ? (
+                      <div 
+                        dangerouslySetInnerHTML={{ __html: appConfig.customLogo }}
+                        className="w-8 h-8"
+                      />
+                    ) : (
+                      appConfig.customLogo
+                    )
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 drop-shadow-[0_0_8px_rgba(66,135,245,0.6)]">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      <path d="m9 12 2 2 4-4" />
+                    </svg>
+                  )}
                 </div>
               </div>
 

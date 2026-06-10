@@ -131,5 +131,10 @@ export interface AppConfig {
     customInputLabel?: string;
     customInputPlaceholder?: string;
   }[];
+  /**
+   * Logo customizável (SVG em string ou React component)
+   * Usado na tela de login/setup
+   */
+  customLogo?: React.ReactNode | string;
 }
 
