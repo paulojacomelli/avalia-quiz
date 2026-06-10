@@ -1,0 +1,23 @@
+{
+  "projects": {
+    "default": "avalia-jw-quiz"
+  },
+  "targets": {
+    "avalia-jw-quiz": {
+      "hosting": {
+        "avalia-quiz": [
+          "avalia-quiz"
+        ],
+        "avalia-jw-quiz": [
+          "avalia-jw-quiz"
+        ],
+        "avaliaquizdev": [
+          "avaliaquizdev"
+        ],
+        "avaliajwquizdev": [
+          "avaliajwquizdev"
+        ]
+      }
+    }
+  }
+}

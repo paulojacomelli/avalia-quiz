@@ -1,0 +1,44 @@
+name: Deploy to Firebase Hosting (Dev)
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        working-directory: ./avalia-monorepo
+        run: npm ci
+
+      - name: Build all apps
+        working-directory: ./avalia-monorepo
+        run: npm run build
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase Hosting (Dev Sites)
+        working-directory: ./avalia-monorepo
+        run: |
+          if [ -z "${{ secrets.FIREBASE_DEPLOY_TOKEN }}" ]; then
+            echo "Using Service Account Key method"
+            echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}" > serviceAccountKey.json
+            export GOOGLE_APPLICATION_CREDENTIALS=serviceAccountKey.json
+            firebase deploy --only hosting:avaliaquizdev,hosting:avaliajwquizdev --non-interactive
+          else
+            echo "Using Firebase Deploy Token method"
+            firebase deploy --token "${{ secrets.FIREBASE_DEPLOY_TOKEN }}" --only hosting:avaliaquizdev,hosting:avaliajwquizdev --non-interactive
+          fi
