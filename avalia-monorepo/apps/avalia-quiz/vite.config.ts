@@ -1,18 +1,20 @@
 
 // vite.config.ts
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig({
-  plugins: [
-    react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
-      manifest: {
-        name: 'Avalia Quiz',
-        short_name: 'Avalia Quiz',
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  return {
+    plugins: [
+      react(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+        manifest: {
+          name: env.VITE_APP_TITLE || 'Avalia Quiz',
+          short_name: env.VITE_APP_NAME || 'Avalia Quiz',
         description: 'Quiz inteligente com IA para desafiar seus conhecimentos',
         theme_color: '#4287f5',
         background_color: '#121212',
@@ -32,4 +34,5 @@ export default defineConfig({
       }
     })
   ]
-})
+  };
+});

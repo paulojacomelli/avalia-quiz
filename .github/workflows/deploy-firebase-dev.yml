@@ -31,9 +31,9 @@ jobs:
       - name: Setup environment variables (avalia-quiz)
         run: |
           cat > ./avalia-monorepo/apps/avalia-quiz/.env << EOF
-          VITE_APP_NAME=Geral Quiz
+          VITE_APP_NAME=Avalia Quiz Canary
           VITE_STORAGE_PREFIX=generic-quiz
-          VITE_APP_TITLE=Avalia Quiz
+          VITE_APP_TITLE=Avalia Quiz Canary
           VITE_THEME=generic-theme
           VITE_PROMPT_PROFILE=generic
           VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
@@ -48,9 +48,9 @@ jobs:
       - name: Setup environment variables (avalia-jw-quiz)
         run: |
           cat > ./avalia-monorepo/apps/avalia-jw-quiz/.env << EOF
-          VITE_APP_NAME=JW Quiz
+          VITE_APP_NAME=Avalia JW Quiz Canary
           VITE_STORAGE_PREFIX=jw-quiz
-          VITE_APP_TITLE=Avalia JW Quiz
+          VITE_APP_TITLE=Avalia JW Quiz Canary
           VITE_THEME=jw-theme
           VITE_PROMPT_PROFILE=jw
           VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}

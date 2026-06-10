@@ -77,14 +77,17 @@ Perguntas:
 
 ## 📋 PROMPT 5: Formato de Glosa Oficial
 ```
-Existe um dicionário ou lista oficial de glosas suportadas pelo VLibras?
+Você pode fornecer exemplos de código funcionais para:
 
-Preciso saber:
-1. Qual o formato padrão de uma glosa (ex: "BEM_VINDO", "BEM VINDO", "BEMVINDO")?
-2. Como representar palavras compostas em glosas?
-3. Existe alguma documentação sobre a sintaxe de glosas?
-4. Como o VLibras diferencia entre "soletrar" e "sinalizar"?
-5. Existe algum prefixo ou sufixo especial para indicar que é uma glosa?
+1. Reproduzir uma glosa simples como "OLÁ" ou "BEM-VINDO"
+2. Reproduzir uma sequência de glosas
+3. Configurar o player para modo de interpretação de glosas
+4. Evitar que o VLibras soletre as palavras
+
+Exemplo do que eu preciso:
+```javascript
+// Como fazer isso funcionar corretamente?
+player.???("BEMVINDO AVALIA QUIZ");
 ```
 
 ---
