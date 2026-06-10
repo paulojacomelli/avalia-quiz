@@ -1,77 +1,61 @@
 
-# Avalia Quiz - Gerador de Quizzes com IA
+# Avalia Quiz - Ecossistema de Quizzes com IA (v1.4.6)
 
-Bem-vindo ao repositório do **Avalia Quiz**. Este é um aplicativo React moderno que utiliza Inteligência Artificial (Google Gemini) para gerar quizzes educacionais e de conhecimentos gerais sobre qualquer tema que você desejar.
-
-## 🌟 Funcionalidades
-
--   **Geração de Perguntas com IA:** Crie quizzes sobre ciência, história, cultura pop, idiomas e muito mais.
--   **Modo Estudo:** Receba feedback imediato e explicações detalhadas para cada resposta.
--   **Biblioteca da Comunidade:** Salve e compartilhe seus quizzes favoritos com outros usuários (via Firebase).
--   **Gamificação:** Sistema de pontuação e feedback visual.
+Bem-vindo ao repositório unificado do **Avalia Quiz**. Este projeto evoluiu para um **Monorepo** moderno, centralizando múltiplas variantes do aplicativo (Avalia Quiz e Avalia JW Quiz) sob uma única arquitetura robusta e escalável.
 
 ---
 
-## 🚀 Guia de Implementação e Instalação
+## 🌟 Funcionalidades Principais
 
-Siga este guia para configurar o projeto na sua máquina.
+-   **Multi-Provider AI**: Suporte integrado para os principais provedores de IA do mercado:
+    *   **Google Gemini** (Nativo)
+    *   **DeepSeek**
+    *   **Groq** (Inferência Ultra-Rápida)
+    *   **OpenRouter** (Acesso a centenas de modelos)
+-   **Arquitetura Monorepo**: Gerido via **Turborepo** para builds rápidos e pacotes compartilhados (`@avalia/core`, `@avalia/design-system`, etc).
+-   **PWA Premium**: Aplicativo instalável com suporte offline, ícones otimizados para dispositivos móveis (anti-masking) e experiência de usuário fluida.
+-   **Acessibilidade (VLibras)**: Integração nativa com VLibras para garantir inclusão.
+-   **Modo Canary**: Versões de desenvolvimento automatizadas com identidade visual e nomenclatura distintas (**Avalia Quiz Canary**).
+
+---
+
+## 🚀 Estrutura do Projeto
+
+O projeto está organizado no diretório `avalia-monorepo/`:
+-   `apps/`: Aplicativos finais (`avalia-quiz`, `avalia-jw-quiz`).
+-   `packages/`: Lógica compartilhada, componentes de interface e serviços de IA.
+-   `scripts/`: Automação de assets e manutenção.
+
+---
+
+## 🛠️ Instalação e Desenvolvimento
 
 ### 1. Pré-requisitos
-*   [Node.js](https://nodejs.org/) (v18+).
-*   Editor de código (ex: VS Code).
-*   Conta Google (para API Gemini e Firebase).
+*   [Node.js](https://nodejs.org/) (v22+ recomendada).
+*   Conta no Firebase e chaves de API dos provedores desejados.
 
-### 2. Clonar e Instalar
+### 2. Configuração
 
 ```bash
 # Clone o repositório
 git clone https://github.com/paulojacomelli/avalia-quiz.git
-cd avalia-quiz
+cd avalia-quiz/avalia-monorepo
 
-# Instale as dependências
+# Instale as dependências na raiz do monorepo
 npm install
 ```
 
----
+### 3. Execução
 
-## 🔑 Configuração das Credenciais
-
-O app precisa de duas chaves para funcionar: **Google Gemini** (Cérebro do IA) e **Firebase** (Banco de Dados).
-
-### A. Google Gemini API Key 🧠
-1.  Acesse o [Google AI Studio](https://aistudio.google.com/).
-2.  Clique em **"Get API key"** > **"Create API key"**.
-3.  Copie a chave gerada (inicia com `AIza...`).
-
-### B. Credenciais do Firebase 🔥
-1.  Acesse o [Console do Firebase](https://console.firebase.google.com/).
-2.  Crie um novo projeto.
-3.  Adicione um **Web App** `</>` para obter o `firebaseConfig`.
-4.  Ative o **Firestore Database** em modo de teste.
+Utilize os comandos na raiz de `avalia-monorepo/`:
+-   `npm run dev:generic`: Inicia o **Avalia Quiz**.
+-   `npm run dev:jw`: Inicia o **Avalia JW Quiz**.
 
 ---
 
-## ⚙️ Configuração do Ambiente
+## ⚙️ Variáveis de Ambiente
 
-1.  Renomeie o arquivo `.env.example` para `.env.local`.
-2.  Preencha com suas chaves:
-
-```env
-GEMINI_API_KEY=SuaChaveGeminiAqui
-VITE_FIREBASE_API_KEY=SuaChaveFirebase
-VITE_FIREBASE_AUTH_DOMAIN=...
-VITE_FIREBASE_PROJECT_ID=...
-# ... demais configurações do Firebase
-```
-
----
-
-## ▶️ Rodando o Projeto
-
-```bash
-npm run dev
-```
-Acesse `http://localhost:5173`.
+Cada app em `apps/` possui seu próprio arquivo `.env`. Configure-os seguindo os modelos fornecidos para habilitar os provedores de IA e a integração com Firebase.
 
 ---
 
@@ -79,3 +63,11 @@ Acesse `http://localhost:5173`.
 
 Este projeto é distribuído sob a licença **GPLv3**.
 Você é livre para usar, estudar e modificar o software, mantendo-o open source.
+
+---
+
+## 🔖 Release Atual: v1.4.6
+- Suporte a DeepSeek, Groq e OpenRouter.
+- Nomenclatura dinâmica Canary.
+- Correção de ícones PWA para Android.
+- Limpeza e otimização do workspace.
