@@ -455,6 +455,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   }
                 ]}
                 placeholder="Selecione o provedor..."
+                disableCustom={true}
               />
             </div>
 
