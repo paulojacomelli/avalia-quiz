@@ -165,37 +165,41 @@ export function sanitizeGlosaStrict(
   const validTokens: string[] = [];
 
   tokens.forEach((token) => {
-    if (isTokenValid(token, dictionary)) {
-      validTokens.push(token);
-    } else {
-      console.warn(
-        `[VLibras Validator] ❌ Token rejeitado: "${token}" não encontrado no dicionário`
-      );
-
-      // Estratégia de degradação graciosa:
-      // Tenta versões reduzidas do token
-      
-      // Tenta remover sufixo de variação
-      const baseToken = token.split('.')[0];
-      if (baseToken !== token && isTokenValid(baseToken, dictionary)) {
-        console.warn(`[VLibras Validator] ℹ️  Usando base: "${baseToken}"`);
-        validTokens.push(baseToken);
-        return;
-      }
-
-      // Tenta remover desambiguação
-      const disambigToken = token.split('&')[0];
-      if (disambigToken !== token && isTokenValid(disambigToken, dictionary)) {
-        console.warn(`[VLibras Validator] ℹ️  Usando raiz: "${disambigToken}"`);
-        validTokens.push(disambigToken);
-        return;
-      }
-
-      // Token totalmente inválido — descartado
-      console.warn(
-        `[VLibras Validator] 🗑️  Descartando token inválido: "${token}"`
-      );
+    const normalized = token.toUpperCase().trim();
+    
+    // 1. Tenta a forma exata
+    if (dictionary.has(normalized)) {
+      validTokens.push(normalized);
+      return;
     }
+
+    // 2. Tenta a base (sem .1, .2, etc)
+    const baseToken = normalized.split('.')[0];
+    if (baseToken !== normalized && dictionary.has(baseToken)) {
+      console.warn(`[VLibras Validator] ℹ️ Usando base: "${baseToken}" para "${token}"`);
+      validTokens.push(baseToken);
+      return;
+    }
+
+    // 3. Tenta sem desambiguação (&)
+    const disambigToken = normalized.split('&')[0];
+    if (disambigToken !== normalized && dictionary.has(disambigToken)) {
+      console.warn(`[VLibras Validator] ℹ️ Usando raiz: "${disambigToken}" para "${token}"`);
+      validTokens.push(disambigToken);
+      return;
+    }
+
+    // 4. Marcadores não-manuais
+    if (normalized.startsWith('[') && normalized.endsWith(']')) {
+      const markerName = normalized.slice(1, -1);
+      const validMarkers = ['PONTO', 'INTERROGACAO', 'EXCLAMACAO', 'ATENCAO'];
+      if (validMarkers.includes(markerName)) {
+        validTokens.push(normalized);
+        return;
+      }
+    }
+
+    console.warn(`[VLibras Validator] 🗑️ Descartando token inválido: "${token}"`);
   });
 
   const result = validTokens.join(' ');

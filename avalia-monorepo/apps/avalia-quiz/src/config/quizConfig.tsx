@@ -1,7 +1,12 @@
 import { GenericQuizLogoPremium } from './genericLogoSvg';
 
 export const QUIZ_CONFIG = {
-  appName: 'Geral Quiz',
+  appName: 'Avalia Geral Quiz',
+  appTitle: (
+    <>
+      Aval<span className="text-[#F7D33C]">ia</span> Geral Quiz
+    </>
+  ),
   storagePrefix: 'generic-quiz',
   theme: {
     primaryColor: '#4287f5',

@@ -23,8 +23,6 @@ interface SetupFormProps {
 const OPTION_GLOSAS: Record<string, string> = {
   // Categorias / Temas
   'GENERAL': 'GERAL',
-  'BOOKS': 'BIBLIA LIVRO',
-  'HISTORY_JW': 'HISTORIA',
   'ACADEMIC': 'ESTUDAR',
   'ENTERTAINMENT': 'JOGAR',
   'ARTS_CULTURE': 'ARTE',
@@ -238,16 +236,16 @@ export const SetupForm: React.FC<SetupFormProps> = ({
   };
 
   return (
-    <div id="setup-form-container" className="w-full max-w-2xl mx-auto bg-jw-card p-4 md:p-8 rounded-xl shadow-2xl border border-gray-700/30 transition-colors duration-300">
+    <div id="setup-form-container" className="w-full max-w-2xl mx-auto bg-brand-card p-4 md:p-8 rounded-xl shadow-2xl border border-gray-700/30 transition-colors duration-300">
       <div className="mb-8">
         <div className="flex justify-between text-xs font-bold uppercase tracking-widest mb-2 text-gray-500">
-          <span className={currentStep >= 1 ? 'text-jw-blue' : ''}>{isPrebuiltQuiz ? '1. Iniciar' : '1. Conteúdo'}</span>
-          <span className={currentStep >= 2 ? 'text-jw-blue' : ''}>2. Configurações</span>
-          <span className={currentStep >= 3 ? 'text-jw-blue' : ''}>3. Ajudas</span>
+          <span className={currentStep >= 1 ? 'text-brand-blue' : ''}>{isPrebuiltQuiz ? '1. Iniciar' : '1. Conteúdo'}</span>
+          <span className={currentStep >= 2 ? 'text-brand-blue' : ''}>2. Configurações</span>
+          <span className={currentStep >= 3 ? 'text-brand-blue' : ''}>3. Ajudas</span>
         </div>
         <div className="h-2 w-full bg-gray-300 dark:bg-gray-700 rounded-full overflow-hidden">
           <div
-            className="h-full bg-jw-blue transition-all duration-300 ease-out"
+            className="h-full bg-brand-blue transition-all duration-300 ease-out"
             style={{ width: `${(currentStep / TOTAL_STEPS) * 100}%` }}
           />
         </div>
@@ -260,7 +258,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
             {isPrebuiltQuiz ? (
               <>
                 <div id="field-mode">
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 italic text-jw-blue">Biblioteca da Comunidade: Escolha uma Categoria</label>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 italic text-brand-blue">Biblioteca da Comunidade: Escolha uma Categoria</label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {(appConfig?.topicModes || MODE_OPTIONS).filter((opt: any) =>
                       availableThemes[opt.value] !== undefined || Object.keys(availableThemes).length === 0
@@ -280,15 +278,15 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                           }
                           if (interfaceLanguage === 'libras') {
                             if (onPlayGlosa) {
-                              const glosa = OPTION_GLOSAS[opt.value] || opt.label.toUpperCase();
+                              const glosa = opt.glosa || OPTION_GLOSAS[opt.value] || opt.label.toUpperCase();
                               onPlayGlosa(glosa, 'feliz');
                             }
                             handleNextStep();
                           }
                         }}
                         className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-300 ${mode === opt.value
-                          ? 'bg-jw-blue border-jw-blue text-white shadow-lg shadow-jw-blue/30 transform scale-[1.02]'
-                          : 'border-gray-700/20 bg-jw-hover/50 text-gray-400 dark:text-gray-500 hover:border-gray-500/50'
+                          ? 'bg-brand-blue border-brand-blue text-white shadow-lg shadow-brand-blue/30 transform scale-[1.02]'
+                          : 'border-gray-700/20 bg-brand-hover/50 text-gray-400 dark:text-gray-500 hover:border-gray-500/50'
                           } ${highlightedValue === opt.value ? 'ring-4 ring-yellow-400 animate-pulse' : ''}`}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-8 h-8 mb-2 ${mode === opt.value ? 'text-white' : 'opacity-60'}`}>
@@ -312,7 +310,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                           <select
                             value={subTopic}
                             onChange={(e) => setSubTopic(e.target.value)}
-                            className="w-full p-3 pr-10 rounded-lg bg-jw-hover border border-gray-400 dark:border-gray-600 text-jw-text focus:ring-2 focus:ring-jw-blue outline-none appearance-none"
+                            className="w-full p-3 pr-10 rounded-lg bg-brand-hover border border-gray-400 dark:border-gray-600 text-brand-text focus:ring-2 focus:ring-brand-blue outline-none appearance-none"
                           >
                             {themes.map((st: string) => (<option key={st} value={st}>{st}</option>))}
                           </select>
@@ -349,15 +347,15 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                           }
                           if (interfaceLanguage === 'libras') {
                             if (onPlayGlosa) {
-                              const glosa = OPTION_GLOSAS[opt.value] || opt.label.toUpperCase();
+                              const glosa = opt.glosa || OPTION_GLOSAS[opt.value] || opt.label.toUpperCase();
                               onPlayGlosa(glosa, 'feliz');
                             }
                             handleNextStep();
                           }
                         }}
                         className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all duration-300 ${mode === opt.value
-                          ? 'bg-jw-blue border-jw-blue text-white shadow-lg shadow-jw-blue/30 transform scale-[1.02]'
-                          : 'border-gray-700/20 bg-jw-hover/50 text-gray-400'
+                          ? 'bg-brand-blue border-brand-blue text-white shadow-lg shadow-brand-blue/30 transform scale-[1.02]'
+                          : 'border-gray-700/20 bg-brand-hover/50 text-gray-400'
                           } ${highlightedValue === opt.value ? 'ring-4 ring-yellow-400 animate-pulse' : ''}`}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-8 h-8 mb-3 ${mode === opt.value ? 'text-white' : 'opacity-60'}`}>
@@ -379,11 +377,11 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                       <div className="animate-fade-in space-y-3 mt-4">
                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">Tipo de Fonte</label>
                         <div className="flex gap-2 mb-2">
-                          <button type="button" onClick={() => { setSpecificTopicType('tema'); setSpecificTopic(''); setFormError(null); }} className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-lg border transition-colors ${specificTopicType === 'tema' ? 'bg-jw-blue text-white border-transparent' : 'bg-jw-hover text-gray-400 border-gray-600'}`}>Tema</button>
+                          <button type="button" onClick={() => { setSpecificTopicType('tema'); setSpecificTopic(''); setFormError(null); }} className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-lg border transition-colors ${specificTopicType === 'tema' ? 'bg-brand-blue text-white border-transparent' : 'bg-brand-hover text-gray-400 border-gray-600'}`}>Tema</button>
                           {!hideDomainSource && (
-                            <button type="button" onClick={() => { setSpecificTopicType('dominio'); setSpecificTopic(''); setFormError(null); }} className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-lg border transition-colors ${specificTopicType === 'dominio' ? 'bg-jw-blue text-white border-transparent' : 'bg-jw-hover text-gray-400 border-gray-600'}`}>Domínio</button>
+                            <button type="button" onClick={() => { setSpecificTopicType('dominio'); setSpecificTopic(''); setFormError(null); }} className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-lg border transition-colors ${specificTopicType === 'dominio' ? 'bg-brand-blue text-white border-transparent' : 'bg-brand-hover text-gray-400 border-gray-600'}`}>Domínio</button>
                           )}
-                          <button type="button" onClick={() => { setSpecificTopicType('pagina'); setSpecificTopic(''); setFormError(null); }} className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-lg border transition-colors ${specificTopicType === 'pagina' ? 'bg-jw-blue text-white border-transparent' : 'bg-jw-hover text-gray-400 border-gray-600'}`}>Página Específica</button>
+                          <button type="button" onClick={() => { setSpecificTopicType('pagina'); setSpecificTopic(''); setFormError(null); }} className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-lg border transition-colors ${specificTopicType === 'pagina' ? 'bg-brand-blue text-white border-transparent' : 'bg-brand-hover text-gray-400 border-gray-600'}`}>Página Específica</button>
                         </div>
                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">
                           {specificTopicType === 'tema' ? (selectedModeConfig?.customInputLabel || 'Qual o assunto?') : 
@@ -398,7 +396,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                             specificTopicType === 'dominio' ? "Ex: meudominio.com.br" : 
                             pageUrlPlaceholder
                           }
-                          className="w-full p-3 rounded-lg bg-jw-hover border border-gray-400 dark:border-gray-600 text-jw-text focus:ring-2 focus:ring-jw-blue outline-none"
+                          className="w-full p-3 rounded-lg bg-brand-hover border border-gray-400 dark:border-gray-600 text-brand-text focus:ring-2 focus:ring-brand-blue outline-none"
                           autoFocus
                         />
                         {formError && <p className="text-red-500 text-xs mt-2 font-bold">{formError}</p>}
@@ -421,10 +419,10 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                       <select
                         value={subTopic}
                         onChange={(e) => setSubTopic(e.target.value)}
-                        className="w-full p-3 pr-10 rounded-lg bg-jw-hover border border-gray-400 dark:border-gray-600 text-jw-text focus:ring-2 focus:ring-jw-blue outline-none appearance-none"
+                        className="w-full p-3 pr-10 rounded-lg bg-brand-hover border border-gray-400 dark:border-gray-600 text-brand-text focus:ring-2 focus:ring-brand-blue outline-none appearance-none"
                       >
                         {topics.map((st: string) => (
-                          <option key={st} value={st} className="bg-jw-card">{st}</option>
+                          <option key={st} value={st} className="bg-brand-card">{st}</option>
                         ))}
                       </select>
                       <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none opacity-50">
@@ -460,7 +458,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                           handleNextStep();
                         }
                       }} className="sr-only" />
-                      <div className={`text-center py-2 rounded-lg text-sm border transition-all ${difficulty === opt.value ? 'bg-jw-blue text-white font-bold border-transparent shadow-md' : 'border-gray-400 dark:border-gray-600 bg-jw-hover text-gray-600 dark:text-gray-300 hover:border-jw-blue/50'} ${highlightedValue === 'difficulty' && difficulty === opt.value ? 'ring-4 ring-yellow-400' : ''}`}>
+                      <div className={`text-center py-2 rounded-lg text-sm border transition-all ${difficulty === opt.value ? 'bg-brand-blue text-white font-bold border-transparent shadow-md' : 'border-gray-400 dark:border-gray-600 bg-brand-hover text-gray-600 dark:text-gray-300 hover:border-brand-blue/50'} ${highlightedValue === 'difficulty' && difficulty === opt.value ? 'ring-4 ring-yellow-400' : ''}`}>
                         {opt.label}
                       </div>
                     </label>
@@ -473,12 +471,12 @@ export const SetupForm: React.FC<SetupFormProps> = ({
               <div id="field-creativity">
                 <div className="flex justify-between mb-2">
                   <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">Criatividade</label>
-                  <span className="text-sm font-mono text-jw-blue">{temperature.toFixed(1)}</span>
+                  <span className="text-sm font-mono text-brand-blue">{temperature.toFixed(1)}</span>
                 </div>
                 <input
                   type="range" min="0.5" max="1.5" step="0.1" value={temperature}
                   onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                  className={`w-full h-2 rounded-lg appearance-none bg-gray-300 dark:bg-gray-700 accent-jw-blue ${highlightedValue === 'creativity' ? 'ring-4 ring-yellow-400' : ''}`}
+                  className={`w-full h-2 rounded-lg appearance-none bg-gray-300 dark:bg-gray-700 accent-brand-blue ${highlightedValue === 'creativity' ? 'ring-4 ring-yellow-400' : ''}`}
                 />
                 <div className="flex justify-between text-[10px] text-gray-500 mt-1 uppercase tracking-wider">
                   <span>Conservador</span>
@@ -502,7 +500,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                             onPlayGlosa(glosa);
                           }
                         }} className="sr-only" />
-                        <div className={`text-center py-2 rounded-lg text-sm border transition-all ${quizFormat === opt.value ? 'bg-jw-blue text-white font-bold border-transparent shadow-md' : 'border-gray-400 dark:border-gray-600 bg-jw-hover text-gray-600 dark:text-gray-300 hover:border-jw-blue/50'} ${highlightedValue === 'format' && quizFormat === opt.value ? 'ring-4 ring-yellow-400' : ''}`}>
+                        <div className={`text-center py-2 rounded-lg text-sm border transition-all ${quizFormat === opt.value ? 'bg-brand-blue text-white font-bold border-transparent shadow-md' : 'border-gray-400 dark:border-gray-600 bg-brand-hover text-gray-600 dark:text-gray-300 hover:border-brand-blue/50'} ${highlightedValue === 'format' && quizFormat === opt.value ? 'ring-4 ring-yellow-400' : ''}`}>
                           {opt.label}
                         </div>
                       </label>
@@ -511,7 +509,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                 </div>
 
                 {quizFormat === QuizFormat.OPEN_ENDED && (
-                  <div className="p-4 bg-jw-hover/20 rounded-lg animate-fade-in">
+                  <div className="p-4 bg-brand-hover/20 rounded-lg animate-fade-in">
                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Modo de Interação Livre</label>
                     <div className="flex gap-2">
                       <label className="flex-1 cursor-pointer group">
@@ -521,7 +519,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                             onPlayGlosa('RESPOSTA');
                           }
                         }} className="sr-only" />
-                        <div className={`text-center py-2 rounded-lg text-sm border transition-all ${openEndedMode === 'normal' ? 'bg-jw-blue text-white font-bold border-transparent shadow-md' : 'border-gray-400 dark:border-gray-600 bg-jw-hover text-gray-600 dark:text-gray-300 hover:border-jw-blue/50'}`}>
+                        <div className={`text-center py-2 rounded-lg text-sm border transition-all ${openEndedMode === 'normal' ? 'bg-brand-blue text-white font-bold border-transparent shadow-md' : 'border-gray-400 dark:border-gray-600 bg-brand-hover text-gray-600 dark:text-gray-300 hover:border-brand-blue/50'}`}>
                           Normal (Texto)
                         </div>
                       </label>
@@ -532,7 +530,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                             onPlayGlosa('RESPOSTA');
                           }
                         }} className="sr-only" />
-                        <div className={`text-center py-2 rounded-lg text-sm border transition-all ${openEndedMode === 'live' ? 'bg-indigo-600 text-white font-bold border-transparent shadow-md' : 'border-gray-400 dark:border-gray-600 bg-jw-hover text-gray-600 dark:text-gray-300 hover:border-indigo-500/50'}`}>
+                        <div className={`text-center py-2 rounded-lg text-sm border transition-all ${openEndedMode === 'live' ? 'bg-indigo-600 text-white font-bold border-transparent shadow-md' : 'border-gray-400 dark:border-gray-600 bg-brand-hover text-gray-600 dark:text-gray-300 hover:border-indigo-500/50'}`}>
                           Live (Voz & IA)
                         </div>
                       </label>
@@ -550,14 +548,14 @@ export const SetupForm: React.FC<SetupFormProps> = ({
             {(currentStep === 7 || (interfaceLanguage === 'pt' && currentStep === 2)) && (
               <div className="space-y-4">
                 {/* Equipes */}
-                <div id="field-team-mode" className="flex items-center justify-between p-4 bg-jw-hover/30 rounded-lg">
+                <div id="field-team-mode" className="flex items-center justify-between p-4 bg-brand-hover/30 rounded-lg">
                   <span className="text-sm font-bold">Modo Competição (Equipes)</span>
-                  <button type="button" onClick={() => setIsTeamMode(!isTeamMode)} className={`w-11 h-6 rounded-full transition-colors ${isTeamMode ? 'bg-jw-blue' : 'bg-gray-500'}`}>
+                  <button type="button" onClick={() => setIsTeamMode(!isTeamMode)} className={`w-11 h-6 rounded-full transition-colors ${isTeamMode ? 'bg-brand-blue' : 'bg-gray-500'}`}>
                     <span className={`block w-4 h-4 bg-white rounded-full transition-transform ${isTeamMode ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
                 </div>
                 {isTeamMode && (
-                  <div className="p-4 bg-jw-hover/20 rounded-lg space-y-3">
+                  <div className="p-4 bg-brand-hover/20 rounded-lg space-y-3">
                     <label className="block text-xs font-bold text-gray-500 uppercase">Nomes das Equipes</label>
                     {teamNames.map((name, idx) => (
                       <input 
@@ -567,37 +565,37 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                           newNames[idx] = e.target.value;
                           setTeamNames(newNames);
                         }}
-                        className="w-full p-2 text-sm rounded bg-jw-hover border border-gray-600 focus:border-jw-blue outline-none" 
+                        className="w-full p-2 text-sm rounded bg-brand-hover border border-gray-600 focus:border-brand-blue outline-none" 
                       />
                     ))}
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => teamNames.length < 4 && setTeamNames([...teamNames, `Time ${String.fromCharCode(65 + teamNames.length)}`])} className="text-xs bg-jw-blue/20 text-jw-blue px-3 py-1 rounded hover:bg-jw-blue/30 disabled:opacity-50" disabled={teamNames.length >= 4}>+ Adicionar</button>
+                      <button type="button" onClick={() => teamNames.length < 4 && setTeamNames([...teamNames, `Time ${String.fromCharCode(65 + teamNames.length)}`])} className="text-xs bg-brand-blue/20 text-brand-blue px-3 py-1 rounded hover:bg-brand-blue/30 disabled:opacity-50" disabled={teamNames.length >= 4}>+ Adicionar</button>
                       <button type="button" onClick={() => teamNames.length > 2 && setTeamNames(teamNames.slice(0, -1))} className="text-xs bg-red-500/20 text-red-400 px-3 py-1 rounded hover:bg-red-500/30 disabled:opacity-50" disabled={teamNames.length <= 2}>- Remover</button>
                     </div>
                     <div className="mt-4 pt-3 border-t border-gray-700/50">
                       <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Perguntas por Rodada: {questionsPerRound}</label>
-                      <input type="range" min="1" max={count} value={questionsPerRound} onChange={(e) => setQuestionsPerRound(parseInt(e.target.value))} className="w-full h-2 rounded-lg appearance-none bg-gray-300 dark:bg-gray-700 accent-jw-blue" />
+                      <input type="range" min="1" max={count} value={questionsPerRound} onChange={(e) => setQuestionsPerRound(parseInt(e.target.value))} className="w-full h-2 rounded-lg appearance-none bg-gray-300 dark:bg-gray-700 accent-brand-blue" />
                     </div>
                   </div>
                 )}
 
                 {/* Timer */}
                 <div className="space-y-2">
-                  <div id="field-timer" className="flex items-center justify-between p-4 bg-jw-hover/30 rounded-lg">
+                  <div id="field-timer" className="flex items-center justify-between p-4 bg-brand-hover/30 rounded-lg">
                     <span className="text-sm font-bold">Temporizador por Pergunta</span>
-                    <button type="button" onClick={() => setEnableTimer(!enableTimer)} className={`w-11 h-6 rounded-full transition-colors ${enableTimer ? 'bg-jw-blue' : 'bg-gray-500'}`}>
+                    <button type="button" onClick={() => setEnableTimer(!enableTimer)} className={`w-11 h-6 rounded-full transition-colors ${enableTimer ? 'bg-brand-blue' : 'bg-gray-500'}`}>
                       <span className={`block w-4 h-4 bg-white rounded-full transition-transform ${enableTimer ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
                   </div>
                   {enableTimer && (
-                    <div className="p-4 bg-jw-hover/20 rounded-lg space-y-4">
+                    <div className="p-4 bg-brand-hover/20 rounded-lg space-y-4">
                       <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Tempo Limite</label>
                         <div className="flex gap-2">
                           {TIME_OPTIONS.map((opt) => (
                             <label key={opt.value} className="flex-1 cursor-pointer">
                               <input type="radio" name="timeLimit" value={opt.value} checked={timeLimit === opt.value} onChange={() => setTimeLimit(opt.value)} className="sr-only" />
-                              <div className={`text-center py-1.5 rounded text-xs border transition-all ${timeLimit === opt.value ? 'bg-jw-blue text-white font-bold border-transparent' : 'border-gray-500 text-gray-500 hover:border-jw-blue/50'}`}>
+                              <div className={`text-center py-1.5 rounded text-xs border transition-all ${timeLimit === opt.value ? 'bg-brand-blue text-white font-bold border-transparent' : 'border-gray-500 text-gray-500 hover:border-brand-blue/50'}`}>
                                 {opt.label}
                               </div>
                             </label>
@@ -611,8 +609,8 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                 {/* Count */}
                 <div id="field-count">
                   <label className="block text-sm font-bold mb-2">Total de Perguntas: {count}</label>
-                  <input type="range" min="5" max="50" value={count} onChange={(e) => setCount(parseInt(e.target.value))} className="w-full h-2 rounded-lg appearance-none bg-gray-300 dark:bg-gray-700 accent-jw-blue" />
-                  {isPrebuiltQuiz && <span className="text-[10px] text-jw-blue block mt-1 font-medium">Na biblioteca, você pode reduzir o total de perguntas, mas não exceder o limite do arquivo original.</span>}
+                  <input type="range" min="5" max="50" value={count} onChange={(e) => setCount(parseInt(e.target.value))} className="w-full h-2 rounded-lg appearance-none bg-gray-300 dark:bg-gray-700 accent-brand-blue" />
+                  {isPrebuiltQuiz && <span className="text-[10px] text-brand-blue block mt-1 font-medium">Na biblioteca, você pode reduzir o total de perguntas, mas não exceder o limite do arquivo original.</span>}
                 </div>
               </div>
             )}
@@ -625,12 +623,12 @@ export const SetupForm: React.FC<SetupFormProps> = ({
             <div>
               <div className="flex justify-between mb-2">
                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">Limite de Dicas</label>
-                <span className="text-sm font-bold text-jw-blue">{maxHints}</span>
+                <span className="text-sm font-bold text-brand-blue">{maxHints}</span>
               </div>
               <input
                 type="range" min="0" max="10" value={maxHints}
                 onChange={(e) => setMaxHints(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-jw-blue touch-none"
+                className="w-full h-2 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-brand-blue touch-none"
               />
             </div>
 
@@ -651,8 +649,8 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                         }
                       }}
                       className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all duration-200 ${isSelected
-                        ? 'bg-jw-blue text-white border-transparent shadow-md'
-                        : 'bg-jw-hover border-transparent text-gray-500 dark:text-gray-400 hover:text-jw-text hover:border-gray-500'
+                        ? 'bg-brand-blue text-white border-transparent shadow-md'
+                        : 'bg-brand-hover border-transparent text-gray-500 dark:text-gray-400 hover:text-brand-text hover:border-gray-500'
                         } ${highlightedValue === opt.value ? 'ring-4 ring-yellow-400 animate-pulse' : ''}`}
                       title={opt.label}
                     >
@@ -690,7 +688,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                 )}
                 <div className="flex gap-4">
                   {currentStep > 1 && (
-                    <button type="button" onClick={handlePrevStep} className="flex-1 py-3 bg-jw-hover text-jw-text font-bold rounded-full hover:bg-opacity-80 transition-colors">Voltar</button>
+                    <button type="button" onClick={handlePrevStep} className="flex-1 py-3 bg-brand-hover text-brand-text font-bold rounded-full hover:bg-opacity-80 transition-colors">Voltar</button>
                   )}
                   {currentStep < TOTAL_STEPS ? (
                     <button
@@ -700,11 +698,11 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                       className={`flex-1 py-3 font-bold rounded-full transition-colors shadow-lg ${
                         isStep1Blocked
                           ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                          : 'bg-jw-blue text-white hover:bg-opacity-90'
+                          : 'bg-brand-blue text-white hover:bg-opacity-90'
                       }`}
                     >Próximo</button>
                   ) : (
-                    <button type="button" onClick={handleFinalSubmit} disabled={isLoading} className="flex-1 py-3 bg-jw-text text-jw-dark font-bold rounded-full hover:bg-opacity-90 flex justify-center items-center shadow-lg text-lg">
+                    <button type="button" onClick={handleFinalSubmit} disabled={isLoading} className="flex-1 py-3 bg-brand-text text-brand-dark font-bold rounded-full hover:bg-opacity-90 flex justify-center items-center shadow-lg text-lg">
                       {isLoading ? "Gerando..." : "Iniciar Quiz"}
                     </button>
                   )}

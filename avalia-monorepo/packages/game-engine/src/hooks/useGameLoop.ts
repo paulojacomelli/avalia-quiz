@@ -14,6 +14,7 @@ interface UseGameLoopProps {
   storagePrefix: string;
   appName: string;
   apiKey: string | null;
+  clientId: string | null;
   provider?: string;
   ttsEnabled: boolean;
   ttsConfig: any;
@@ -29,6 +30,7 @@ export function useGameLoop({
   storagePrefix,
   appName,
   apiKey,
+  clientId,
   provider,
   ttsEnabled,
   ttsConfig,
@@ -206,7 +208,13 @@ export function useGameLoop({
           setLoadingMessage("Gerando áudio...");
           data = await preGenerateQuizAudio(apiKey, data, finalConfig.tts, tempTeams.map(t => t.name));
         }
-        const docId = await saveGeneratedQuiz(data, appName, finalConfig.mode, finalConfig.subTopic || finalConfig.specificTopic);
+        const docId = await saveGeneratedQuiz(
+          data, 
+          appName, 
+          finalConfig.mode, 
+          finalConfig.subTopic || finalConfig.specificTopic,
+          { clientId }
+        );
         if (docId && data.questions.some(q => q.audioBase64)) {
           setLoadingMessage("Salvando áudios...");
           data = await uploadQuizAudiosToStorage(data, docId);

@@ -48,8 +48,8 @@ const VLibrasControls = forwardRef<VLibrasControlsHandle, VLibrasControlsProps>(
           disabled={disabled || isPlaying}
           className={`p-4 rounded-full transition-all ${
             isPlaying
-              ? 'bg-jw-blue/30 text-jw-blue'
-              : 'bg-jw-blue/10 text-jw-blue hover:bg-jw-blue/20'
+              ? 'bg-brand-blue/30 text-brand-blue'
+              : 'bg-brand-blue/10 text-brand-blue hover:bg-brand-blue/20'
           } disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl`}
           title="Reproduzir"
         >
@@ -64,8 +64,8 @@ const VLibrasControls = forwardRef<VLibrasControlsHandle, VLibrasControlsProps>(
           disabled={disabled || !isPlaying}
           className={`p-4 rounded-full transition-all ${
             isPaused
-              ? 'bg-jw-blue/30 text-jw-blue'
-              : 'bg-jw-blue/10 text-jw-blue hover:bg-jw-blue/20'
+              ? 'bg-brand-blue/30 text-brand-blue'
+              : 'bg-brand-blue/10 text-brand-blue hover:bg-brand-blue/20'
           } disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl`}
           title="Pausar"
         >
@@ -78,7 +78,7 @@ const VLibrasControls = forwardRef<VLibrasControlsHandle, VLibrasControlsProps>(
         <button
           onClick={handleRepeat}
           disabled={disabled}
-          className="p-4 rounded-full transition-all bg-jw-blue/10 text-jw-blue hover:bg-jw-blue/20 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+          className="p-4 rounded-full transition-all bg-brand-blue/10 text-brand-blue hover:bg-brand-blue/20 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
           title="Repetir"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8">

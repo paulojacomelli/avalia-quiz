@@ -21,7 +21,8 @@ const getFetchHeaders = (apiKey: string, provider: AiProvider) => {
   }
   return headers;
 };
-const getTextModel = (): string => {
+
+const getTextModel = (): string => {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('gemini_text_model') || import.meta.env.VITE_GEMINI_MODEL || "gemini-3.5-flash";
   }

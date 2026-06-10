@@ -15,7 +15,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName }: PrivacyPolicyMo
                 className="absolute inset-0 bg-black/80 backdrop-blur-sm"
                 onClick={onClose}
             />
-            <div className="relative w-full max-w-2xl max-h-[80vh] bg-jw-card border border-gray-700/50 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-zoom-in">
+            <div className="relative w-full max-w-2xl max-h-[80vh] bg-brand-card border border-gray-700/50 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-zoom-in">
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-gray-700/30 flex items-center justify-between bg-black/20">
                     <h2 className="text-lg font-bold text-white">Política de Privacidade</h2>
@@ -71,7 +71,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName }: PrivacyPolicyMo
                 <div className="p-4 bg-black/20 flex justify-end gap-3 border-t border-gray-700/30">
                     <button
                         onClick={onClose}
-                        className="px-6 py-2 bg-jw-blue text-white text-xs font-bold rounded-xl hover:brightness-110 transition-all"
+                        className="px-6 py-2 bg-brand-blue text-white text-xs font-bold rounded-xl hover:brightness-110 transition-all"
                     >
                         Entendido
                     </button>

@@ -9,7 +9,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        jw: {
+        brand: {
           blue: 'var(--accent-primary)',
           dark: 'var(--bg-main)',
           card: 'var(--bg-card)',

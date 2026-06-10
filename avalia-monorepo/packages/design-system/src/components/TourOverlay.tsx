@@ -156,18 +156,18 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ steps, isOpen, onClose
       {/* Highlighter */}
       {rect && (
         <div 
-          className="rounded-lg ring-4 ring-jw-blue animate-pulse"
+          className="rounded-lg ring-4 ring-brand-blue animate-pulse"
           style={highlightStyle}
         />
       )}
 
       {/* Tooltip Card */}
       <div 
-        className="bg-jw-card text-jw-text p-6 rounded-xl shadow-2xl border border-jw-blue max-w-sm w-[90vw] animate-fade-in"
+        className="bg-brand-card text-brand-text p-6 rounded-xl shadow-2xl border border-brand-blue max-w-sm w-[90vw] animate-fade-in"
         style={tooltipStyle}
       >
         <div className="flex justify-between items-start mb-3">
-            <h3 className="font-bold text-lg text-jw-blue">{currentStep.title}</h3>
+            <h3 className="font-bold text-lg text-brand-blue">{currentStep.title}</h3>
             <span className="text-xs font-mono opacity-50 bg-black/20 px-2 py-1 rounded">
                 {currentStepIndex + 1} / {steps.length}
             </span>
@@ -194,7 +194,7 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ steps, isOpen, onClose
                 </button>
                 <button 
                     onClick={handleNext}
-                    className="bg-jw-blue text-white px-6 py-2 rounded-full font-bold text-sm shadow-lg hover:scale-105 transition-transform"
+                    className="bg-brand-blue text-white px-6 py-2 rounded-full font-bold text-sm shadow-lg hover:scale-105 transition-transform"
                 >
                     {currentStepIndex === steps.length - 1 ? 'COMEÇAR!' : 'Avançar'}
                 </button>
@@ -204,7 +204,7 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ steps, isOpen, onClose
         {/* Arrow (Visual only) */}
         {rect && (
             <div 
-                className={`absolute w-4 h-4 bg-jw-card border-l border-t border-jw-blue transform rotate-45 ${
+                className={`absolute w-4 h-4 bg-brand-card border-l border-t border-brand-blue transform rotate-45 ${
                     (tooltipStyle.transform as string).includes('-100%') 
                     ? '-bottom-2 left-1/2 -ml-2 border-l-0 border-t-0 border-r border-b' 
                     : '-top-2 left-1/2 -ml-2' 

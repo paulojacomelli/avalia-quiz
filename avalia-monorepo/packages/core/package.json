@@ -5,9 +5,13 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
-    "lint": "eslint \"src/**/*.ts*\""
+    "lint": "eslint \"src/**/*.ts*\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
-    "typescript": "~5.8.2"
+    "@vitejs/plugin-react": "^5.2.0",
+    "typescript": "~5.8.2",
+    "vitest": "^4.1.8"
   }
 }

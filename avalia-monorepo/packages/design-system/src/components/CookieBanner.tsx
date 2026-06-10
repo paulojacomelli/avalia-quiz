@@ -33,10 +33,10 @@ export function CookieBanner({ onOpenPrivacy, onAccept, onDecline }: CookieBanne
 
     return (
         <div className="fixed bottom-6 left-6 right-6 md:left-auto md:right-8 md:max-w-md z-[200] animate-fade-in-up">
-            <div className="bg-jw-card border border-gray-700/50 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-5 backdrop-blur-xl">
+            <div className="bg-brand-card border border-gray-700/50 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-5 backdrop-blur-xl">
                 <div className="flex items-start gap-4">
-                    <div className="p-2 bg-jw-blue/10 rounded-xl">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-jw-blue">
+                    <div className="p-2 bg-brand-blue/10 rounded-xl">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-brand-blue">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                         </svg>
                     </div>
@@ -46,7 +46,7 @@ export function CookieBanner({ onOpenPrivacy, onAccept, onDecline }: CookieBanne
                             Utilizamos cookies e IA para melhorar sua experiência. Ao continuar, você concorda com nossa{' '}
                             <button
                                 onClick={(e) => { e.preventDefault(); onOpenPrivacy(); }}
-                                className="text-jw-blue hover:underline font-medium"
+                                className="text-brand-blue hover:underline font-medium"
                             >
                                 Política de Privacidade
                             </button>.
@@ -54,7 +54,7 @@ export function CookieBanner({ onOpenPrivacy, onAccept, onDecline }: CookieBanne
                         <div className="flex gap-3">
                             <button
                                 onClick={handleAccept}
-                                className="flex-1 px-4 py-2 bg-jw-blue text-white text-xs font-bold rounded-xl hover:brightness-110 transition-all shadow-lg shadow-jw-blue/20"
+                                className="flex-1 px-4 py-2 bg-brand-blue text-white text-xs font-bold rounded-xl hover:brightness-110 transition-all shadow-lg shadow-brand-blue/20"
                             >
                                 Aceitar Tudo
                             </button>

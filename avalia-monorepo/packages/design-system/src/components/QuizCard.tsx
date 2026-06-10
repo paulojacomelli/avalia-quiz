@@ -3,6 +3,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { QuizQuestion, TTSConfig, EvaluationResult, AiProvider } from '@avalia/core';
 import { playSound, startLoadingDrone, stopLoadingDrone } from '@avalia/services';
 import { speakText, stopSpeech, isSpeaking, getQuestionReadAloudText } from '@avalia/services';
+import { SettingsMenu, ThemeMode, VLibras, VLibrasTest, QuizOptions } from '@avalia/design-system';
 import { askAiAboutQuestion, evaluateFreeResponse, LiveApiSession, LiveSessionPhase } from '@avalia/services';
 
 interface QuizCardProps {
@@ -316,21 +317,21 @@ export const QuizCard: React.FC<QuizCardProps> = ({
     if (showAnswerKey) {
       if (optIndex === question.correctAnswerIndex) return `${baseStyle} bg-green-900/30 border border-green-700 text-green-300`;
       if (optIndex === selectedOption && selectedOption !== question.correctAnswerIndex) return `${baseStyle} bg-red-900/30 border border-red-700 text-red-300`;
-      return `${baseStyle} bg-jw-card border border-transparent opacity-50`;
+      return `${baseStyle} bg-brand-card border border-transparent opacity-50`;
     }
     if (hasConfirmed || isTimeUp) {
        if (optIndex === question.correctAnswerIndex) return `${baseStyle} bg-green-900/40 border border-green-600 text-green-200`;
        if (optIndex === selectedOption && selectedOption !== question.correctAnswerIndex) return `${baseStyle} bg-red-900/40 border border-red-800 text-red-200`;
-       return `${baseStyle} bg-jw-card border border-transparent opacity-40`;
+       return `${baseStyle} bg-brand-card border border-transparent opacity-40`;
     }
-    if (internalSelectedOption === optIndex) return `${baseStyle} bg-jw-blue text-white shadow-md transform scale-[1.01] border border-transparent`;
-    return `${baseStyle} bg-jw-card hover:bg-jw-hover text-jw-text border border-transparent hover:border-gray-500/50 ${isSkipping ? 'opacity-50 cursor-not-allowed' : ''}`;
+    if (internalSelectedOption === optIndex) return `${baseStyle} bg-brand-blue text-white shadow-md transform scale-[1.01] border border-transparent`;
+    return `${baseStyle} bg-brand-card hover:bg-brand-hover text-brand-text border border-transparent hover:border-gray-500/50 ${isSkipping ? 'opacity-50 cursor-not-allowed' : ''}`;
   };
 
   return (
     <div className="w-full max-w-3xl mx-auto flex flex-col h-full justify-center relative p-2 md:p-0">
       {notificacao && (
-        <div className={`absolute top-2 right-2 z-40 px-3 py-2 rounded-lg text-[10px] font-bold shadow-lg border ${notificacao.tipo === 'erro' ? 'bg-red-900/80 border-red-700 text-red-100' : 'bg-jw-card border-gray-600 text-gray-200'}`}>
+        <div className={`absolute top-2 right-2 z-40 px-3 py-2 rounded-lg text-[10px] font-bold shadow-lg border ${notificacao.tipo === 'erro' ? 'bg-red-900/80 border-red-700 text-red-100' : 'bg-brand-card border-gray-600 text-gray-200'}`}>
           {notificacao.mensagem}
         </div>
       )}
@@ -354,9 +355,9 @@ export const QuizCard: React.FC<QuizCardProps> = ({
       <div className="mb-6 flex items-start gap-4 group/header relative z-10">
         <span className="font-mono mt-1 text-sm opacity-50">{index + 1}.</span>
         <div className="flex-1">
-          <h3 className="text-lg md:text-2xl font-medium text-jw-text leading-relaxed">
+          <h3 className="text-lg md:text-2xl font-medium text-brand-text leading-relaxed">
             {interfaceLanguage === 'pt' ? question.question : (
-              <div id="libras-player-container-target" className="w-full h-[300px] md:h-[400px] bg-jw-card/30 rounded-xl flex items-center justify-center overflow-hidden border border-white/5 animate-fade-in">
+              <div id="libras-player-container-target" className="w-full h-[300px] md:h-[400px] bg-brand-card/30 rounded-xl flex items-center justify-center overflow-hidden border border-white/5 animate-fade-in">
                 <div className="text-[10px] opacity-20 uppercase tracking-widest">Aguardando Sinalização...</div>
               </div>
             )}
@@ -370,7 +371,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
         </div>
         
         {ttsConfig?.enabled && (
-           <button onClick={handleReadAloud} className="opacity-50 hover:opacity-100 p-2 rounded-full hover:bg-jw-hover transition-all shrink-0" title="Ler em voz alta">
+           <button onClick={handleReadAloud} className="opacity-50 hover:opacity-100 p-2 rounded-full hover:bg-brand-hover transition-all shrink-0" title="Ler em voz alta">
              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg>
            </button>
@@ -379,26 +380,21 @@ export const QuizCard: React.FC<QuizCardProps> = ({
 
       <div className="pl-0 md:pl-8 min-h-[150px] relative z-10">
         {isMultipleChoice ? (
-          <div className="space-y-4">
-            <div className="space-y-3">
-              {question.options.map((option, idx) => (
-                <button key={idx} onClick={() => handleSelect(idx)} onMouseEnter={() => !hasConfirmed && !isTimeUp && !isSkipping && internalSelectedOption !== idx && playSound('hover')} className={getOptionStyle(idx)} disabled={isAnsweredOrFinished || isSkipping || isVoided}>
-                  <span className={`w-8 h-8 rounded-md flex items-center justify-center text-sm mr-3 md:mr-4 shrink-0 transition-colors ${ (internalSelectedOption === idx || (showAnswerKey && idx === question.correctAnswerIndex)) ? 'bg-white text-jw-blue' : 'bg-gray-700/50 group-hover:bg-jw-text group-hover:text-jw-dark' }`} style={ (internalSelectedOption === idx) ? { color: activeTeamColor || 'var(--accent-primary)' } : {} }>
-                    {String.fromCharCode(65 + idx)}
-                  </span>
-                  <span>{option}</span>
-                </button>
-              ))}
-            </div>
-            {!isAnsweredOrFinished && internalSelectedOption !== null && (
-              <div className="flex justify-end animate-fade-in-up pt-2">
-                  <button onClick={handleConfirm} className="bg-jw-blue text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-opacity-90 transition-transform active:scale-95 flex items-center gap-2" onMouseEnter={() => playSound('hover')}>
-                    Confirmar Resposta
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                  </button>
-              </div>
-            )}
-          </div>
+          <QuizOptions
+            question={question}
+            selectedOption={selectedOption}
+            internalSelectedOption={internalSelectedOption}
+            showAnswerKey={showAnswerKey}
+            hasConfirmed={hasConfirmed}
+            isTimeUp={isTimeUp}
+            isSkipping={isSkipping}
+            isVoided={isVoided}
+            isAnsweredOrFinished={isAnsweredOrFinished}
+            activeTeamColor={activeTeamColor}
+            onSelect={handleSelect}
+            onConfirm={handleConfirm}
+            onHover={() => playSound('hover')}
+          />
         ) : openEndedMode === 'live' ? (
           // --- LIVE MODE UI ---
           <div className="space-y-4 animate-fade-in">
@@ -406,14 +402,14 @@ export const QuizCard: React.FC<QuizCardProps> = ({
               <div className="flex flex-col items-center justify-center py-8 gap-6">
                 {(livePhase === 'connecting') && (
                   <div className="flex flex-col items-center gap-3 animate-fade-in">
-                    <div className="w-4 h-4 border-2 border-jw-blue border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 border-2 border-brand-blue border-t-transparent rounded-full animate-spin"></div>
                     <p className="text-sm text-gray-400">Conectando ao modo Live...</p>
                   </div>
                 )}
                 {livePhase === 'speaking' && (
                   <div className="flex flex-col items-center gap-3 animate-fade-in">
-                    <div className="w-16 h-16 rounded-full bg-jw-blue/10 flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-jw-blue animate-pulse">
+                    <div className="w-16 h-16 rounded-full bg-brand-blue/10 flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-brand-blue animate-pulse">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
                       </svg>
                     </div>
@@ -432,7 +428,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
                     </div>
                     <p className="text-sm text-red-400 font-bold tracking-wide">Ouvindo...</p>
                     {liveTranscript && (
-                      <div className="w-full bg-jw-hover border border-gray-600 rounded-lg p-4 text-sm italic text-gray-300 min-h-[60px]">
+                      <div className="w-full bg-brand-hover border border-gray-600 rounded-lg p-4 text-sm italic text-gray-300 min-h-[60px]">
                         {liveTranscript}
                       </div>
                     )}
@@ -440,7 +436,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
                 )}
                 {livePhase === 'processing' && (
                   <div className="flex flex-col items-center gap-3 animate-fade-in">
-                    <div className="w-4 h-4 border-2 border-jw-blue border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 border-2 border-brand-blue border-t-transparent rounded-full animate-spin"></div>
                     <p className="text-sm text-gray-400">Avaliando resposta...</p>
                     {liveTranscript && <p className="text-xs text-gray-500 italic max-w-xs text-center">"{liveTranscript}"</p>}
                   </div>
@@ -448,7 +444,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
                 {(livePhase === 'idle' || livePhase === 'error') && (
                   <div className="flex flex-col items-center gap-3 animate-fade-in">
                     <p className="text-sm text-gray-500">Nenhuma resposta detectada.</p>
-                    <button onClick={startLiveSession} className="flex items-center gap-2 px-5 py-2 bg-jw-blue text-white rounded-full text-sm font-bold hover:bg-opacity-90 transition-all">
+                    <button onClick={startLiveSession} className="flex items-center gap-2 px-5 py-2 bg-brand-blue text-white rounded-full text-sm font-bold hover:bg-opacity-90 transition-all">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg>
                       Tentar novamente
                     </button>
@@ -456,7 +452,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
                 )}
               </div>
             ) : (
-              <div className="bg-jw-card p-4 md:p-6 rounded-lg border border-gray-700">
+              <div className="bg-brand-card p-4 md:p-6 rounded-lg border border-gray-700">
                 <div className="text-sm opacity-60 mb-2">Sua resposta (voz):</div>
                 <div className="mb-4 italic">"{textAnswer}"</div>
                 {evaluationResult && (
@@ -470,7 +466,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
                 )}
                 {showAnswerKey && (
                   <div className="mt-4 pt-4 border-t border-gray-700/50 text-sm">
-                    <span className="font-bold text-jw-blue">Solução Oficial:</span> {question.correctAnswerText}
+                    <span className="font-bold text-brand-blue">Solução Oficial:</span> {question.correctAnswerText}
                   </div>
                 )}
               </div>
@@ -482,21 +478,21 @@ export const QuizCard: React.FC<QuizCardProps> = ({
               {!evaluationResult && !showAnswerKey ? (
                 <>
                     <div className="relative animate-fade-in">
-                      <textarea value={textAnswer} onChange={(e) => setTextAnswer(e.target.value)} placeholder="Digite sua resposta aqui..." className="w-full h-32 md:h-40 bg-jw-hover border border-gray-600 rounded-lg p-4 text-sm md:text-base focus:ring-2 focus:ring-jw-blue outline-none resize-none" disabled={isEvaluating || isTimeUp || isSkipping} autoFocus />
-                      <button onClick={toggleRecording} className={`absolute bottom-4 right-4 p-2 rounded-full transition-all ${isRecording ? 'bg-red-600 animate-pulse text-white' : 'bg-jw-card text-gray-400 hover:text-jw-blue'}`} title="Falar resposta (Ditado)" disabled={isEvaluating || isTimeUp || isSkipping}>
+                      <textarea value={textAnswer} onChange={(e) => setTextAnswer(e.target.value)} placeholder="Digite sua resposta aqui..." className="w-full h-32 md:h-40 bg-brand-hover border border-gray-600 rounded-lg p-4 text-sm md:text-base focus:ring-2 focus:ring-brand-blue outline-none resize-none" disabled={isEvaluating || isTimeUp || isSkipping} autoFocus />
+                      <button onClick={toggleRecording} className={`absolute bottom-4 right-4 p-2 rounded-full transition-all ${isRecording ? 'bg-red-600 animate-pulse text-white' : 'bg-brand-card text-gray-400 hover:text-brand-blue'}`} title="Falar resposta (Ditado)" disabled={isEvaluating || isTimeUp || isSkipping}>
                         <svg xmlns="http://www.w3.org/2000/svg" fill={isRecording ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
                         </svg>
                       </button>
                     </div>
                      <div className="flex justify-end mt-4">
-                         <button onClick={handleSubmitFreeResponse} disabled={!textAnswer.trim() || isEvaluating || isTimeUp || isSkipping} className="px-6 py-2 bg-jw-blue text-white rounded-lg font-bold hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                         <button onClick={handleSubmitFreeResponse} disabled={!textAnswer.trim() || isEvaluating || isTimeUp || isSkipping} className="px-6 py-2 bg-brand-blue text-white rounded-lg font-bold hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                          {isEvaluating ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Avaliando...</> : 'Confirmar e Enviar'}
                          </button>
                      </div>
                 </>
               ) : (
-                <div className="bg-jw-card p-4 md:p-6 rounded-lg border border-gray-700">
+                <div className="bg-brand-card p-4 md:p-6 rounded-lg border border-gray-700">
                    <div className="text-sm opacity-60 mb-2">Sua resposta:</div>
                    <div className="mb-4 italic">"{textAnswer || (forceSelectedOption as any)}"</div>
                    {evaluationResult && (
@@ -510,7 +506,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
                    )}
                    {showAnswerKey && (
                       <div className="mt-4 pt-4 border-t border-gray-700/50 text-sm">
-                         <span className="font-bold text-jw-blue">Solução Oficial:</span> {question.correctAnswerText}
+                         <span className="font-bold text-brand-blue">Solução Oficial:</span> {question.correctAnswerText}
                       </div>
                    )}
                 </div>
@@ -527,14 +523,14 @@ export const QuizCard: React.FC<QuizCardProps> = ({
              </p>
            )}
            {question.explanation && (
-              <div className="bg-jw-hover/50 p-4 rounded-lg border-l-4 border-jw-blue text-sm leading-relaxed text-jw-text opacity-90">
+              <div className="bg-brand-hover/50 p-4 rounded-lg border-l-4 border-brand-blue text-sm leading-relaxed text-brand-text opacity-90">
                   <strong className="block text-xs uppercase tracking-wider opacity-60 mb-1">Por que?</strong>
                   {question.explanation}
               </div>
            )}
            <div className="flex gap-2">
-              <button onClick={() => { setShowAskAi(true); playSound('click'); }} className="text-xs bg-jw-card hover:bg-jw-hover border border-gray-600 px-3 py-2 rounded-lg flex items-center gap-2 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-jw-blue"><path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.322-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" /></svg>
+              <button onClick={() => { setShowAskAi(true); playSound('click'); }} className="text-xs bg-brand-card hover:bg-brand-hover border border-gray-600 px-3 py-2 rounded-lg flex items-center gap-2 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-brand-blue"><path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.322-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" /></svg>
                 Tirar Dúvida
               </button>
            </div>
@@ -546,17 +542,17 @@ export const QuizCard: React.FC<QuizCardProps> = ({
           <div className="flex items-center gap-2 md:gap-4 flex-wrap">
             {(allowStandardHint || allowAskAi) && (
                <div className="relative">
-                  <button onClick={handleMainHelpClick} onMouseEnter={() => !isSkipping && playSound('hover')} disabled={(hintsRemaining === 0 && !activeHint && !showAskAi) || isSkipping || isEvaluating} className={`flex items-center text-sm py-2 px-4 rounded-full bg-jw-card border border-gray-700 hover:border-jw-blue transition-colors ${(hintsRemaining === 0 && !activeHint && !showAskAi) || isSkipping || 'opacity-80 hover:opacity-100 shadow-sm'}`}>
+                  <button onClick={handleMainHelpClick} onMouseEnter={() => !isSkipping && playSound('hover')} disabled={(hintsRemaining === 0 && !activeHint && !showAskAi) || isSkipping || isEvaluating} className={`flex items-center text-sm py-2 px-4 rounded-full bg-brand-card border border-gray-700 hover:border-brand-blue transition-colors ${(hintsRemaining === 0 && !activeHint && !showAskAi) || isSkipping || 'opacity-80 hover:opacity-100 shadow-sm'}`}>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" /></svg>
                     {activeHint ? 'Esconder Dica' : (showAskAi ? 'Fechar Chat' : 'Ajuda')}
                   </button>
                   {showHintOptions && (
-                    <div className="absolute bottom-full left-0 mb-2 w-48 bg-jw-card border border-gray-700 rounded-lg shadow-xl overflow-hidden z-20 animate-fade-in">
-                       <button onClick={activateStandardHint} className="w-full text-left px-4 py-3 hover:bg-jw-hover text-sm border-b border-gray-700/50 flex items-center gap-2">
+                    <div className="absolute bottom-full left-0 mb-2 w-48 bg-brand-card border border-gray-700 rounded-lg shadow-xl overflow-hidden z-20 animate-fade-in">
+                       <button onClick={activateStandardHint} className="w-full text-left px-4 py-3 hover:bg-brand-hover text-sm border-b border-gray-700/50 flex items-center gap-2">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" /></svg>
                           Dica Padrão
                        </button>
-                       <button onClick={activateChat} className="w-full text-left px-4 py-3 hover:bg-jw-hover text-sm flex items-center gap-2">
+                       <button onClick={activateChat} className="w-full text-left px-4 py-3 hover:bg-brand-hover text-sm flex items-center gap-2">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>
                           Perguntar ao Chat
                        </button>
@@ -565,7 +561,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
                </div>
             )}
             {onSkip && (
-               <button onClick={onSkip} onMouseEnter={() => !isSkipping && playSound('hover')} disabled={isSkipping || isEvaluating} className={`flex items-center text-sm py-2 px-4 rounded-full bg-jw-card border border-red-900/50 hover:border-red-500 text-red-300 transition-colors ${isSkipping ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 shadow-sm'}`}>
+               <button onClick={onSkip} onMouseEnter={() => !isSkipping && playSound('hover')} disabled={isSkipping || isEvaluating} className={`flex items-center text-sm py-2 px-4 rounded-full bg-brand-card border border-red-900/50 hover:border-red-500 text-red-300 transition-colors ${isSkipping ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 shadow-sm'}`}>
                  {isSkipping ? <><div className="w-3 h-3 mr-2 border-2 border-red-300 border-t-transparent rounded-full animate-spin"></div> Pulando...</> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062A1.125 1.125 0 013 16.81V8.688zM12.75 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062a1.125 1.125 0 01-1.683-.977V8.688z" /></svg>Pular</>}
                </button>
             )}
@@ -583,18 +579,18 @@ export const QuizCard: React.FC<QuizCardProps> = ({
       )}
 
       {showAskAi && (
-        <div className="w-full mt-4 bg-jw-hover/50 p-4 rounded-lg border border-gray-700/50 animate-fade-in relative pl-0 md:pl-8 z-10">
+        <div className="w-full mt-4 bg-brand-hover/50 p-4 rounded-lg border border-gray-700/50 animate-fade-in relative pl-0 md:pl-8 z-10">
             <button onClick={() => { setShowAskAi(false); setAskResponse(null); }} className="absolute top-2 right-2 opacity-50 hover:opacity-100 p-1" title="Fechar Chat">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
-            <div className="font-bold text-sm mb-2 text-jw-blue flex items-center gap-2">
+            <div className="font-bold text-sm mb-2 text-brand-blue flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>
               Chat com Mestre de Quiz
             </div>
             {!askResponse ? (
               <form onSubmit={handleSubmitAskAi} className="flex gap-2">
-                <input type="text" value={askInput} onChange={(e) => setAskInput(e.target.value)} placeholder={isAnsweredOrFinished ? "Ex: Por que a opção B está errada?" : "Ex: O que significa a palavra 'X'?"} className="flex-1 bg-jw-card border border-gray-600 rounded px-3 py-2 text-sm focus:ring-1 focus:ring-jw-blue outline-none placeholder-gray-500" disabled={isAskLoading} />
-                <button type="submit" disabled={isAskLoading || !askInput.trim()} className="bg-jw-blue text-white px-4 py-2 rounded text-sm hover:bg-opacity-90 disabled:opacity-50" onMouseEnter={() => playSound('hover')}>
+                <input type="text" value={askInput} onChange={(e) => setAskInput(e.target.value)} placeholder={isAnsweredOrFinished ? "Ex: Por que a opção B está errada?" : "Ex: O que significa a palavra 'X'?"} className="flex-1 bg-brand-card border border-gray-600 rounded px-3 py-2 text-sm focus:ring-1 focus:ring-brand-blue outline-none placeholder-gray-500" disabled={isAskLoading} />
+                <button type="submit" disabled={isAskLoading || !askInput.trim()} className="bg-brand-blue text-white px-4 py-2 rounded text-sm hover:bg-opacity-90 disabled:opacity-50" onMouseEnter={() => playSound('hover')}>
                   {isAskLoading ? '...' : 'Enviar'}
                 </button>
               </form>
@@ -612,7 +608,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
 
       {showAnswerKey && onVoid && !isVoided && (
          <div className="mt-8 pt-4 border-t border-gray-700/30 flex justify-end relative z-20">
-            <button onClick={onVoid} className="text-jw-blue hover:text-white hover:bg-jw-blue border border-jw-blue text-sm font-bold flex items-center gap-2 px-4 py-2 rounded-full transition-all" title="Gerar uma nova pergunta para tentar responder novamente">
+            <button onClick={onVoid} className="text-brand-blue hover:text-white hover:bg-brand-blue border border-brand-blue text-sm font-bold flex items-center gap-2 px-4 py-2 rounded-full transition-all" title="Gerar uma nova pergunta para tentar responder novamente">
                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                </svg>

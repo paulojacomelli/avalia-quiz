@@ -44,7 +44,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
   const storagePrefix: string = appConfig?.storagePrefix ?? 'quiz';
   const primaryColor: string = appConfig?.theme?.primaryColor ?? '#4287f5';
 
-  const { isAuthenticated, apiKey, provider, login, logout } = useAuth();
+  const { isAuthenticated, apiKey, clientId, provider, login, logout } = useAuth();
   
   const [setupStep, setSetupStep] = useState(1);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
@@ -72,6 +72,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
     storagePrefix,
     appName,
     apiKey,
+    clientId,
     provider: provider || undefined,
     ttsEnabled: false, // Inicialmente falso, atualizado pelo hook reativo
     ttsConfig: {} as any, 
@@ -130,7 +131,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
 
   // --- Helper UI ---
   const getTimerStyles = () => {
-    if (game.isCurrentQuestionAnswered && !game.isReviewing) return 'bg-jw-hover text-gray-400';
+    if (game.isCurrentQuestionAnswered && !game.isReviewing) return 'bg-brand-hover text-gray-400';
     const percentage = (game.timeLeft / game.timeLimit) * 100;
     if (percentage > 50) return 'bg-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.4)]';
     if (percentage > 20) return 'bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)] animate-pulse';
@@ -174,7 +175,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0d0d] font-sans text-jw-text overflow-hidden">
+    <div className="min-h-screen bg-[#0d0d0d] font-sans text-brand-text overflow-hidden">
       {game.gameState === 'START_SCREEN' ? (
         <div className="min-h-screen flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-[#1a1a1a] w-full max-w-md p-10 md:p-12 rounded-[2rem] shadow-2xl border border-white/5 flex flex-col items-center relative overflow-hidden">
@@ -187,7 +188,11 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
                 )}
               </div>
             </div>
-            {title || <h1 className="text-3xl font-black text-white text-center mb-1">Aval<span className="text-[#F7D33C]">ia</span> Quiz</h1>}
+            {title || (
+              <h1 className="text-3xl font-black text-white text-center mb-1">
+                {appName.replace(/ia/i, '')}<span className="text-[#F7D33C]">ia</span> {appName.split(' ').slice(1).join(' ')}
+              </h1>
+            )}
             <p className="text-sm text-gray-400 mb-10">Selecione o idioma para começar.</p>
             
             <div className="w-full bg-black/40 p-2 rounded-3xl flex gap-3 mb-8 border border-white/5">
@@ -201,15 +206,17 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
               </button>
             </div>
 
-            <button onClick={() => game.setGameState('SETUP')} className="w-full bg-jw-blue text-white font-bold py-4 rounded-xl shadow-xl shadow-jw-blue/20">Iniciar</button>
+            <button onClick={() => game.setGameState('SETUP')} className="w-full bg-brand-blue text-white font-bold py-4 rounded-xl shadow-xl shadow-brand-blue/20">Iniciar</button>
           </div>
         </div>
       ) : (
-        <div className="h-screen flex flex-col font-sans bg-jw-dark text-jw-text overflow-hidden" style={{ zoom: settings.zoomLevel }}>
-          <header className="bg-jw-blue text-white h-16 shrink-0 flex items-center shadow-lg z-20">
+        <div className="h-screen flex flex-col font-sans bg-brand-dark text-brand-text overflow-hidden" style={{ zoom: settings.zoomLevel }}>
+          <header className="bg-brand-blue text-white h-16 shrink-0 flex items-center shadow-lg z-20">
             <div className="container mx-auto px-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <h1 className="text-base font-semibold truncate">Aval<span className="text-[#F7D33C]">ia</span> Quiz</h1>
+                <h1 className="text-base font-semibold truncate">
+                  {appConfig?.appTitle || appName}
+                </h1>
                 {game.isTutorialMode && <span className="bg-emerald-500 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">Tutorial</span>}
               </div>
               <SettingsMenu
@@ -237,7 +244,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
 
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
             {game.interfaceLanguage === 'libras' && (
-              <div className="w-full lg:w-1/3 h-[250px] lg:h-full bg-[#05050a] relative border-b lg:border-r border-jw-blue/20 shrink-0">
+              <div className="w-full lg:w-1/3 h-[250px] lg:h-full bg-[#05050a] relative border-b lg:border-r border-brand-blue/20 shrink-0">
                 <VLibras ref={libras.vlibrasRef} active={true} onReady={() => setIsLibrasReady(true)} />
                 {isLibrasReady && (
                   <div className="absolute bottom-3 right-3 flex flex-col gap-2 z-30">
@@ -258,7 +265,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
             <div className="relative z-10 flex flex-col flex-1 overflow-y-auto custom-scrollbar">
               {game.loading && (
                 <div className="fixed inset-0 z-[60] bg-[#121212] flex flex-col items-center justify-center animate-fade-in px-4">
-                  <div className="w-16 h-16 border-4 border-gray-800 border-t-jw-blue rounded-full animate-spin mb-6"></div>
+                  <div className="w-16 h-16 border-4 border-gray-800 border-t-brand-blue rounded-full animate-spin mb-6"></div>
                   <h2 className="text-2xl font-bold text-gray-300 mb-2">Processando...</h2>
                   <p className="text-gray-400 italic opacity-80">"{game.loadingMessage}"</p>
                 </div>
@@ -266,17 +273,17 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
 
               {game.pendingAction && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-                  <div className="bg-jw-card max-w-sm w-full rounded-2xl p-6 border border-gray-700">
+                  <div className="bg-brand-card max-w-sm w-full rounded-2xl p-6 border border-gray-700">
                     <h3 className="text-xl font-bold mb-2">Confirmar Ação</h3>
                     <p className="text-sm opacity-70 mb-6">Deseja realmente realizar esta ação?</p>
                     <div className="flex gap-3">
-                      <button onClick={() => game.setPendingAction(null)} className="flex-1 py-3 bg-jw-hover rounded-lg">Cancelar</button>
+                      <button onClick={() => game.setPendingAction(null)} className="flex-1 py-3 bg-brand-hover rounded-lg">Cancelar</button>
                       <button onClick={() => {
                         if (game.pendingAction === 'LOGOUT') logout();
                         else if (game.pendingAction === 'RESET') game.executeReset();
                         else if (game.pendingAction === 'CLEAR_HISTORY') { setUsedTopics([]); localStorage.removeItem(`${storagePrefix}-used-keywords`); }
                         game.setPendingAction(null);
-                      }} className="flex-1 py-3 bg-jw-blue text-white rounded-lg font-bold">Confirmar</button>
+                      }} className="flex-1 py-3 bg-brand-blue text-white rounded-lg font-bold">Confirmar</button>
                     </div>
                   </div>
                 </div>
@@ -332,7 +339,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
 
               {game.gameState === 'ROUND_SUMMARY' && (
                 <main className="flex-1 flex items-center justify-center p-6">
-                  <div className="bg-jw-card p-10 rounded-3xl shadow-2xl border border-gray-700 text-center max-w-lg w-full">
+                  <div className="bg-brand-card p-10 rounded-3xl shadow-2xl border border-gray-700 text-center max-w-lg w-full">
                     <h2 className="text-3xl font-bold mb-8">Fim da Rodada {game.currentRound}</h2>
                     <div className="space-y-4 mb-10">
                       {game.teams.map(t => (
@@ -342,7 +349,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
                         </div>
                       ))}
                     </div>
-                    <button onClick={game.handleNextRound} className="w-full py-4 bg-jw-blue text-white rounded-xl font-bold shadow-lg">Próxima Rodada</button>
+                    <button onClick={game.handleNextRound} className="w-full py-4 bg-brand-blue text-white rounded-xl font-bold shadow-lg">Próxima Rodada</button>
                   </div>
                 </main>
               )}
@@ -353,7 +360,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl mb-12">
                     {game.teams.map(t => (
-                      <div key={t.id} className="bg-jw-card p-8 rounded-3xl border-b-8 shadow-2xl" style={{ borderBottomColor: t.color }}>
+                      <div key={t.id} className="bg-brand-card p-8 rounded-3xl border-b-8 shadow-2xl" style={{ borderBottomColor: t.color }}>
                         <div className="text-sm font-bold opacity-50 uppercase mb-2">{t.name}</div>
                         <div className="text-6xl font-black mb-4">{t.score}</div>
                         <div className="flex gap-4 text-sm font-medium">
@@ -365,9 +372,9 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
                   </div>
 
                   <div className="flex flex-wrap gap-4 justify-center">
-                    <button onClick={() => game.setIsReviewing(true)} className="px-8 py-4 bg-jw-hover rounded-2xl font-bold transition-colors hover:bg-white/10">Revisar Respostas</button>
+                    <button onClick={() => game.setIsReviewing(true)} className="px-8 py-4 bg-brand-hover rounded-2xl font-bold transition-colors hover:bg-white/10">Revisar Respostas</button>
                     <button onClick={game.handleConfirmStart} className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-bold shadow-lg hover:bg-emerald-500 transition-all active:scale-95">Jogar Novamente</button>
-                    <button onClick={game.executeReset} className="px-8 py-4 bg-jw-blue text-white rounded-2xl font-bold shadow-lg hover:opacity-90 transition-all active:scale-95">Menu Inicial</button>
+                    <button onClick={game.executeReset} className="px-8 py-4 bg-brand-blue text-white rounded-2xl font-bold shadow-lg hover:opacity-90 transition-all active:scale-95">Menu Inicial</button>
                   </div>
 
                   {game.isReviewing && (
@@ -384,8 +391,8 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
                           ttsConfig={narration.ttsConfig} apiKey={apiKey} interfaceLanguage={game.interfaceLanguage} />
                       </div>
                       <div className="flex justify-between mt-8 pb-4">
-                        <button onClick={() => game.setReviewIndex(i => Math.max(0, i - 1))} disabled={game.reviewIndex === 0} className="px-8 py-3 bg-jw-hover rounded-xl disabled:opacity-20 hover:bg-white/10 transition-colors">Anterior</button>
-                        <button onClick={() => game.setReviewIndex(i => Math.min(game.quizData!.questions.length - 1, i + 1))} disabled={game.reviewIndex === game.quizData.questions.length - 1} className="px-8 py-3 bg-jw-hover rounded-xl disabled:opacity-20 hover:bg-white/10 transition-colors">Próxima</button>
+                        <button onClick={() => game.setReviewIndex(i => Math.max(0, i - 1))} disabled={game.reviewIndex === 0} className="px-8 py-3 bg-brand-hover rounded-xl disabled:opacity-20 hover:bg-white/10 transition-colors">Anterior</button>
+                        <button onClick={() => game.setReviewIndex(i => Math.min(game.quizData!.questions.length - 1, i + 1))} disabled={game.reviewIndex === game.quizData.questions.length - 1} className="px-8 py-3 bg-brand-hover rounded-xl disabled:opacity-20 hover:bg-white/10 transition-colors">Próxima</button>
                       </div>
                     </div>
                   )}
@@ -408,7 +415,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
       {/* Footer / Floating Next */}
       {game.gameState === 'PLAYING' && game.isCurrentQuestionAnswered && (
         <div className="fixed bottom-8 right-8 z-50 animate-fade-in-up">
-          <button onClick={game.handleNextQuestion} className="bg-jw-blue text-white font-bold py-4 px-10 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3">
+          <button onClick={game.handleNextQuestion} className="bg-brand-blue text-white font-bold py-4 px-10 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3">
             Avançar
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
           </button>

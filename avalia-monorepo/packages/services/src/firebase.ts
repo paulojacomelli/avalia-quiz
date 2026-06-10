@@ -93,11 +93,11 @@ export const uploadQuizAudiosToStorage = async (
  * Retorna o docId para uso no upload de áudios.
  * audioBase64 nunca é persistido no Firestore — apenas audioUrl.
  */
-export const saveGeneratedQuiz = async (
     quiz: GeneratedQuiz,
     appName: string,
     theme?: string,
-    subTopic?: string
+    subTopic?: string,
+    metadata?: { clientId?: string | null; userAgent?: string }
 ): Promise<string | null> => {
     try {
         const rawData = {
@@ -109,6 +109,8 @@ export const saveGeneratedQuiz = async (
             theme: theme || "Geral",
             subTopic: subTopic || "",
             createdAt: serverTimestamp(),
+            clientId: metadata?.clientId || null,
+            userAgent: metadata?.userAgent || (typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown'),
             // Persiste questões sem audioBase64 — apenas texto e audioUrl (se houver)
             questions: quiz.questions.map(q => ({
                 id: q.id,

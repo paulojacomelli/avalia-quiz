@@ -10,14 +10,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@avalia/design-system": "*",
     "@avalia/core": "*",
-    "@avalia/services": "*",
+    "@avalia/design-system": "*",
     "@avalia/game-engine": "*",
+    "@avalia/services": "*",
     "@google/genai": "^1.33.0",
     "firebase": "^12.8.0",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.3",
+    "turbo": "^2.9.17"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

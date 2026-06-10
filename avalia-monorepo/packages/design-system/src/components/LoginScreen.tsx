@@ -112,7 +112,7 @@ const CustomSelect = ({ value, onChange, options, placeholder, disableCustom = f
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-[#262626] border border-white/5 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium flex justify-between items-center"
+        className="w-full bg-[#262626] border border-white/5 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-brand-blue/40 transition-all text-sm font-medium flex justify-between items-center"
       >
         <span className="flex items-center gap-2 truncate">
           {selectedOption ? (
@@ -141,7 +141,7 @@ const CustomSelect = ({ value, onChange, options, placeholder, disableCustom = f
                 key={opt.value}
                 type="button"
                 onClick={() => { onChange(opt.value); setIsOpen(false); }}
-                className={`w-full text-left px-4 py-3 hover:bg-white/5 flex items-center justify-between transition-colors border-b border-white/5 last:border-0 ${value === opt.value ? 'bg-jw-blue/10 text-jw-blue' : 'text-gray-300'}`}
+                className={`w-full text-left px-4 py-3 hover:bg-white/5 flex items-center justify-between transition-colors border-b border-white/5 last:border-0 ${value === opt.value ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-300'}`}
               >
                 <span className="text-sm font-medium flex items-center gap-2">
                   {opt.icon && <span className="shrink-0 flex items-center justify-center">{opt.icon}</span>}
@@ -158,7 +158,7 @@ const CustomSelect = ({ value, onChange, options, placeholder, disableCustom = f
               <button
                 type="button"
                 onClick={() => { onChange('custom'); setIsOpen(false); }}
-                className={`w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-t border-white/10 flex items-center gap-2 ${value === 'custom' ? 'bg-jw-blue/10 text-jw-blue' : 'text-gray-400'}`}
+                className={`w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-t border-white/10 flex items-center gap-2 ${value === 'custom' ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-400'}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
@@ -397,7 +397,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   value={accessCode}
                   onChange={(e) => { setAccessCode(e.target.value); setError(''); }}
                   placeholder="Digite o código..."
-                  className="w-full bg-[#262626] border border-white/5 rounded-xl px-4 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium"
+                  className="w-full bg-[#262626] border border-white/5 rounded-xl px-4 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-blue/40 transition-all text-sm font-medium"
                 />
                 <p className="mt-2 text-[11px] text-gray-500 font-medium opacity-60">Não tem um código? Solicite ao administrador do sistema.</p>
               </div>
@@ -469,7 +469,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   value={inputKey}
                   onChange={(e) => { setInputKey(e.target.value); setError(''); }}
                   placeholder={provider === 'deepseek' ? "sk-..." : provider === 'groq' ? "gsk_..." : provider === 'openrouter' ? "sk-or-..." : "AIzaSy..."}
-                  className="w-full bg-[#262626] border border-white/5 rounded-xl px-4 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium mb-3"
+                  className="w-full bg-[#262626] border border-white/5 rounded-xl px-4 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-blue/40 transition-all text-sm font-medium mb-3"
                 />
                 <div className="flex justify-end">
                   <a
@@ -511,7 +511,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                       provider === 'openrouter' ? "Digite o nome do modelo (ex: google/gemini-2.5-flash)" :
                       "Digite o nome do modelo (ex: gemini-4.0-flash)"
                     }
-                    className="w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium"
+                    className="w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-brand-blue/40 transition-all text-sm font-medium"
                   />
                 )}
               </div>
@@ -533,7 +533,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                         value={customTtsModel}
                         onChange={(e) => setCustomTtsModel(e.target.value)}
                         placeholder="Digite o nome do modelo TTS"
-                        className="w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium"
+                        className="w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-brand-blue/40 transition-all text-sm font-medium"
                       />
                     )}
                   </div>
@@ -556,7 +556,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                         value={customLiveModel}
                         onChange={(e) => setCustomLiveModel(e.target.value)}
                         placeholder="Digite o nome do modelo Live"
-                        className="w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-jw-blue/40 transition-all text-sm font-medium"
+                        className="w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-brand-blue/40 transition-all text-sm font-medium"
                       />
                     )}
                   </div>
@@ -570,7 +570,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           <button
             type="submit"
             disabled={isValidating}
-            className="w-full bg-jw-blue text-white font-bold text-base py-4 rounded-xl hover:bg-opacity-90 transition-all active:scale-[0.98] shadow-xl shadow-jw-blue/20 disabled:opacity-50 flex justify-center items-center"
+            className="w-full bg-brand-blue text-white font-bold text-base py-4 rounded-xl hover:bg-opacity-90 transition-all active:scale-[0.98] shadow-xl shadow-brand-blue/20 disabled:opacity-50 flex justify-center items-center"
           >
             {isValidating ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -586,9 +586,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
         <button
           onClick={onPlayPrebuilt}
-          className="w-full group relative overflow-hidden bg-white/5 border border-white/10 hover:border-jw-blue/30 text-white font-bold py-4 rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+          className="w-full group relative overflow-hidden bg-white/5 border border-white/10 hover:border-brand-blue/30 text-white font-bold py-4 rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-jw-blue/0 via-jw-blue/5 to-jw-blue/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-brand-blue/0 via-brand-blue/5 to-brand-blue/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-[#F7D33C]">
             <path d="M11.584 2.376a.75.75 0 01.832 0l8.32 5.547a.75.75 0 01.416.677V20.25a.75.75 0 01-.75.75h-15a.75.75 0 01-.75-.75V8.6a.75.75 0 01.416-.677l8.32-5.547zM12 4.732 5.25 9.232V19.5h13.5V9.232L12 4.732z" />
           </svg>
@@ -606,7 +606,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           <div className="fixed inset-0 z-[60] bg-[#121212]/90 backdrop-blur-sm flex flex-col items-center justify-center animate-fade-in text-center px-4 cursor-wait">
             <div className="relative mb-8">
               <div className="w-16 h-16 md:w-20 md:h-20 border-[6px] border-gray-800 rounded-full"></div>
-              <div className="w-16 h-16 md:w-20 md:h-20 border-[6px] border-t-jw-blue border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+              <div className="w-16 h-16 md:w-20 md:h-20 border-[6px] border-t-brand-blue border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin absolute top-0 left-0"></div>
             </div>
             <h2 className="text-2xl md:text-3xl font-bold text-gray-300 mb-6 tracking-wide">Aguarde...</h2>
             <p className="text-gray-400 text-sm md:text-base max-w-lg italic font-serif opacity-80 leading-relaxed animate-pulse">
@@ -639,7 +639,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 </div>
                 <button
                   onClick={onClearError}
-                  className="w-full py-3 bg-jw-blue hover:bg-opacity-90 text-white font-bold rounded-lg transition-colors shadow-lg"
+                  className="w-full py-3 bg-brand-blue hover:bg-opacity-90 text-white font-bold rounded-lg transition-colors shadow-lg"
                 >
                   Entendido
                 </button>
