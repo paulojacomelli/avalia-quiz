@@ -67,13 +67,8 @@ jobs:
 
       - name: Deploy to Firebase Hosting (Dev Sites)
         working-directory: ./avalia-monorepo
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/serviceAccountKey.json
         run: |
-          if [ -z "${{ secrets.FIREBASE_DEPLOY_TOKEN }}" ]; then
-            echo "Using Service Account Key method"
-            echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}" > serviceAccountKey.json
-            export GOOGLE_APPLICATION_CREDENTIALS=serviceAccountKey.json
-            firebase deploy --only hosting:avaliaquizdev,hosting:avaliajwquizdev --non-interactive
-          else
-            echo "Using Firebase Deploy Token method"
-            firebase deploy --token "${{ secrets.FIREBASE_DEPLOY_TOKEN }}" --only hosting:avaliaquizdev,hosting:avaliajwquizdev --non-interactive
-          fi
+          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}" > serviceAccountKey.json
+          firebase deploy --only hosting:avaliaquizdev,hosting:avaliajwquizdev --non-interactive
