@@ -20,6 +20,35 @@ export const storage = getStorage(app);
 const QUIZZES_COLLECTION = "generated_quizzes";
 
 /**
+ * Remove recursivamente propriedades com valor undefined para evitar erros no Firestore.
+ */
+function cleanUndefined(obj: any): any {
+    if (obj === null || obj === undefined) return obj;
+    if (Array.isArray(obj)) {
+        return obj.map(item => {
+            if (item !== null && typeof item === 'object') {
+                return cleanUndefined(item);
+            }
+            return item;
+        });
+    }
+    if (typeof obj === 'object') {
+        const newObj: any = {};
+        Object.keys(obj).forEach(key => {
+            if (obj[key] !== undefined) {
+                if (obj[key] !== null && typeof obj[key] === 'object') {
+                    newObj[key] = cleanUndefined(obj[key]);
+                } else {
+                    newObj[key] = obj[key];
+                }
+            }
+        });
+        return newObj;
+    }
+    return obj;
+}
+
+/**
  * Faz upload dos áudios TTS (base64) para o Firebase Storage.
  * Retorna o quiz com audioUrl preenchido e audioBase64 removido.
  * Falhas individuais de upload são silenciadas (a questão fica sem URL).
@@ -71,7 +100,7 @@ export const saveGeneratedQuiz = async (
     subTopic?: string
 ): Promise<string | null> => {
     try {
-        const docRef = await addDoc(collection(db, QUIZZES_COLLECTION), {
+        const rawData = {
             title: quiz.title,
             focalTheme: quiz.focalTheme,
             keywords: quiz.keywords,
@@ -94,7 +123,8 @@ export const saveGeneratedQuiz = async (
                 audioUrl: q.audioUrl,   // URL do Storage (se já foi feito upload)
                 // audioBase64 deliberadamente omitido
             })),
-        });
+        };
+        const docRef = await addDoc(collection(db, QUIZZES_COLLECTION), cleanUndefined(rawData));
         return docRef.id;
     } catch (error) {
         console.error("Erro ao salvar quiz no Firestore:", error);

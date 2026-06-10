@@ -565,6 +565,25 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
     }
   };
 
+  // --- Auto-Advance in Live Mode ---
+  // No modo Live, após a resposta ser avaliada, avança automaticamente para sincronizar
+  // com o áudio da IA que já segue em frente na conversa.
+  useEffect(() => {
+    if (
+      gameState === 'PLAYING' &&
+      isCurrentQuestionAnswered &&
+      quizConfig?.openEndedMode === 'live'
+    ) {
+      const timeout = setTimeout(() => {
+        handleNextQuestion();
+      }, 2500);
+      return () => clearTimeout(timeout);
+    }
+    // handleNextQuestion captura o closure correto no momento em que
+    // isCurrentQuestionAnswered se torna true — stale closure não é risco aqui.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCurrentQuestionAnswered, gameState, quizConfig?.openEndedMode]);
+
   // --- Keyboard Shortcuts (Spacebar & Enter to Next) ---
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -1652,6 +1671,9 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
                   title={quizData?.title || ''}
                   onConfirm={handleConfirmStart}
                   onDiscard={handleResetRequest}
+                  openEndedMode={quizConfig?.openEndedMode ?? 'normal'}
+                  apiKey={apiKey}
+                  provider={provider}
                 />
 
                 {/* COUNTDOWN */}
@@ -1787,8 +1809,8 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
         </>
       )}
 
-      {/* FAB Next */}
-      {gameState === 'PLAYING' && isCurrentQuestionAnswered && (
+      {/* FAB Next — oculto no modo Live (avanço automático) */}
+      {gameState === 'PLAYING' && isCurrentQuestionAnswered && quizConfig?.openEndedMode !== 'live' && (
         <div className="fixed bottom-8 right-4 md:right-8 z-50 animate-fade-in-up">
           <button onClick={handleNextQuestion} className="bg-jw-blue text-white font-bold py-3 px-6 md:px-8 rounded-full shadow-lg hover:bg-white hover:text-jw-blue transition-all transform active:scale-95 flex items-center gap-2 text-sm md:text-base">
             {(currentQuestionIndex < (quizData?.questions.length || 0) - 1) && ((currentQuestionIndex + 1) % (quizConfig?.questionsPerRound || 999) !== 0) ? 'Avançar' : 'Concluir Fase'}
@@ -1796,6 +1818,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
           </button>
         </div>
       )}
+
 
       <CookieBanner onOpenPrivacy={() => setIsPrivacyPolicyOpen(true)} />
       <PrivacyPolicyModal isOpen={isPrivacyPolicyOpen} onClose={() => setIsPrivacyPolicyOpen(false)} appName={appName} />

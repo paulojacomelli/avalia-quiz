@@ -73,7 +73,8 @@ export class LiveApiSession {
     this.callbacks.onPhaseChange(phase);
   }
 
-  async start(apiKey: string, questionText: string, model?: string): Promise<void> {
+  async start(apiKey: string, questionText: string, model?: string, customSystemInstruction?: string): Promise<void> {
+    console.log('[LiveApiSession] start() iniciado. Modelo:', model, 'Instrucao personalizada:', !!customSystemInstruction);
     this.terminated = false;
     this.userTranscript = '';
     this.setPhase('connecting');
@@ -82,8 +83,11 @@ export class LiveApiSession {
 
     // 1. Solicitar microfone antes de abrir WebSocket
     try {
+      console.log('[LiveApiSession] Configurando microfone...');
       await this._setupMicrophone();
+      console.log('[LiveApiSession] Microfone configurado com sucesso.');
     } catch (err: any) {
+      console.error('[LiveApiSession] Erro ao configurar microfone:', err);
       const name: string = err?.name || '';
       let msg: string;
       if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
@@ -102,13 +106,14 @@ export class LiveApiSession {
 
     // 2. Conectar à API Live após confirmar microfone disponível
     try {
+      console.log('[LiveApiSession] Inicializando GoogleGenAI e conectando live...');
       const ai = new GoogleGenAI({ apiKey });
 
       this.session = await ai.live.connect({
         model: resolvedModel,
         config: {
           responseModalities: [Modality.AUDIO],
-          systemInstruction: [
+          systemInstruction: customSystemInstruction || [
             'Você é um avaliador de quiz em português brasileiro.',
             'Leia a pergunta em voz alta de forma clara.',
             'Quando o usuário terminar de responder, ouça a resposta completa.',
@@ -124,8 +129,22 @@ export class LiveApiSession {
           }
         },
         callbacks: {
-          onopen: () => {
+          onopen: async () => {
+            console.log('[LiveApiSession] WebSocket onopen chamado.');
             if (this.terminated) return;
+            
+            // Aguarda a atribuição da sessão para evitar race condition
+            let checkCount = 0;
+            while (!this.session && !this.terminated && checkCount < 100) {
+              await new Promise(resolve => setTimeout(resolve, 10));
+              checkCount++;
+            }
+            
+            if (this.terminated || !this.session) {
+              console.warn('[LiveApiSession] Sessão não inicializada a tempo ou terminada no onopen.');
+              return;
+            }
+            
             this._sendQuestion(questionText);
           },
           onmessage: (msg: LiveServerMessage) => {
@@ -133,18 +152,22 @@ export class LiveApiSession {
             this._handleMessage(msg);
           },
           onerror: (e: ErrorEvent) => {
+            console.error('[LiveApiSession] WebSocket onerror chamado:', e);
             if (!this.terminated) {
               this.callbacks.onError('Erro na conexão Live: ' + (e?.message || 'desconhecido'));
               this.setPhase('error');
             }
           },
           onclose: () => {
+            console.log('[LiveApiSession] WebSocket onclose chamado.');
             if (!this.terminated) this._onSessionClose();
           },
         },
       });
+      console.log('[LiveApiSession] Conexao iniciada (sessao WebSocket criada).');
 
     } catch (err: any) {
+      console.error('[LiveApiSession] Exceção ao conectar à API Live:', err);
       const msg = err?.message || String(err);
       this.callbacks.onError('Falha ao conectar à API Live: ' + msg);
       this.setPhase('error');
@@ -167,7 +190,7 @@ export class LiveApiSession {
   private async _setupMicrophone(): Promise<void> {
     // getUserMedia primeiro — pode lançar DOMException com nome descritivo
     // AudioContexts só são criados após confirmação de acesso ao mic
-    this.micStream = await navigator.mediaDevices.getUserMedia({
+    const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         sampleRate: MIC_SAMPLE_RATE,
         channelCount: 1,
@@ -176,6 +199,13 @@ export class LiveApiSession {
         autoGainControl: true,
       }
     });
+
+    if (this.terminated) {
+      stream.getTracks().forEach(t => t.stop());
+      return;
+    }
+
+    this.micStream = stream;
 
     this.micContext = new AudioContext({ sampleRate: MIC_SAMPLE_RATE });
     this.playContext = new AudioContext({ sampleRate: OUT_SAMPLE_RATE });

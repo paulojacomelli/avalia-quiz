@@ -455,7 +455,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                 </div>
 
                 {quizFormat === QuizFormat.OPEN_ENDED && (
-                  <div className="p-4 bg-jw-hover/20 rounded-lg border border-jw-blue/20 animate-fade-in">
+                  <div className="p-4 bg-jw-hover/20 rounded-lg animate-fade-in">
                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Modo de Interação Livre</label>
                     <div className="flex gap-2">
                       <label className="flex-1 cursor-pointer group">
