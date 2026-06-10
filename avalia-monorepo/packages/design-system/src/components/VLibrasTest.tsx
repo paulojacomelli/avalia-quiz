@@ -8,7 +8,7 @@ import VLibras from './VLibras';
  * Valida:
  * - Carregamento do motor WebGL via window.VLibras.Player
  * - Aplicação do Monkey Patch de rota do UnityLoader
- * - Sinalização imperativa via ref.playGlosa()
+ * - Sinalização imperativa via ref.play()
  */
 const VLibrasTest: React.FC = () => {
     const [counter, setCounter]     = useState(0);
@@ -25,12 +25,12 @@ const VLibrasTest: React.FC = () => {
                 setPronto(true);
 
                 // Dispara imediatamente ao ficar pronto
-                vlibrasRef.current.playGlosa('Olá');
+                vlibrasRef.current.play('OI');
                 setCounter(1);
 
                 // Continua a cada 10 segundos
                 intervalRef.current = setInterval(() => {
-                    vlibrasRef.current?.playGlosa('Olá');
+                    vlibrasRef.current?.play('OI');
                     setCounter(prev => prev + 1);
                 }, 10000);
             }
@@ -83,7 +83,7 @@ const VLibrasTest: React.FC = () => {
                     </div>
                     <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
                         <h3 className="text-blue-400 font-bold mb-2">Sinalização</h3>
-                        <p className="text-slate-400 text-sm">Glosa enviada via player.translate() somente após isReady = true.</p>
+                        <p className="text-slate-400 text-sm">Glosa enviada via player.play() somente após isReady = true.</p>
                     </div>
                 </div>
 

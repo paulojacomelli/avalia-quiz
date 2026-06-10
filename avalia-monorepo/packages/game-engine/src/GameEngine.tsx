@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { 
   GeneratedQuiz, QuizConfig, Team, HintType, Difficulty, TTSConfig, TopicMode, ApiErrorDetail,
-  LOADING_MESSAGES, TUTORIAL_CONFIG, TUTORIAL_DATA 
+  LOADING_MESSAGES, TUTORIAL_CONFIG, TUTORIAL_DATA, GLOSAS_VALIDADAS, textoParaGlosa, sanitizarGlosa,
+  loadVLibrasDictionary, sanitizeGlosaStrict, initializeVLibrasValidator
 } from '@avalia/core';
 import { 
   generateQuizContent, generateReplacementQuestion, preGenerateQuizAudio,
@@ -151,6 +152,10 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
   );
   const [isLibrasLoading, setIsLibrasLoading] = useState(false);
   const [isLibrasReady, setIsLibrasReady] = useState(false);
+  const [vlibrasSpeed, setVlibrasSpeed] = useState(1);
+  const [vlibrasAvatar, setVlibrasAvatar] = useState('icaro');
+  const [vlibrasPlaying, setVlibrasPlaying] = useState(true);
+  const [vlibrasDict, setVlibrasDict] = useState<Set<string> | null>(null);
 
   // Log de diagnóstico para rastrear o estado pós-login
   console.log("App Render State:", { isAuthenticated, apiKey: !!apiKey, provider, interfaceLanguage });
@@ -370,6 +375,18 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
     };
     document.addEventListener('mousedown', handleClickOutside);
 
+    // Carrega o dicionário VLibras em background para validação de glosas
+    const loadDict = async () => {
+      try {
+        const dict = await loadVLibrasDictionary();
+        setVlibrasDict(dict);
+        console.log(`[GameEngine] ✅ Dicionário VLibras carregado: ${dict.size} tokens`);
+      } catch (err) {
+        console.error('[GameEngine] ❌ Falha ao carregar dicionário VLibras:', err);
+      }
+    };
+    loadDict();
+
     const fetchGlobal = async () => {
       try {
         const gkw = await getGlobalKeywords(35, appName);
@@ -415,27 +432,84 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
 
   // --- LIBRAS GUIDED LOGIC ---
   const SETUP_GLOSAS: Record<number, string> = {
-    1: "BEM-VINDO CONFIGURAR QUIZ ESCOLHER TEMA AGORA",
-    2: "ESCOLHER ASSUNTO VOCÊ GOSTAR",
-    3: "DIGITAR TEMA ESPECÍFICO AQUI",
-    4: "DIFICULDADE FÁCIL MÉDIO DIFÍCIL ESCOLHER",
+    1: GLOSAS_VALIDADAS.CONFIGURAR_QUIZ,
+    2: GLOSAS_VALIDADAS.ESCOLHER_TEMA,
+    3: "DIGITAR TEMA ESPECIFICO AQUI",
+    4: GLOSAS_VALIDADAS.ESCOLHER_DIFICULDADE,
     5: "CRIATIVIDADE IA CONSERVADOR OU CRIATIVO",
-    6: "FORMATO PERGUNTA MÚLTIPLA ESCOLHA VERDADEIRO FALSO RESPOSTA LIVRE",
+    6: "FORMATO PERGUNTA MULTIPLA_ESCOLHA VERDADEIRO_FALSO RESPOSTA_LIVRE",
     7: "CONFIGURAR TIMES E QUANTIDADE PERGUNTAS",
     8: "ATIVAR AJUDAS DICA OU CHAT IA"
   };
 
+  /**
+   * Helper para reproduzir glosa com sanitização rigorosa
+   * Valida contra o dicionário antes de enviar para o Unity
+   */
+  const playGlosaSegura = (glosa: string, emotion?: string) => {
+    if (!vlibrasRef.current || !glosa || glosa.trim().length === 0) {
+      return;
+    }
+
+    let sanitized = glosa;
+    
+    // Se o dicionário está carregado, usa sanitização stricta
+    if (vlibrasDict && vlibrasDict.size > 0) {
+      sanitized = sanitizeGlosaStrict(glosa, vlibrasDict);
+    } else {
+      // Fallback para sanitização simples se dicionário ainda não carregou
+      sanitized = sanitizarGlosa(glosa);
+    }
+
+    // Se a glosa ficou vazia após sanitização, não envia
+    if (!sanitized || sanitized.trim().length === 0) {
+      console.warn(`[GameEngine] ⚠️  Glosa vazia após sanitização: "${glosa}"`);
+      return;
+    }
+
+    // Envia para reprodução
+    vlibrasRef.current.play(sanitized);
+    if (emotion) {
+      vlibrasRef.current.setEmotion(emotion);
+    }
+  };
+
+  // Glosas automáticas quando o VLibras fica pronto
   useEffect(() => {
-    if (interfaceLanguage === 'libras' && gameState === 'SETUP') {
+    if (interfaceLanguage === 'libras' && isLibrasReady && gameState === 'SETUP') {
+      // Aguarda evento stop:welcome (1500ms de margem)
+      const timer = setTimeout(() => {
+        if (vlibrasRef.current) {
+          // Usa play() com sanitização rigorosa
+          const introGlosa = `${GLOSAS_VALIDADAS.BOAS_VINDAS} ${GLOSAS_VALIDADAS.MODO_LIBRAS} ${GLOSAS_VALIDADAS.CONFIGURAR_QUIZ}`;
+          playGlosaSegura(introGlosa, 'feliz');
+          
+          // Após 5 segundos, lê a instrução da tela atual
+          setTimeout(() => {
+            const stepGlosa = SETUP_GLOSAS[setupStep];
+            if (stepGlosa) {
+              playGlosaSegura(stepGlosa, 'pensa');
+            }
+          }, 5000);
+        }
+      }, 1500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isLibrasReady, interfaceLanguage, gameState, setupStep, vlibrasDict]);
+
+  // Lê as glosas quando o step de configuração muda
+  useEffect(() => {
+    if (interfaceLanguage === 'libras' && gameState === 'SETUP' && isLibrasReady) {
       const glosa = SETUP_GLOSAS[setupStep];
       if (glosa && vlibrasRef.current) {
         const timer = setTimeout(() => {
-          vlibrasRef.current?.playGlosa(glosa);
+          playGlosaSegura(glosa);
         }, 800);
         return () => clearTimeout(timer);
       }
     }
-  }, [setupStep, interfaceLanguage, gameState]);
+  }, [setupStep, interfaceLanguage, gameState, isLibrasReady, vlibrasDict]);
 
   // Loading Sound Effect & Message Logic
   useEffect(() => {
@@ -543,18 +617,46 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
   }, [currentQuestionIndex, gameState, quizData, isCurrentQuestionAnswered, isSkipping, ttsEnabled, ttsConfig, cooldownTime, apiKey]);
 
   // --- VLibras Logic ---
+  // --- VLibras Logic ---
   useEffect(() => {
     if (gameState === 'PLAYING' && interfaceLanguage === 'libras' && quizData?.questions[currentQuestionIndex]) {
       const glosa = quizData.questions[currentQuestionIndex].glosa;
       if (glosa && vlibrasRef.current) {
         // Delay para garantir que o player processe a troca se necessário
         setTimeout(() => {
-          vlibrasRef.current?.playGlosa(glosa);
-          vlibrasRef.current?.setEmotion('duvida');
+          playGlosaSegura(glosa, 'duvida');
         }, 800);
       }
     }
-  }, [currentQuestionIndex, interfaceLanguage, gameState, quizData]);
+  }, [currentQuestionIndex, interfaceLanguage, gameState, quizData, vlibrasDict]);
+
+  // Glosa para READY_CHECK
+  useEffect(() => {
+    if (gameState === 'READY_CHECK' && interfaceLanguage === 'libras' && isLibrasReady && quizData) {
+      const timer = setTimeout(() => {
+        const readyGlosa = `${GLOSAS_VALIDADAS.PREPARAR} TOTAL ${quizData.questions.length} PERGUNTAS ${GLOSAS_VALIDADAS.CONFIRMAR}`;
+        playGlosaSegura(readyGlosa, 'feliz');
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState, interfaceLanguage, isLibrasReady, quizData, vlibrasDict]);
+
+  // Glosa para COUNTDOWN
+  useEffect(() => {
+    if (gameState === 'COUNTDOWN' && interfaceLanguage === 'libras' && isLibrasReady) {
+      const timer = setTimeout(() => {
+        if (countdownValue > 0) {
+          const countGlosa = countdownValue === 3 ? GLOSAS_VALIDADAS.TRES : 
+                            countdownValue === 2 ? GLOSAS_VALIDADAS.DOIS : 
+                            GLOSAS_VALIDADAS.UM;
+          playGlosaSegura(countGlosa);
+        } else if (countdownValue === 0) {
+          playGlosaSegura(GLOSAS_VALIDADAS.JA, 'feliz');
+        }
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState, countdownValue, interfaceLanguage, isLibrasReady, vlibrasDict]);
 
   const handleAnswerLibrasEmotion = (isCorrect: boolean) => {
     if (interfaceLanguage === 'libras' && vlibrasRef.current) {
@@ -1408,8 +1510,151 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
             className="h-screen flex flex-col font-sans bg-jw-dark text-jw-text overflow-hidden transition-all duration-700"
             style={{ zoom: zoomLevel }}
           >
-            {/* CONTEÚDO PRINCIPAL (HEADER + VLIBRAS + MAIN + FOOTER) */}
-            <div className="relative z-10 flex flex-col flex-1 overflow-y-auto scroll-smooth custom-scrollbar">
+            {/* GLOBAL HEADER - Fixed at Top */}
+            <header className="bg-jw-blue text-white h-16 shrink-0 flex items-center shadow-lg z-20 transition-colors relative">
+              <div className="container mx-auto px-4 flex items-center justify-between">
+
+                {/* Left: Logo */}
+                <div className="flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 opacity-80"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+                  <h1 className="text-base font-semibold tracking-wide truncate">Aval<span style={{ color: '#F7D33C' }}>ia</span> Quiz</h1>
+                  {isTutorialMode && (
+                    <span className="bg-emerald-500 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ml-2 animate-fade-in shadow-sm hidden md:inline-block">
+                      Modo Tutorial
+                    </span>
+                  )}
+                </div>
+
+                {/* Right: Controls */}
+                <div className="flex items-center gap-2 md:gap-4">
+                  <SettingsMenu
+                    open={isSettingsOpen}
+                    onToggle={() => setIsSettingsOpen(!isSettingsOpen)}
+                    onClose={() => setIsSettingsOpen(false)}
+                    soundEnabled={soundEnabled}
+                    onToggleSound={handleSoundToggle}
+                    theme={theme}
+                    onThemeChange={(m) => setTheme(m)}
+                    ttsMode={ttsEnabled ? ttsConfig.engine : 'off'}
+                    onTtsChange={(m) => handleTTSSelection(m)}
+                    zoomValue={zoomLevel}
+                    onZoomIn={() => setZoomLevel(prev => Math.min(1.5, prev + 0.05))}
+                    onZoomOut={() => setZoomLevel(prev => Math.max(0.75, prev - 0.05))}
+                    isFullscreen={isFullscreen}
+                    onToggleFullscreen={toggleFullscreen}
+                    onOpenGuide={() => { setIsSettingsOpen(false); setIsGuideOpen(true); }}
+                    onGoHome={() => { setIsSettingsOpen(false); handleResetRequest(); }}
+                    onLogout={handleLogoutRequest}
+                    interfaceLanguage={interfaceLanguage}
+                    onLanguageChange={(lang) => { setInterfaceLanguage(lang); playSound('click'); }}
+                  />
+                </div>
+              </div>
+            </header>
+
+            {/* SPLIT-SCREEN CONTAINER - Below Header */}
+            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+              {/* VLIBRAS SECTION - Always Visible */}
+              {interfaceLanguage === 'libras' && (
+                <div className="w-full lg:w-1/3 h-[250px] lg:h-full bg-[#05050a] relative shrink-0 overflow-hidden animate-fade-in-down border-b lg:border-b-0 lg:border-r border-jw-blue/20">
+                  {/* Avatar Container */}
+                  <div className="w-full h-full relative">
+                    <VLibras 
+                      ref={vlibrasRef} 
+                      active={true} 
+                      onReady={() => setIsLibrasReady(true)}
+                    />
+                    
+                    {/* Floating Controls Overlay */}
+                    {isLibrasReady && (
+                      <div className="absolute bottom-3 right-3 flex flex-col gap-2 z-30">
+                        {/* Speed Control */}
+                        <button
+                          onClick={() => {
+                            const speeds = [0.5, 0.75, 1, 1.25, 1.5];
+                            const currentSpeed = speeds.indexOf(vlibrasSpeed);
+                            const nextSpeed = speeds[(currentSpeed + 1) % speeds.length];
+                            setVlibrasSpeed(nextSpeed);
+                            vlibrasRef.current?.setSpeed?.(nextSpeed);
+                          }}
+                          className="p-2.5 rounded-full bg-black/60 backdrop-blur-sm text-white hover:bg-black/80 transition-all shadow-lg hover:shadow-xl border border-white/10 group"
+                          title={`Velocidade: ${vlibrasSpeed}x`}
+                        >
+                          <div className="relative w-5 h-5 flex items-center justify-center">
+                            <span className="text-xs font-bold">{vlibrasSpeed}x</span>
+                          </div>
+                        </button>
+
+                        {/* Play/Pause Toggle */}
+                        <button
+                          onClick={() => {
+                            if (vlibrasPlaying) {
+                              vlibrasRef.current?.pause?.();
+                              setVlibrasPlaying(false);
+                            } else {
+                              vlibrasRef.current?.continue?.();
+                              setVlibrasPlaying(true);
+                            }
+                          }}
+                          className="p-2.5 rounded-full bg-black/60 backdrop-blur-sm text-white hover:bg-black/80 transition-all shadow-lg hover:shadow-xl border border-white/10"
+                          title={vlibrasPlaying ? 'Pausar' : 'Reproduzir'}
+                        >
+                          {vlibrasPlaying ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" className="w-5 h-5">
+                              <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                            </svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" className="w-5 h-5">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          )}
+                        </button>
+
+                        {/* Avatar Selector */}
+                        <button
+                          onClick={() => {
+                            const avatars = ['icaro', 'hosana', 'guga'];
+                            const currentAvatar = avatars.indexOf(vlibrasAvatar);
+                            const nextAvatar = avatars[(currentAvatar + 1) % avatars.length];
+                            console.log('[GameEngine] Changing avatar from', vlibrasAvatar, 'to', nextAvatar);
+                            console.log('[GameEngine] vlibrasRef.current:', vlibrasRef.current);
+                            setVlibrasAvatar(nextAvatar);
+                            if (vlibrasRef.current?.changeAvatar) {
+                              vlibrasRef.current.changeAvatar(nextAvatar);
+                            } else {
+                              console.error('[GameEngine] vlibrasRef.current.changeAvatar is not available');
+                            }
+                          }}
+                          className="p-2.5 rounded-full bg-black/60 backdrop-blur-sm text-white hover:bg-black/80 transition-all shadow-lg hover:shadow-xl border border-white/10"
+                          title={`Avatar: ${vlibrasAvatar}`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                          </svg>
+                        </button>
+
+                        {/* Replay */}
+                        <button
+                          onClick={() => {
+                            vlibrasRef.current?.repeat?.();
+                          }}
+                          className="p-2.5 rounded-full bg-black/60 backdrop-blur-sm text-white hover:bg-black/80 transition-all shadow-lg hover:shadow-xl border border-white/10"
+                          title="Repetir"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* MAIN CONTENT SECTION */}
+              <div className={`relative z-10 flex flex-col flex-1 overflow-y-auto scroll-smooth custom-scrollbar ${
+                interfaceLanguage === 'libras' ? 'h-auto lg:h-full' : 'h-full'
+              }`}>
       {/* LOADING SCREEN OVERLAY */}
       {loading && (
         <div className="fixed inset-0 z-[60] bg-[#121212] flex flex-col items-center justify-center animate-fade-in text-center px-4 cursor-wait">
@@ -1511,66 +1756,6 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
               )}
             </div>
           </div>
-        </div>
-      )}
-
-      {/* GLOBAL HEADER WITH SETTINGS */}
-      <header className="bg-jw-blue text-white h-16 shrink-0 flex items-center shadow-lg z-20 transition-colors relative sticky top-0">
-        <div className="container mx-auto px-4 flex items-center justify-between">
-
-          {/* Left: Logo */}
-          <div className="flex items-center gap-3">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 opacity-80"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
-            <h1 className="text-base font-semibold tracking-wide truncate">Aval<span style={{ color: '#F7D33C' }}>ia</span> Quiz</h1>
-            {isTutorialMode && (
-              <span className="bg-emerald-500 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ml-2 animate-fade-in shadow-sm hidden md:inline-block">
-                Modo Tutorial
-              </span>
-            )}
-          </div>
-
-          {/* Right: Controls */}
-          <div className="flex items-center gap-2 md:gap-4">
-
-            <SettingsMenu
-              open={isSettingsOpen}
-              onToggle={() => setIsSettingsOpen(!isSettingsOpen)}
-              onClose={() => setIsSettingsOpen(false)}
-              soundEnabled={soundEnabled}
-              onToggleSound={handleSoundToggle}
-              theme={theme}
-              onThemeChange={(m) => setTheme(m)}
-              ttsMode={ttsEnabled ? ttsConfig.engine : 'off'}
-              onTtsChange={(m) => handleTTSSelection(m)}
-              zoomValue={zoomLevel}
-              onZoomIn={() => setZoomLevel(prev => Math.min(1.5, prev + 0.05))}
-              onZoomOut={() => setZoomLevel(prev => Math.max(0.75, prev - 0.05))}
-              isFullscreen={isFullscreen}
-              onToggleFullscreen={toggleFullscreen}
-              onOpenGuide={() => { setIsSettingsOpen(false); setIsGuideOpen(true); }}
-              onGoHome={() => { setIsSettingsOpen(false); handleResetRequest(); }}
-              onLogout={handleLogoutRequest}
-              interfaceLanguage={interfaceLanguage}
-              onLanguageChange={(lang) => { setInterfaceLanguage(lang); playSound('click'); }}
-            />
-
-          </div>
-        </div>
-      </header>
-      
-      {/* NOVO LAYOUT: VLIBRAS TOPO-FIXO */}
-      {interfaceLanguage === 'libras' && (
-        <div className="w-full h-[250px] md:h-[350px] bg-[#05050a] border-b-2 border-jw-blue/20 relative shrink-0 overflow-hidden animate-fade-in-down">
-          <div className="absolute bottom-2 left-0 right-0 text-center z-10 pointer-events-none opacity-50">
-            <span className="bg-jw-blue/10 text-jw-blue text-[9px] font-bold px-2 py-0.5 rounded-full border border-jw-blue/20 tracking-widest uppercase">
-              Acessibilidade Ativa
-            </span>
-          </div>
-          <VLibras 
-            ref={vlibrasRef} 
-            active={true} 
-            onReady={() => setIsLibrasReady(true)}
-          />
         </div>
       )}
 
@@ -1805,9 +1990,10 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
                   <span>Copyright © Paulo Jacomelli 2026</span>
                 </div>
               </footer>
-            </div> {/* Fim Coluna 1 */}
+            </div> {/* Fim Main Content Section */}
 
-          </div>
+            </div> {/* Fim Split-Screen Container */}
+          </div> {/* Fim h-screen Container */}
         </>
       )}
 

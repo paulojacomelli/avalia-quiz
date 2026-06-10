@@ -10,3 +10,5 @@ export * from './components/ReadyCheck';
 export { default as VLibras } from './components/VLibras';
 export type { VLibrasHandle } from './components/VLibras';
 export { default as VLibrasTest } from './components/VLibrasTest';
+export { default as VLibrasControls } from './components/VLibrasControls';
+export type { VLibrasControlsHandle } from './components/VLibrasControls';

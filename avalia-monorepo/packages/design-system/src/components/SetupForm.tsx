@@ -17,7 +17,35 @@ interface SetupFormProps {
   availableThemes?: Record<string, string[]>;
   interfaceLanguage?: 'pt' | 'libras';
   highlightedValue?: string;
+  onPlayGlosa?: (glosa: string, emotion?: string) => void;
 }
+
+const OPTION_GLOSAS: Record<string, string> = {
+  // Categorias / Temas
+  'GENERAL': 'GERAL',
+  'BOOKS': 'BIBLIA LIVRO',
+  'HISTORY_JW': 'HISTORIA',
+  'ACADEMIC': 'ESTUDAR',
+  'ENTERTAINMENT': 'JOGAR',
+  'ARTS_CULTURE': 'ARTE',
+  'GEOPOLITICS': 'GEOPOLITICA',
+  'ANIMALS': 'ANIMAL',
+  'OTHER': 'OUTRO',
+
+  // Dificuldades
+  'easy': 'FACIL',
+  'medium': 'BOM',
+  'hard': 'DIFICIL',
+
+  // Formatos
+  'multiple_choice': 'PERGUNTA',
+  'true_false': 'VERDADEIRO FALSO',
+  'open_ended': 'RESPOSTA',
+
+  // Tipos de dicas
+  'standard': 'DICA',
+  'ask_ai': 'CONVERSAR',
+};
 
 export const SetupForm: React.FC<SetupFormProps> = ({
   appConfig,
@@ -31,7 +59,8 @@ export const SetupForm: React.FC<SetupFormProps> = ({
   isPrebuiltQuiz = false,
   availableThemes = {},
   interfaceLanguage = 'pt',
-  highlightedValue
+  highlightedValue,
+  onPlayGlosa
 }) => {
   // --- Wizard State ---
   const [internalStep, setInternalStep] = useState(1);
@@ -249,7 +278,13 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                           } else {
                             setSubTopic('Geral');
                           }
-                          if (interfaceLanguage === 'libras') handleNextStep();
+                          if (interfaceLanguage === 'libras') {
+                            if (onPlayGlosa) {
+                              const glosa = OPTION_GLOSAS[opt.value] || opt.label.toUpperCase();
+                              onPlayGlosa(glosa, 'feliz');
+                            }
+                            handleNextStep();
+                          }
                         }}
                         className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-300 ${mode === opt.value
                           ? 'bg-jw-blue border-jw-blue text-white shadow-lg shadow-jw-blue/30 transform scale-[1.02]'
