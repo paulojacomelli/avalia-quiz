@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-#!/usr/bin/env node
-
 /**
  * Script para aplicar os ícones canary aos apps de dev
  * Copia os ícones e logos da pasta canary para as pastas public dos apps
