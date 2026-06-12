@@ -14,7 +14,6 @@ function App() {
     <div className="avalia-app-container">
       <GameEngine 
         appConfig={QUIZ_CONFIG} 
-        environment="production" 
       />
     </div>
   );
