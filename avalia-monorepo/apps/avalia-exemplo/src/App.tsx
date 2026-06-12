@@ -1,5 +1,5 @@
 import React from 'react';
-import { GameEngine } from '@avalia/game-engine';
+import { GameEngine, AuthProvider } from '@avalia/game-engine';
 import { QUIZ_CONFIG } from './config/quizConfig';
 
 /**
@@ -11,11 +11,13 @@ import { QUIZ_CONFIG } from './config/quizConfig';
  */
 function App() {
   return (
-    <div className="avalia-app-container">
-      <GameEngine 
-        appConfig={QUIZ_CONFIG} 
-      />
-    </div>
+    <AuthProvider storageKeyPrefix="exemplo_quiz">
+      <div className="avalia-app-container">
+        <GameEngine 
+          appConfig={QUIZ_CONFIG} 
+        />
+      </div>
+    </AuthProvider>
   );
 }
 
