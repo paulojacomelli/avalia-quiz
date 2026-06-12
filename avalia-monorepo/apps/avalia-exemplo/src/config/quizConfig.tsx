@@ -22,11 +22,6 @@ export const QUIZ_CONFIG = {
     primaryColor: '#1a1a1a', // Cor de fundo principal
     accentColor: '#FFD700',  // Cor de destaque (ex: botões, foco)
   },
-  customLogo: (
-    <svg viewBox="0 0 100 100" className="w-16 h-16 text-[#FFD700]">
-      <path fill="currentColor" d="M50 5L20 80h60L50 5zm0 20l15 35H35l15-35z" />
-    </svg>
-  ),
   
   // 3. Engenharia de Prompt (A "Alma" do Quiz)
   // Defina aqui como a IA deve se comportar e qual o tom de voz.

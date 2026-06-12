@@ -1,5 +1,3 @@
-import { JWQuizLogoPremium } from './jwLogoSvg';
-
 export const QUIZ_CONFIG = {
   appName: 'Avalia JW Quiz',
   appTitle: (
@@ -12,7 +10,6 @@ export const QUIZ_CONFIG = {
     primaryColor: '#5b3c88',
     accentColor: '#F7D33C',
   },
-  customLogo: <JWQuizLogoPremium />,
   formRules: {
     hideDomainSource: true,
     allowedPageDomains: ['jw.org'],

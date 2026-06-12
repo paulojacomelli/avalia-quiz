@@ -1,5 +1,3 @@
-import { GenericQuizLogoPremium } from './genericLogoSvg';
-
 export const QUIZ_CONFIG = {
   appName: 'Avalia Geral Quiz',
   appTitle: (
@@ -12,7 +10,6 @@ export const QUIZ_CONFIG = {
     primaryColor: '#4287f5',
     accentColor: '#F7D33C',
   },
-  customLogo: <GenericQuizLogoPremium />,
   systemPrompt: `Você é um Mestre de Quiz profissional, carismático e especializado em conhecimentos gerais. 
 Sua base de conhecimento abrange ciência, história, artes, entretenimento, geografia, esportes e tecnologia.
 
