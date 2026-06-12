@@ -153,24 +153,28 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
 
   if (!isAuthenticated && !game.isPrebuiltQuiz) {
     return (
-      <LoginScreen
-        title={title}
-        onPlayPrebuilt={game.handlePlayPrebuilt}
-        isLoading={game.loading}
-        loadingMessage={game.loadingMessage}
-        apiError={game.errorDetail}
-        onClearError={() => game.setErrorDetail(null)}
-        onLoginWithCode={async (code, selectedProvider) => {
-          const docSnap = await getDoc(doc(db, "auth", "config"));
-          if (docSnap.exists() && docSnap.data().secret_code === code) {
-            const data = docSnap.data();
-            const adminKey = data[`admin_key_${selectedProvider.replace('-', '_')}`] || data.admin_key;
-            if (adminKey) login(adminKey, selectedProvider);
-            else throw new Error("Chave não configurada.");
-          } else throw new Error("Código incorreto.");
-        }}
-        onLoginWithApiKey={login}
-      />
+      <>
+        <LoginScreen
+          title={title}
+          onPlayPrebuilt={game.handlePlayPrebuilt}
+          isLoading={game.loading}
+          loadingMessage={game.loadingMessage}
+          apiError={game.errorDetail}
+          onClearError={() => game.setErrorDetail(null)}
+          onLoginWithCode={async (code, selectedProvider) => {
+            const docSnap = await getDoc(doc(db, "auth", "config"));
+            if (docSnap.exists() && docSnap.data().secret_code === code) {
+              const data = docSnap.data();
+              const adminKey = data[`admin_key_${selectedProvider.replace('-', '_')}`] || data.admin_key;
+              if (adminKey) login(adminKey, selectedProvider);
+              else throw new Error("Chave não configurada.");
+            } else throw new Error("Código incorreto.");
+          }}
+          onLoginWithApiKey={login}
+        />
+        <CookieBanner onOpenPrivacy={() => setIsPrivacyPolicyOpen(true)} />
+        <PrivacyPolicyModal isOpen={isPrivacyPolicyOpen} onClose={() => setIsPrivacyPolicyOpen(false)} appName={appName} />
+      </>
     );
   }
 
