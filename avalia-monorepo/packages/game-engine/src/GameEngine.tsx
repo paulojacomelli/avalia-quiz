@@ -156,6 +156,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
       <>
         <LoginScreen
           title={title}
+          logo={appConfig?.customLogo}
           onPlayPrebuilt={game.handlePlayPrebuilt}
           isLoading={game.loading}
           loadingMessage={game.loadingMessage}
@@ -184,11 +185,15 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
         <div className="min-h-screen flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-[#1a1a1a] w-full max-w-md p-10 md:p-12 rounded-[2rem] shadow-2xl border border-white/5 flex flex-col items-center relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-[var(--accent-primary,#4287f5)] shadow-[0_0_15px_var(--accent-primary,rgba(66,135,245,0.5))]"></div>
-            <div className="w-20 h-20 bg-[var(--accent-primary,rgba(66,135,245,0.1))] rounded-full flex items-center justify-center mb-8 relative border border-white/5">
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-8 relative border border-white/5" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-primary, #4287f5) 10%, transparent)' }}>
               <div className="absolute inset-0 rounded-full blur-xl opacity-20" style={{ backgroundColor: 'var(--accent-primary, #4287f5)' }}></div>
               <div className="relative w-14 h-14 rounded-full border flex items-center justify-center text-[var(--accent-primary, #4287f5)] [&_svg]:w-10 [&_svg]:h-10 transition-all duration-500" style={{ borderColor: 'color-mix(in srgb, var(--accent-primary, #4287f5) 40%, transparent)' }}>
                 {appConfig?.customLogo || (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-10 h-10"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10">
+                    <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1 .3 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
+                    <path d="M9 18h6" />
+                    <path d="M10 22h4" />
+                  </svg>
                 )}
               </div>
             </div>

@@ -1,5 +1,9 @@
+import React from 'react';
+import { GenericQuizLogoPremium } from './genericLogoSvg';
+
 export const QUIZ_CONFIG = {
   appName: 'Avalia Geral Quiz',
+  customLogo: <GenericQuizLogoPremium className="w-12 h-12 text-[#4287f5] drop-shadow-[0_0_8px_rgba(66,135,245,0.6)]" />,
   appTitle: (
     <>
       Aval<span className="text-[#F7D33C]">ia</span> Geral Quiz

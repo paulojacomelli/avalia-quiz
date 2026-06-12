@@ -17,8 +17,8 @@ export const JWQuizLogo = () => (
   </svg>
 );
 
-export const JWQuizLogoPremium = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" className="w-8 h-8">
+export const JWQuizLogoPremium = ({ className = "w-8 h-8" }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" className={className}>
     <defs>
       <radialGradient id="jwGradient" cx="50%" cy="50%" r="50%">
         <stop offset="0%" style={{stopColor: 'rgba(91,60,136,0.2)', stopOpacity: 1}} />

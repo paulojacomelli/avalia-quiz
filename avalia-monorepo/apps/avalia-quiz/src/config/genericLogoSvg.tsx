@@ -35,8 +35,8 @@ export const GenericQuizLogoTech = () => (
 /**
  * Logo premium para Avalia Quiz com design refinado
  */
-export const GenericQuizLogoPremium = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" className="w-8 h-8">
+export const GenericQuizLogoPremium = ({ className = "w-8 h-8" }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" className={className}>
     <defs>
       <radialGradient id="genericGradient" cx="50%" cy="50%" r="50%">
         <stop offset="0%" style={{stopColor: 'rgba(66,135,245,0.2)', stopOpacity: 1}} />

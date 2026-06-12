@@ -1,5 +1,9 @@
+import React from 'react';
+import { JWQuizLogoPremium } from './jwLogoSvg';
+
 export const QUIZ_CONFIG = {
   appName: 'Avalia JW Quiz',
+  customLogo: <JWQuizLogoPremium className="w-12 h-12 text-[#5b3c88] drop-shadow-[0_0_8px_rgba(91,60,136,0.6)]" />,
   appTitle: (
     <>
       Aval<span className="text-[#F7D33C]">ia</span> JW Quiz

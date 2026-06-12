@@ -10,6 +10,13 @@ import { TopicMode } from '@avalia/core';
 export const QUIZ_CONFIG = {
   // 1. Identidade do App
   appName: 'Avalia Exemplo',
+  customLogo: (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-12 h-12 text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,0.6)]">
+      <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1 .3 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
+      <path d="M9 18h6" />
+      <path d="M10 22h4" />
+    </svg>
+  ),
   appTitle: (
     <>
       Aval<span className="text-[#FFD700]">ia</span> Exemplo

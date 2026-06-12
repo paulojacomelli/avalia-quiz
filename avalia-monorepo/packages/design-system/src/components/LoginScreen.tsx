@@ -12,6 +12,7 @@ interface LoginScreenProps {
   apiError?: ApiErrorDetail | null;
   onClearError?: () => void;
   title?: React.ReactNode;
+  logo?: React.ReactNode;
   onLoginWithCode: (code: string, provider: AiProvider) => Promise<void>;
   onLoginWithApiKey: (key: string, provider: AiProvider) => Promise<void>;
 }
@@ -180,6 +181,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   apiError = null,
   onClearError,
   title = <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight">Aval<span className="text-[#F7D33C]">ia</span> Quiz</h1>,
+  logo,
   onLoginWithCode,
   onLoginWithApiKey
 }) => {
@@ -350,14 +352,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         {/* Borda superior decorativa com brilho */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-[var(--accent-primary)] shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
 
-        {/* Ícone de Escudo em destaque (Wrapper) */}
+        {/* Logo/Ícone do Quiz em destaque (Wrapper) */}
         <div className="w-20 h-20 rounded-full flex items-center justify-center mb-8 border border-white/5 relative" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)' }}>
           <div className="absolute inset-0 rounded-full blur-xl" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)' }}></div>
-          <div className="relative w-14 h-14 rounded-full border flex items-center justify-center text-[var(--accent-primary)]" style={{ borderColor: 'color-mix(in srgb, var(--accent-primary) 40%, transparent)' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8" style={{ filter: 'drop-shadow(0 0 8px var(--accent-primary))' }}>
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              <path d="m9 12 2 2 4-4" />
-            </svg>
+          <div className="relative w-14 h-14 rounded-full border flex items-center justify-center text-[var(--accent-primary)] [&_svg]:w-8 [&_svg]:h-8" style={{ borderColor: 'color-mix(in srgb, var(--accent-primary) 40%, transparent)' }}>
+            {logo || (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8" style={{ filter: 'drop-shadow(0 0 8px var(--accent-primary))' }}>
+                <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1 .3 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
+                <path d="M9 18h6" />
+                <path d="M10 22h4" />
+              </svg>
+            )}
           </div>
         </div>
 
