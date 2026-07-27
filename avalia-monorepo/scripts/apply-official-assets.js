@@ -8,20 +8,15 @@
 const fs = require('fs');
 const path = require('path');
 
-const APPS = [
-  {
-    source: path.resolve(__dirname, '../apps/avalia-quiz/official-assets'),
-    target: path.resolve(__dirname, '../apps/avalia-quiz/public'),
-    configTarget: path.resolve(__dirname, '../apps/avalia-quiz/src/config'),
-    name: 'avalia-quiz'
-  },
-  {
-    source: path.resolve(__dirname, '../apps/avalia-jw-quiz/official-assets'),
-    target: path.resolve(__dirname, '../apps/avalia-jw-quiz/public'),
-    configTarget: path.resolve(__dirname, '../apps/avalia-jw-quiz/src/config'),
-    name: 'avalia-jw-quiz'
-  }
-];
+const appsDir = path.resolve(__dirname, '../apps');
+const APPS = fs.readdirSync(appsDir)
+  .filter(name => fs.statSync(path.join(appsDir, name)).isDirectory())
+  .map(name => ({
+    source: path.join(appsDir, name, 'official-assets'),
+    target: path.join(appsDir, name, 'public'),
+    configTarget: path.join(appsDir, name, 'src/config'),
+    name
+  }));
 
 const ICON_FILES = [
   'apple-touch-icon.png',

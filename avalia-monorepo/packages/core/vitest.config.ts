@@ -6,5 +6,17 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+      exclude: [
+        'node_modules/',
+        'src/**/*.d.ts',
+        'src/**/*.config.*',
+        'src/index.ts',
+        'src/vlibras-glossary.ts',
+        'src/vlibras-dictionary-validator.ts',
+      ],
+    },
   },
 });

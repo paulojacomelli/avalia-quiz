@@ -7,7 +7,7 @@ let ctx: AudioContext | null = null;
 let isSoundEnabled = true;
 
 // Variable for loading beat interval
-let loadingInterval: any = null;
+let loadingInterval: ReturnType<typeof setInterval> | null = null;
 // Variable for current TTS audio element to allow stopping
 let currentTtsAudio: HTMLAudioElement | null = null;
 

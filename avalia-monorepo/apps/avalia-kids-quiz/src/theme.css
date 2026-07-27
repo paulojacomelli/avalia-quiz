@@ -1,0 +1,5 @@
+@import "../../../themes/base-theme.css";
+
+:root {
+  --accent-primary: #F7D33C;
+}

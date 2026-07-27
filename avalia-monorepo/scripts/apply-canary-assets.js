@@ -8,20 +8,15 @@
 const fs = require('fs');
 const path = require('path');
 
-const CANARY_APPS = [
-  {
-    source: path.resolve(__dirname, '../../public/quiz-canary'),
-    target: path.resolve(__dirname, '../apps/avalia-quiz/public'),
-    configTarget: path.resolve(__dirname, '../apps/avalia-quiz/src/config'),
-    name: 'avalia-quiz'
-  },
-  {
-    source: path.resolve(__dirname, '../../public/jwquiz-canary'),
-    target: path.resolve(__dirname, '../apps/avalia-jw-quiz/public'),
-    configTarget: path.resolve(__dirname, '../apps/avalia-jw-quiz/src/config'),
-    name: 'avalia-jw-quiz'
-  }
-];
+const appsDir = path.resolve(__dirname, '../apps');
+const CANARY_APPS = fs.readdirSync(appsDir)
+  .filter(name => fs.statSync(path.join(appsDir, name)).isDirectory())
+  .map(name => ({
+    source: path.resolve(__dirname, `../../public/${name}-canary`),
+    target: path.join(appsDir, name, 'public'),
+    configTarget: path.join(appsDir, name, 'src/config'),
+    name
+  }));
 
 const GLOBAL_PUBLIC_DIR = path.resolve(__dirname, '../../public');
 

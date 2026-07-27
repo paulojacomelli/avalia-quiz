@@ -1,13 +1,14 @@
 {
   "name": "avalia-quiz-1.2.17-beta",
   "private": true,
-  "version": "1.4.7",
+  "version": "1.4.12",
+
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "deploy": "npm run build && firebase deploy",
-    "preview": "vite preview"
+    "dev": "npm run dev --prefix avalia-monorepo",
+    "build": "npm run build --prefix avalia-monorepo",
+    "deploy": "npm run deploy --prefix avalia-monorepo",
+    "preview": "npm run preview --prefix avalia-monorepo"
   },
   "dependencies": {
     "@google/genai": "^1.33.0",

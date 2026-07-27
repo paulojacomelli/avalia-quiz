@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DIFFICULTY_OPTIONS, MODE_OPTIONS, HINT_TYPE_OPTIONS, FORMAT_OPTIONS, SUB_TOPICS, TIME_OPTIONS } from '@avalia/core';
-import { Difficulty, QuizConfig, TopicMode, HintType, QuizFormat } from '@avalia/core';
+import { Difficulty, QuizConfig, TopicMode, HintType, QuizFormat, validateUrlDomain } from '@avalia/core';
 import { playSound } from '@avalia/services';
 import { stopSpeech } from '@avalia/services';
 
@@ -129,17 +129,19 @@ export const SetupForm: React.FC<SetupFormProps> = ({
         );
         return false;
       }
-      if (specificTopicType === 'pagina' && allowedPageDomains && allowedPageDomains.length > 0) {
-        try {
-          const url = new URL(specificTopic);
-          const isValidDomain = allowedPageDomains.some((d: string) => url.hostname === d || url.hostname.endsWith(`.${d}`));
-          if (!isValidDomain) {
-            setFormError(`Apenas links permitidos: ${allowedPageDomains.join(', ')}`);
+      if (allowedPageDomains && allowedPageDomains.length > 0) {
+        const isUrlInput = specificTopic.trim().startsWith('http://') || 
+                           specificTopic.trim().startsWith('https://') || 
+                           specificTopic.trim().startsWith('www.') ||
+                           specificTopicType === 'pagina' || 
+                           specificTopicType === 'dominio';
+                           
+        if (isUrlInput) {
+          const isValid = validateUrlDomain(specificTopic, allowedPageDomains);
+          if (!isValid) {
+            setFormError(`Apenas URLs do domínio permitido são aceitas: ${allowedPageDomains.join(', ')}`);
             return false;
           }
-        } catch (e) {
-          setFormError("Por favor, insira uma URL válida.");
-          return false;
         }
       }
     }
@@ -358,9 +360,19 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                           : 'border-gray-700/20 bg-brand-hover/50 text-gray-400'
                           } ${highlightedValue === opt.value ? 'ring-4 ring-yellow-400 animate-pulse' : ''}`}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-8 h-8 mb-3 ${mode === opt.value ? 'text-white' : 'opacity-60'}`}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d={opt.icon} />
-                        </svg>
+                        {React.isValidElement(opt.icon) ? (
+                          <div className={`w-9 h-9 mb-3 flex items-center justify-center text-2xl shrink-0 ${mode === opt.value ? 'text-white [&_svg_g]:!fill-white [&_svg_path]:!stroke-white' : ''}`}>
+                            {opt.icon}
+                          </div>
+                        ) : typeof opt.icon === 'function' ? (
+                          <div className={`w-9 h-9 mb-3 flex items-center justify-center text-2xl shrink-0 ${mode === opt.value ? 'text-white [&_svg_g]:!fill-white [&_svg_path]:!stroke-white' : ''}`}>
+                            {React.createElement(opt.icon, { className: "w-9 h-9" })}
+                          </div>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-8 h-8 mb-3 ${mode === opt.value ? 'text-white' : 'opacity-60'}`}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d={opt.icon} />
+                          </svg>
+                        )}
                         <span className="text-sm font-bold">{opt.label}</span>
                       </button>
                     ))}

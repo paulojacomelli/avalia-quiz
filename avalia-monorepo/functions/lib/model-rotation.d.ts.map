@@ -1,0 +1,1 @@
+{"version":3,"file":"model-rotation.d.ts","sourceRoot":"","sources":["../src/model-rotation.ts"],"names":[],"mappings":"AAyCA,wBAAsB,gBAAgB,CAAC,CAAC,EACtC,SAAS,EAAE,CAAC,KAAK,EAAE,MAAM,KAAK,OAAO,CAAC,CAAC,CAAC,GACvC,OAAO,CAAC;IAAE,IAAI,EAAE,CAAC,CAAC;IAAC,IAAI,EAAE;QAAE,KAAK,EAAE,MAAM,CAAC;QAAC,KAAK,EAAE,MAAM,CAAA;KAAE,CAAA;CAAE,CAAC,CAqC9D"}

@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import { QuizConfig, TopicMode, GeneratedQuiz, QuizQuestion, HintType, QuizFormat, EvaluationResult, TTSConfig, AiProvider } from "@avalia/core";
+import { QuizConfig, TopicMode, GeneratedQuiz, QuizQuestion, HintType, QuizFormat, EvaluationResult, TTSConfig, AiProvider, shuffleQuizOptions, shuffleQuestionOptions } from "@avalia/core";
 import { getQuestionReadAloudText } from "./tts";
 import { PROMPTS } from "@avalia/core";
 
@@ -24,21 +24,31 @@ const getFetchHeaders = (apiKey: string, provider: AiProvider) => {
 
 const getTextModel = (): string => {
   if (typeof window !== 'undefined') {
-    return localStorage.getItem('gemini_text_model') || import.meta.env.VITE_GEMINI_MODEL || "gemini-3.5-flash";
+    const saved = localStorage.getItem('gemini_text_model');
+    if (saved) return saved;
+    return import.meta.env.VITE_GEMINI_MODEL || "gemini-3.5-flash";
   }
   return import.meta.env.VITE_GEMINI_MODEL || "gemini-3.5-flash";
 };
 
-const getActiveTextModel = (provider: AiProvider): string => {
+
+const getActiveTextModel = (provider: AiProvider = 'google-ai'): string => {
   const model = getTextModel();
+  if (provider === 'google-ai' || !provider) {
+    if (!model.startsWith('gemini')) {
+      return 'gemini-3.5-flash';
+    }
+    return model;
+  }
+
   if (provider === 'deepseek') {
-    if (model.startsWith('gemini')) {
+    if (model.startsWith('gemini') || !model.includes('deepseek')) {
       return 'deepseek-chat';
     }
     return model;
   }
   if (provider === 'groq') {
-    if (model.startsWith('gemini')) {
+    if (model.startsWith('gemini') || !model.includes('llama')) {
       return 'llama-3.3-70b-versatile';
     }
     return model;
@@ -51,6 +61,17 @@ const getActiveTextModel = (provider: AiProvider): string => {
   }
   return model;
 };
+
+/**
+ * Retorna o label composto "provider/modelo" para fins de telemetria.
+ * Exemplo: "groq/llama-3.3-70b-versatile", "google-ai/gemini-2.5-flash"
+ */
+export const resolveAiModelLabel = (provider?: string): string => {
+  const p = (provider || 'google-ai') as AiProvider;
+  const modelName = getActiveTextModel(p);
+  return `${p}/${modelName}`;
+};
+
 
 const getTtsModel = (): string => {
   if (typeof window !== 'undefined') {
@@ -82,7 +103,7 @@ const getTopicPrompt = (config: QuizConfig) => {
 };
 
 const getFormatInstruction = (config: QuizConfig) => {
-  if (config.quizFormat === QuizFormat.TRUE_FALSE) return `FORMATO: VERDADEIRO OU FALSO. options: ["Verdadeiro", "Falso"].`;
+  if (config.quizFormat === QuizFormat.TRUE_FALSE) return `FORMATO: VERDADEIRO OU FALSO. options: ["Verdadeiro", "Falso"]. IMPORTANTE: Distribua as respostas equilibradamente entre afirmativas verdadeiras (indiceRespostaCorreta: 0) e falsas (indiceRespostaCorreta: 1), aproximando de 50% para cada.`;
   if (config.quizFormat === QuizFormat.OPEN_ENDED) return `FORMATO: RESPOSTA LIVRE. options: []. correctAnswerIndex: -1. Preencha correctAnswerText.`;
   return `FORMATO: MÚLTIPLA ESCOLHA. 4 alternativas.`;
 };
@@ -305,7 +326,7 @@ export const generateQuizContent = async (apiKey: string, config: QuizConfig, gl
           hint: p.dica || ""
         }))
       };
-      return parsed;
+      return shuffleQuizOptions(parsed, config.quizFormat);
     } catch (e: any) {
       console.error(`${displayName} JSON Parse Error:`, e, "Text:", text);
       throw new Error(`Erro ao processar JSON do ${displayName}: ${e?.message || 'Inválido'}.`);
@@ -313,7 +334,8 @@ export const generateQuizContent = async (apiKey: string, config: QuizConfig, gl
   }
 
   const genAI = getSDKInstance(apiKey);
-  const model = getTextModel();
+  const model = getActiveTextModel(provider);
+
   const topicPrompt = getTopicPrompt(config);
   const formatInstruction = getFormatInstruction(config);
 
@@ -395,7 +417,7 @@ export const generateQuizContent = async (apiKey: string, config: QuizConfig, gl
         hint: p.dica
       }))
     };
-    return parsed;
+    return shuffleQuizOptions(parsed, config.quizFormat);
   } catch (e: any) {
     console.error("Gemini JSON Parse Error:", e, "Text:", text);
     throw new Error(`Erro ao processar JSON da IA: ${e?.message || 'Invalido'}.`);
@@ -473,14 +495,15 @@ export const generateReplacementQuestion = async (apiKey: string, config: QuizCo
         glosa: p.glosa || "",
         hint: p.dica || ""
       };
-      return question;
+      return shuffleQuestionOptions(question);
     } catch (e) {
       throw new Error(`Erro ao processar substituição do ${displayName}.`);
     }
   }
 
   const genAI = getSDKInstance(apiKey);
-  const model = getTextModel();
+  const model = getActiveTextModel(provider);
+
   const topicPrompt = getTopicPrompt(config);
   const formatInstruction = getFormatInstruction(config);
   const prompt = `Gere uma nova pergunta para o tema: ${topicPrompt}. Dificuldade: ${config.difficulty}. NÃO repita esta ideia: "${avoidQuestionText}". ${formatInstruction}`;
@@ -531,73 +554,131 @@ export const generateReplacementQuestion = async (apiKey: string, config: QuizCo
   } catch (e) { throw new Error("Erro ao processar substituição."); }
 };
 
+const parseEvaluationResult = (rawText: string): EvaluationResult => {
+  try {
+    const cleaned = cleanJson(rawText || "{}");
+    const parsed = JSON.parse(cleaned);
+    const score = typeof parsed.score === 'number' 
+      ? parsed.score 
+      : (typeof parsed.pontuacao === 'number' ? parsed.pontuacao : (parsed.isCorrect ? 1.0 : 0.0));
+    const isCorrect = typeof parsed.isCorrect === 'boolean' 
+      ? parsed.isCorrect 
+      : (score >= 0.6);
+    const feedback = parsed.feedback || parsed.comentario || (isCorrect ? 'Resposta aceitável.' : 'Resposta incorreta.');
+    return { score, feedback, isCorrect };
+  } catch (e) {
+    console.error("Evaluation Result Parse Error:", e, "Raw Text:", rawText);
+    return { score: 0, feedback: "Não foi possível avaliar a resposta automaticamente.", isCorrect: false };
+  }
+};
+
+const fallbackEvaluate = (question: string, modelAnswer: string, userAnswer: string): EvaluationResult => {
+  const normUser = userAnswer.trim().toLowerCase();
+  const normModel = modelAnswer.trim().toLowerCase();
+
+  if (normModel && (normUser.includes(normModel) || normModel.includes(normUser))) {
+    return { score: 1.0, isCorrect: true, feedback: "Resposta avaliada como correta." };
+  }
+
+  if (normUser.length > 2 && normModel) {
+    const modelWords = normModel.split(/\s+/).filter(w => w.length > 3);
+    const match = modelWords.some(w => normUser.includes(w));
+    if (match) {
+      return { score: 0.8, isCorrect: true, feedback: "Resposta avaliada como parcialmente correta." };
+    }
+  }
+
+  const isCorrect = normUser.length > 3 && !normModel;
+  return {
+    score: isCorrect ? 0.8 : 0.0,
+    isCorrect,
+    feedback: isCorrect ? "Resposta registrada." : (normModel ? `Resposta esperada: "${modelAnswer}".` : "Resposta incorreta.")
+  };
+};
+
 export const evaluateFreeResponse = async (apiKey: string, question: string, modelAnswer: string, userAnswer: string, provider: AiProvider = 'google-ai'): Promise<EvaluationResult> => {
   if (!apiKey) throw new Error("Chave de API não fornecida.");
 
-  if (provider === 'deepseek' || provider === 'groq' || provider === 'openrouter') {
-    const activeModel = getActiveTextModel(provider);
-    const prompt = `
-      Avalie a resposta: 
-      Pergunta: "${question}", 
-      Gabarito: "${modelAnswer}", 
-      Jogador disse: "${userAnswer}".
-      
-      A resposta deve ser um objeto JSON seguindo exatamente este formato:
-      {
-        "score": 0.8, // Pontuação de 0.0 a 1.0 (float)
-        "feedback": "Sua resposta foi boa, mas...",
-        "isCorrect": true // true se o score for >= 0.7 ou conforme o gabarito
+  try {
+    if (provider === 'deepseek' || provider === 'groq' || provider === 'openrouter') {
+      const activeModel = getActiveTextModel(provider);
+      const prompt = `
+        Avalie a resposta do jogador:
+        Pergunta: "${question}"
+        Gabarito esperado: "${modelAnswer}"
+        Resposta do jogador: "${userAnswer}"
+        
+        A resposta deve ser um objeto JSON seguindo exatamente este formato:
+        {
+          "score": 0.8,
+          "feedback": "Sua resposta foi boa, mas...",
+          "isCorrect": true
+        }
+      `;
+
+      const apiUrl = provider === 'deepseek' 
+        ? "https://api.deepseek.com/chat/completions" 
+        : provider === 'groq' 
+          ? "https://api.groq.com/openai/v1/chat/completions" 
+          : "https://openrouter.ai/ai/v1/chat/completions";
+      const displayName = provider === 'deepseek' ? "DeepSeek" : provider === 'groq' ? "Groq" : "OpenRouter";
+
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: getFetchHeaders(apiKey, provider),
+        body: JSON.stringify({
+          model: activeModel,
+          messages: [
+            { role: "system", content: getSystemInstruction(false) + "\nResponda APENAS em JSON." },
+            { role: "user", content: prompt }
+          ],
+          temperature: 0.3,
+          response_format: { type: "json_object" }
+        })
+      });
+
+      if (!response.ok) {
+        console.error(`${displayName} API Error:`, response.status, await response.text());
+        return fallbackEvaluate(question, modelAnswer, userAnswer);
       }
-    `;
 
-    const apiUrl = provider === 'deepseek' 
-      ? "https://api.deepseek.com/chat/completions" 
-      : provider === 'groq' 
-        ? "https://api.groq.com/openai/v1/chat/completions" 
-        : "https://openrouter.ai/api/v1/chat/completions";
-    const displayName = provider === 'deepseek' ? "DeepSeek" : provider === 'groq' ? "Groq" : "OpenRouter";
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content;
+      return parseEvaluationResult(text || "{}");
+    }
 
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: getFetchHeaders(apiKey, provider),
-      body: JSON.stringify({
-        model: activeModel,
-        messages: [
-          { role: "system", content: getSystemInstruction(false) + "\nResponda APENAS em JSON." },
-          { role: "user", content: prompt }
-        ],
+    const genAI = getSDKInstance(apiKey);
+    const model = getActiveTextModel(provider);
+
+    const prompt = `Avalie a resposta do jogador. Pergunta: "${question}". Gabarito esperado: "${modelAnswer}". Resposta do jogador: "${userAnswer}".`;
+
+    const result = await genAI.models.generateContent({
+      model,
+      contents: [
+        { role: "user", parts: [{ text: getSystemInstruction(false) + "\n\n" + prompt + "\n\nIMPORTANTE: Responda APENAS em JSON." }] }
+      ],
+      config: {
         temperature: 0.3,
-        response_format: { type: "json_object" }
-      })
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          description: "Resultado da avaliação de resposta livre",
+          properties: {
+            score: { type: Type.NUMBER, description: "Pontuação de 0.0 a 1.0 (float)." },
+            feedback: { type: Type.STRING, description: "Explicação didática sobre a avaliação." },
+            isCorrect: { type: Type.BOOLEAN, description: "Indica se a resposta é aceitável." }
+          },
+          required: ["score", "feedback", "isCorrect"]
+        }
+      }
     });
 
-    if (!response.ok) {
-      console.error(`${displayName} API Error:`, response.status, await response.text());
-      throw new Error(`Erro na API do ${displayName}: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const text = data.choices?.[0]?.message?.content;
-    return JSON.parse(cleanJson(text || "{}"));
+    const text = result.text;
+    return parseEvaluationResult(text || "{}");
+  } catch (error) {
+    console.error("evaluateFreeResponse AI Error, applying fallback:", error);
+    return fallbackEvaluate(question, modelAnswer, userAnswer);
   }
-
-  const genAI = getSDKInstance(apiKey);
-  const model = getTextModel();
-  const prompt = `Avalie a resposta: Pergunta: "${question}", Gabarito: "${modelAnswer}", Jogador disse: "${userAnswer}". JSON: {score, feedback, isCorrect}`;
-
-  const result = await genAI.models.generateContent({
-    model,
-    contents: [
-      { role: "user", parts: [{ text: getSystemInstruction(false) + "\n\n" + prompt + "\n\nIMPORTANTE: Responda APENAS em JSON." }] }
-    ],
-    config: {
-      temperature: 0.3,
-      responseMimeType: "application/json",
-    }
-  });
-
-  const text = result.text;
-  return JSON.parse(cleanJson(text || "{}"));
 };
 
 export const askAiAboutQuestion = async (apiKey: string, question: QuizQuestion, userQuery: string, provider: AiProvider = 'google-ai'): Promise<string> => {
@@ -665,7 +746,10 @@ export const generateSpeech = async (apiKey: string, text: string, config: TTSCo
       }
     });
     return (result as any).data || null;
-  } catch (error) { return null; }
+  } catch (error) {
+    console.error("[TTS/Gemini] Falha ao gerar áudio:", error);
+    return null;
+  }
 };
 
 export const preGenerateQuizAudio = async (apiKey: string, quiz: GeneratedQuiz, ttsConfig: TTSConfig, teamNames: string[] = [], provider: AiProvider = 'google-ai'): Promise<GeneratedQuiz> => {
@@ -678,7 +762,9 @@ export const preGenerateQuizAudio = async (apiKey: string, quiz: GeneratedQuiz, 
     try {
       const audioBase64 = await generateSpeech(apiKey, textToRead, ttsConfig, provider);
       if (audioBase64) updatedQuestions[i].audioBase64 = audioBase64;
-    } catch (e) { }
+    } catch (e) {
+      console.warn(`[TTS/Gemini] Falha ao gerar áudio para pergunta ${i}:`, e);
+    }
   }
   return { ...quiz, questions: updatedQuestions };
 }

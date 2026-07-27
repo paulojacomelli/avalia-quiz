@@ -2,7 +2,7 @@ import React, { useImperativeHandle, forwardRef, useEffect, useRef, useState } f
 import { createPortal } from 'react-dom';
 
 /**
- * ARQUITETURA — VLibras Avalia JW Quiz(Player Puro)
+ * ARQUITETURA — VLibras Avalia (Player Puro)
  *
  * O bundle oficial vlibras-plugin.js exporta window.VLibras = { Player, Widget, Plugin }.
  * Usamos apenas VLibras.Player — a camada primitiva de renderização WebGL — sem instanciar

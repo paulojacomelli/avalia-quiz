@@ -1,0 +1,1 @@
+{"version":3,"file":"getSystemInstruction.js","sourceRoot":"","sources":["../../src/ai-prompts/getSystemInstruction.ts"],"names":[],"mappings":";;AAAA,oDAmBC;AAnBD,SAAgB,oBAAoB,CAAC,aAAuB,EAAE,YAAqB;IACjF,MAAM,IAAI,GAAG,YAAY,IAAI,+FAA+F,CAAC;IAE7H,MAAM,iBAAiB,GAAG;;;;;;;;;;;;;CAa3B,CAAC;IAEA,OAAO,GAAG,IAAI,GAAG,aAAa,CAAC,CAAC,CAAC,iBAAiB,CAAC,CAAC,CAAC,EAAE,EAAE,CAAC;AAC5D,CAAC"}

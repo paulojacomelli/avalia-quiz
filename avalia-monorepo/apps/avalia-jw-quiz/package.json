@@ -1,7 +1,7 @@
 {
   "name": "@avalia/jw-quiz",
   "private": true,
-  "version": "1.4.7",
+  "version": "1.4.11",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
     "@avalia/game-engine": "*",
     "@avalia/services": "*",
     "@google/genai": "^1.33.0",
+    "@phosphor-icons/react": "^2.1.10",
     "firebase": "^12.8.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

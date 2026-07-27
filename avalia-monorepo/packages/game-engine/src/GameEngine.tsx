@@ -12,7 +12,8 @@ import {
   SetupForm, QuizCard, LoginScreen,
   TourOverlay, TourStep,
   SettingsMenu, ThemeMode,
-  VLibras, VLibrasTest
+  VLibras, VLibrasTest, AdminDashboard,
+  AppLogo, renderFormattedAppTitle
 } from '@avalia/design-system';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -24,9 +25,7 @@ import { useSignLanguage } from './hooks/useSignLanguage';
 import { useGameLoop } from './hooks/useGameLoop';
 
 interface GameEngineProps {
-  appConfig?: any;
-  defaultLanguage?: 'pt' | 'libras';
-  title?: React.ReactNode;
+  appConfig?: QuizConfig;
 }
 
 const TOUR_STEPS: TourStep[] = [
@@ -34,7 +33,36 @@ const TOUR_STEPS: TourStep[] = [
   { target: '[data-tour="tts"]', content: "Ative a narração para uma experiência mais acessível." }
 ];
 
-export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }: GameEngineProps) {
+export default function GameEngine({ appConfig }: GameEngineProps) {
+  const isRestrictPath = typeof window !== 'undefined' && (
+    window.location.pathname.endsWith('/restrict') || 
+    window.location.hash === '#/restrict' ||
+    window.location.search.includes('route=restrict')
+  );
+
+  const [showAdmin, setShowAdmin] = useState(isRestrictPath);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (window.location.pathname.endsWith('/restrict') || window.location.hash === '#/restrict') {
+        setShowAdmin(true);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  if (showAdmin) {
+    return (
+      <AdminDashboard 
+        onReturnToQuiz={() => {
+          setShowAdmin(false);
+          if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
+        }} 
+      />
+    );
+  }
+
   if (window.location.pathname === '/vlibras') {
     return <VLibrasTest />;
   }
@@ -42,7 +70,21 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
   // --- App Identity ---
   const appName: string = appConfig?.appName ?? 'Avalia Quiz';
   const storagePrefix: string = appConfig?.storagePrefix ?? 'quiz';
-  const primaryColor: string = appConfig?.theme?.primaryColor ?? '#4287f5';
+  const primaryColor: string = appConfig?.theme?.primaryColor ?? '#5b3c88';
+
+  useEffect(() => {
+    if (primaryColor) {
+      document.documentElement.style.setProperty('--accent-primary', primaryColor);
+      document.documentElement.style.setProperty('--brand-blue', primaryColor);
+    }
+  }, [primaryColor]);
+
+  const getTeamColor = (t?: any): string => {
+    if (!t || !t.color || t.color === '#4287f5' || t.color === '#3b82f6') {
+      return primaryColor;
+    }
+    return t.color;
+  };
 
   const { isAuthenticated, apiKey, clientId, provider, login, logout } = useAuth();
   
@@ -155,7 +197,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
     return (
       <>
         <LoginScreen
-          title={title}
+          appName={appName}
           logo={appConfig?.customLogo}
           onPlayPrebuilt={game.handlePlayPrebuilt}
           isLoading={game.loading}
@@ -163,13 +205,20 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
           apiError={game.errorDetail}
           onClearError={() => game.setErrorDetail(null)}
           onLoginWithCode={async (code, selectedProvider) => {
-            const docSnap = await getDoc(doc(db, "auth", "config"));
-            if (docSnap.exists() && docSnap.data().secret_code === code) {
-              const data = docSnap.data();
-              const adminKey = data[`admin_key_${selectedProvider.replace('-', '_')}`] || data.admin_key;
-              if (adminKey) login(adminKey, selectedProvider);
-              else throw new Error("Chave não configurada.");
-            } else throw new Error("Código incorreto.");
+            try {
+              const docSnap = await getDoc(doc(db, "auth", "config"));
+              if (docSnap.exists() && docSnap.data().secret_code === code) {
+                const data = docSnap.data();
+                const adminKey = data[`admin_key_${selectedProvider.replace('-', '_')}`] || data.admin_key;
+                if (adminKey) login(adminKey, selectedProvider);
+                else throw new Error("Chave do provedor não configurada no servidor.");
+              } else throw new Error("Código de acesso incorreto.");
+            } catch (err: any) {
+              if (err.message && (err.message.includes('offline') || err.code === 'unavailable')) {
+                throw new Error("Não foi possível conectar ao servidor (cliente offline ou sem credenciais de Firebase configuradas). Utilize a aba 'Chave API' para entrar diretamente com sua chave.");
+              }
+              throw err;
+            }
           }}
           onLoginWithApiKey={login}
         />
@@ -185,46 +234,44 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
         <div className="min-h-screen flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-[#1a1a1a] w-full max-w-md p-10 md:p-12 rounded-[2rem] shadow-2xl border border-white/5 flex flex-col items-center relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-[var(--accent-primary,#4287f5)] shadow-[0_0_15px_var(--accent-primary,rgba(66,135,245,0.5))]"></div>
-            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-8 relative border border-white/5" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-primary, #4287f5) 10%, transparent)' }}>
-              <div className="absolute inset-0 rounded-full blur-xl opacity-20" style={{ backgroundColor: 'var(--accent-primary, #4287f5)' }}></div>
-              <div className="relative w-14 h-14 rounded-full border flex items-center justify-center text-[var(--accent-primary, #4287f5)] [&_svg]:w-10 [&_svg]:h-10 transition-all duration-500" style={{ borderColor: 'color-mix(in srgb, var(--accent-primary, #4287f5) 40%, transparent)' }}>
-                {appConfig?.customLogo || (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10">
-                    <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1 .3 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
-                    <path d="M9 18h6" />
-                    <path d="M10 22h4" />
-                  </svg>
-                )}
-              </div>
+            <div className="mb-8">
+              <AppLogo className="w-28 h-28" />
             </div>
-            {title || (
-              <h1 className="text-3xl font-black text-white text-center mb-1">
-                {appName.replace(/ia/i, '')}<span className="text-[#F7D33C]">ia</span> {appName.split(' ').slice(1).join(' ')}
-              </h1>
-            )}
+            <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight">
+              {renderFormattedAppTitle(appName)}
+            </h1>
             <p className="text-sm text-gray-400 mb-10">Selecione o idioma para começar.</p>
             
             <div className="w-full bg-black/40 p-2 rounded-3xl flex gap-3 mb-8 border border-white/5">
               <button onClick={() => game.setInterfaceLanguage('pt')} className={`flex-1 flex flex-col items-center justify-center gap-2 py-4 rounded-2xl transition-all font-bold ${game.interfaceLanguage === 'pt' ? 'bg-[#2a2a2a] text-white shadow-lg' : 'text-gray-600'}`}>
-                <img src="/brazil.svg" alt="Brasil" className="w-8 h-6 object-contain" />
+                <svg viewBox="0 0 720 504" className="w-8 h-6 object-contain rounded-xs shadow-xs">
+                  <rect width="720" height="504" fill="#009933"/>
+                  <polygon points="360,54 666,252 360,450 54,252" fill="#ffcc00"/>
+                  <circle cx="360" cy="252" r="126" fill="#002776"/>
+                </svg>
                 <span>Português</span>
               </button>
-              <button onClick={() => game.setInterfaceLanguage('libras')} className={`flex-1 flex flex-col items-center justify-center gap-2 py-4 rounded-2xl transition-all font-bold ${game.interfaceLanguage === 'libras' ? 'bg-[#2a2a2a] text-white shadow-lg' : 'text-gray-600'}`}>
-                <img src="/libras.svg" alt="Libras" className="w-6 h-6 object-contain" />
+              <button onClick={() => game.setInterfaceLanguage('libras')} className={`flex-1 flex flex-col items-center justify-center gap-2 py-4 rounded-2xl transition-all font-bold ${game.interfaceLanguage === 'libras' ? 'bg-[#2a2a2a] text-white shadow-lg' : 'text-gray-600 hover:text-gray-400'}`}>
+                <img 
+                  src="/libras.svg" 
+                  alt="Libras" 
+                  className="w-8 h-8 object-contain"
+                />
                 <span>Libras</span>
               </button>
             </div>
 
-            <button onClick={() => game.setGameState('SETUP')} className="w-full bg-brand-blue text-white font-bold py-4 rounded-xl shadow-xl shadow-brand-blue/20">Iniciar</button>
+            <button onClick={() => game.setGameState('SETUP')} className="w-full text-white font-bold py-4 rounded-xl shadow-xl transition-all" style={{ backgroundColor: 'var(--accent-primary, #4287f5)' }}>Iniciar</button>
           </div>
         </div>
       ) : (
         <div className="h-screen flex flex-col font-sans bg-brand-dark text-brand-text overflow-hidden" style={{ zoom: settings.zoomLevel }}>
-          <header className="bg-brand-blue text-white h-16 shrink-0 flex items-center shadow-lg z-20">
+          <header className="bg-[#161616] text-white h-16 shrink-0 flex items-center shadow-lg z-20 border-b border-white/10 relative">
+            <div className="absolute top-0 left-0 right-0 h-[2.5px]" style={{ backgroundColor: 'var(--accent-primary, #4287f5)' }}></div>
             <div className="container mx-auto px-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <h1 className="text-base font-semibold truncate">
-                  {appConfig?.appTitle || appName}
+                  {renderFormattedAppTitle(appName)}
                 </h1>
                 {game.isTutorialMode && <span className="bg-emerald-500 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">Tutorial</span>}
               </div>
@@ -298,6 +345,32 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
                 </div>
               )}
 
+              {game.errorDetail && (
+                <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+                  <div className="bg-brand-card max-w-md w-full rounded-2xl p-6 border border-red-500/50 shadow-2xl text-white">
+                    <div className="flex items-center gap-3 mb-4 text-red-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <h3 className="text-xl font-bold">{game.errorDetail.title || "Erro no Quiz"}</h3>
+                    </div>
+                    <p className="text-sm text-gray-300 mb-4 leading-relaxed">{game.errorDetail.message}</p>
+                    {game.errorDetail.solution && (
+                      <div className="text-xs text-gray-300 bg-black/40 p-3.5 rounded-xl border border-gray-800 mb-6 font-mono">
+                        💡 {game.errorDetail.solution}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => game.setErrorDetail(null)}
+                      className="w-full py-3 bg-red-600 hover:bg-red-500 font-bold rounded-xl transition-colors shadow-lg"
+                    >
+                      Entendi
+                    </button>
+                  </div>
+                </div>
+              )}
+
+
               {game.gameState === 'SETUP' && (
                 <main className="flex-1 container mx-auto px-4 py-10 max-w-2xl flex flex-col items-center">
                   <div className="text-center mb-10">
@@ -316,7 +389,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
               )}
 
               {game.gameState === 'COUNTDOWN' && (
-                <div className="fixed inset-0 z-50 flex flex-col items-center justify-center text-white" style={{ backgroundColor: game.teams[game.currentTeamIndex]?.color }}>
+                <div className="fixed inset-0 z-50 flex flex-col items-center justify-center text-white" style={{ backgroundColor: getTeamColor(game.teams[game.currentTeamIndex]) }}>
                   <div className="text-[12rem] font-black animate-ping absolute opacity-20">{game.countdownValue > 0 ? game.countdownValue : 'JÁ!'}</div>
                   <div className="text-[10rem] font-black relative z-10">{game.countdownValue > 0 ? game.countdownValue : 'JÁ!'}</div>
                 </div>
@@ -326,20 +399,31 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
                 <main className="flex-1 container mx-auto px-4 py-6 flex flex-col">
                   {/* Status Bar */}
                   <div className="flex justify-between items-center mb-6 bg-black/20 p-4 rounded-xl">
-                    <div className="flex gap-4">
+                    <div className="flex gap-4 items-center">
                       {game.teams.map((t, idx) => (
-                        <div key={t.id} className={`px-4 py-1 rounded-full border-2 transition-all ${idx === game.currentTeamIndex ? 'text-white font-bold' : 'opacity-40'}`} style={{ backgroundColor: idx === game.currentTeamIndex ? t.color : 'transparent', borderColor: t.color }}>
+                        <div key={t.id} className={`px-4 py-1 rounded-full border-2 transition-all ${idx === game.currentTeamIndex ? 'text-white font-bold' : 'opacity-40'}`} style={{ backgroundColor: idx === game.currentTeamIndex ? getTeamColor(t) : 'transparent', borderColor: getTeamColor(t) }}>
                           {t.name}: {t.score}
                         </div>
                       ))}
                     </div>
-                    <div className="font-mono text-sm">Pergunta {game.currentQuestionIndex + 1}/{game.quizData.questions.length}</div>
+                    <div className="flex items-center gap-4">
+                      <div className="font-mono text-sm opacity-80">Pergunta {game.currentQuestionIndex + 1}/{game.quizData.questions.length}</div>
+                      {game.quizConfig?.enableTimer && (
+                        <div className={`px-4 py-1.5 rounded-full font-bold text-sm shadow-md flex items-center gap-1.5 transition-all ${getTimerStyles()}`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="font-mono">{game.timeLeft}s</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
+
 
                   <QuizCard question={game.quizData.questions[game.currentQuestionIndex]} index={game.currentQuestionIndex} total={game.quizData.questions.length}
                     timeLeft={game.timeLeft} onAnswer={game.handleAnswer} isTimeUp={game.timeLeft === 0}
                     hintsRemaining={game.hintsRemaining} onRevealHint={game.handleUseHint}
-                    activeTeamName={game.teams[game.currentTeamIndex]?.name} activeTeamColor={game.teams[game.currentTeamIndex]?.color}
+                    activeTeamName={game.teams[game.currentTeamIndex]?.name} activeTeamColor={getTeamColor(game.teams[game.currentTeamIndex])}
                     onVoid={() => game.handleReplaceQuestion(game.currentQuestionIndex)}
                     ttsConfig={narration.ttsConfig} onSkip={game.handleSkipQuestion} isSkipping={game.isSkipping} apiKey={apiKey}
                     interfaceLanguage={game.interfaceLanguage} />
@@ -352,13 +436,13 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
                     <h2 className="text-3xl font-bold mb-8">Fim da Rodada {game.currentRound}</h2>
                     <div className="space-y-4 mb-10">
                       {game.teams.map(t => (
-                        <div key={t.id} className="flex justify-between items-center p-4 bg-black/20 rounded-xl border-l-4" style={{ borderLeftColor: t.color }}>
+                        <div key={t.id} className="flex justify-between items-center p-4 bg-black/20 rounded-xl border-l-4" style={{ borderLeftColor: getTeamColor(t) }}>
                           <span className="font-bold">{t.name}</span>
                           <span className="text-2xl font-black">{t.score}</span>
                         </div>
                       ))}
                     </div>
-                    <button onClick={game.handleNextRound} className="w-full py-4 bg-brand-blue text-white rounded-xl font-bold shadow-lg">Próxima Rodada</button>
+                    <button onClick={game.handleNextRound} className="w-full py-4 text-white rounded-xl font-bold shadow-lg" style={{ backgroundColor: primaryColor }}>Próxima Rodada</button>
                   </div>
                 </main>
               )}
@@ -367,9 +451,9 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
                 <main className="flex-1 container mx-auto px-4 py-10 flex flex-col items-center">
                   <h2 className="text-4xl font-black mb-10 text-white">Partida Finalizada!</h2>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl mb-12">
+                  <div className={`w-full max-w-4xl mb-12 ${game.teams.length === 1 ? 'flex justify-center' : 'grid grid-cols-1 md:grid-cols-2 gap-6'}`}>
                     {game.teams.map(t => (
-                      <div key={t.id} className="bg-brand-card p-8 rounded-3xl border-b-8 shadow-2xl" style={{ borderBottomColor: t.color }}>
+                      <div key={t.id} className={`bg-brand-card p-8 rounded-3xl border-b-8 shadow-2xl overflow-hidden ${game.teams.length === 1 ? 'w-full max-w-md' : ''}`} style={{ borderBottomColor: getTeamColor(t) }}>
                         <div className="text-sm font-bold opacity-50 uppercase mb-2">{t.name}</div>
                         <div className="text-6xl font-black mb-4">{t.score}</div>
                         <div className="flex gap-4 text-sm font-medium">
@@ -383,7 +467,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
                   <div className="flex flex-wrap gap-4 justify-center">
                     <button onClick={() => game.setIsReviewing(true)} className="px-8 py-4 bg-brand-hover rounded-2xl font-bold transition-colors hover:bg-white/10">Revisar Respostas</button>
                     <button onClick={game.handleConfirmStart} className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-bold shadow-lg hover:bg-emerald-500 transition-all active:scale-95">Jogar Novamente</button>
-                    <button onClick={game.executeReset} className="px-8 py-4 bg-brand-blue text-white rounded-2xl font-bold shadow-lg hover:opacity-90 transition-all active:scale-95">Menu Inicial</button>
+                    <button onClick={game.executeReset} className="px-8 py-4 text-white rounded-2xl font-bold shadow-lg hover:opacity-90 transition-all active:scale-95" style={{ backgroundColor: primaryColor }}>Menu Inicial</button>
                   </div>
 
                   {game.isReviewing && (
@@ -434,13 +518,7 @@ export default function GameEngine({ appConfig, defaultLanguage = 'pt', title }:
       <CookieBanner onOpenPrivacy={() => setIsPrivacyPolicyOpen(true)} />
       <PrivacyPolicyModal isOpen={isPrivacyPolicyOpen} onClose={() => setIsPrivacyPolicyOpen(false)} appName={appName} />
       <TourOverlay steps={TOUR_STEPS} isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} onComplete={() => { setIsGuideOpen(false); game.handleStartTutorial(); }} />
-      
-      {/* Floating Timer */}
-      {game.quizConfig?.enableTimer && game.gameState === 'PLAYING' && (
-        <div className={`fixed top-24 right-6 px-5 py-2 rounded-full font-bold shadow-xl z-40 flex items-center gap-2 ${getTimerStyles()}`}>
-          <span className="font-mono text-xl">{game.timeLeft}s</span>
-        </div>
-      )}
     </div>
   );
 }
+

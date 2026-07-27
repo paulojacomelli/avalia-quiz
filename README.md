@@ -1,3 +1,9 @@
+# ⚠️ [DEPRECATED] Base de Código Antiga ⚠️
+
+> **Aviso Crítico:** O código antigo que vivia nesta pasta raiz foi arquivado (`_archive_legacy_v1/`).
+> Todo novo desenvolvimento, build e deploy deve ocorrer EXCLUSIVAMENTE dentro da pasta `avalia-monorepo/`.
+
+---
 
 # Avalia Quiz - Ecossistema de Quizzes com IA (v1.4.6)
 
@@ -39,7 +45,7 @@ O projeto está organizado no diretório `avalia-monorepo/`:
 ```bash
 # Clone o repositório
 git clone https://github.com/paulojacomelli/avalia-quiz.git
-cd avalia-quiz/avalia-monorepo
+cd avalia-monorepo
 
 # Instale as dependências na raiz do monorepo
 npm install

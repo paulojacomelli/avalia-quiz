@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { validateApiKey } from '@avalia/services';
-import { db } from '../services/firebase';
+import { validateApiKey, db } from '@avalia/services';
 import { doc, getDoc } from 'firebase/firestore';
 import { ApiErrorDetail, AiProvider } from '@avalia/core';
+import { AppLogo } from './AppLogo';
+import { renderFormattedAppTitle } from './FormattedTitle';
 
 interface LoginScreenProps {
   onPlayPrebuilt: () => void;
@@ -11,6 +11,7 @@ interface LoginScreenProps {
   loadingMessage?: string;
   apiError?: ApiErrorDetail | null;
   onClearError?: () => void;
+  appName?: string;
   title?: React.ReactNode;
   logo?: React.ReactNode;
   onLoginWithCode: (code: string, provider: AiProvider) => Promise<void>;
@@ -25,12 +26,16 @@ interface ModelOption {
 }
 
 const TEXT_MODELS: ModelOption[] = [
-  { value: "gemini-3.5-flash", label: "gemini-3.5-flash" },
-  { value: "gemini-3.1-flash-lite", label: "gemini-3.1-flash-lite" },
-  { value: "gemini-2.5-flash", label: "gemini-2.5-flash", status: "Legado" },
-  { value: "gemini-2.5-flash-lite", label: "gemini-2.5-flash-lite", status: "Legado" },
-  { value: "gemini-2.5-pro", label: "gemini-2.5-pro", status: "Legado" }
+  { value: "gemini-3.6-flash", label: "Gemini 3.6 Flash (Novo)", status: "Alta Performance" },
+  { value: "gemini-3.5-flash", label: "Gemini 3.5 Flash", status: "Recomendado" },
+  { value: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash-Lite", status: "Rápido" },
+  { value: "gemini-3.1-flash-lite", label: "Gemini 3.1 Flash-Lite", status: "Econômico" },
+  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash", status: "Estável" },
+  { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite", status: "Estável" },
+  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", status: "Avançado" }
 ];
+
+
 
 const DEEPSEEK_MODELS: ModelOption[] = [
   { value: "deepseek-chat", label: "deepseek-chat (V3)" },
@@ -175,21 +180,22 @@ const CustomSelect = ({ value, onChange, options, placeholder, disableCustom = f
 };
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({
+  appName = 'Avalia Quiz',
+  title,
+  logo,
   onPlayPrebuilt,
   isLoading = false,
-  loadingMessage = "Carregando...",
+  loadingMessage = 'Carregando...',
   apiError = null,
   onClearError,
-  title = <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight">Aval<span className="text-[#F7D33C]">ia</span> Quiz</h1>,
-  logo,
   onLoginWithCode,
   onLoginWithApiKey
 }) => {
-  const [loginMode, setLoginMode] = useState<'code' | 'api'>('code');
   const [provider, setProvider] = useState<AiProvider>('google-ai');
+  const [loginMode, setLoginMode] = useState<'code' | 'api'>('code');
   const [accessCode, setAccessCode] = useState('');
   const [inputKey, setInputKey] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string>('');
   const [isValidating, setIsValidating] = useState(false);
   const [openRouterModels, setOpenRouterModels] = useState<ModelOption[]>(OPENROUTER_MODELS);
 
@@ -236,7 +242,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   const [textModelOption, setTextModelOption] = useState(() => {
     const saved = localStorage.getItem('gemini_text_model');
-    return TEXT_MODELS.some(m => m.value === saved) ? saved || 'gemini-3.5-flash' : (saved ? 'custom' : 'gemini-3.5-flash');
+    return TEXT_MODELS.some(m => m.value === saved) ? saved || 'gemini-2.5-flash' : (saved ? 'custom' : 'gemini-2.5-flash');
+
   });
   const [customTextModel, setCustomTextModel] = useState(() => {
     const saved = localStorage.getItem('gemini_text_model');
@@ -352,21 +359,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         {/* Borda superior decorativa com brilho */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-[var(--accent-primary)] shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
 
-        {/* Logo/Ícone do Quiz em destaque (Wrapper) */}
-        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-8 border border-white/5 relative" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)' }}>
-          <div className="absolute inset-0 rounded-full blur-xl" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)' }}></div>
-          <div className="relative w-14 h-14 rounded-full border flex items-center justify-center text-[var(--accent-primary)] [&_svg]:w-8 [&_svg]:h-8" style={{ borderColor: 'color-mix(in srgb, var(--accent-primary) 40%, transparent)' }}>
-            {logo || (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8" style={{ filter: 'drop-shadow(0 0 8px var(--accent-primary))' }}>
-                <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1 .3 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
-                <path d="M9 18h6" />
-                <path d="M10 22h4" />
-              </svg>
-            )}
-          </div>
+        {/* Logo oficial padronizado do ecossistema */}
+        <div className="mb-8">
+          <AppLogo className="w-28 h-28" />
         </div>
 
-        {title}
+        {title || (
+          <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight">
+            {renderFormattedAppTitle(appName)}
+          </h1>
+        )}
         <p className="text-sm text-gray-400 font-medium mb-10 text-center opacity-80">Acesse o sistema para começar o quiz.</p>
 
         {/* Barra de Abas: Alterna entre Login por Código ou Chave de API */}
@@ -441,21 +443,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     value: "deepseek", 
                     label: "DeepSeek",
                     icon: (
-                      <img src="/deepseek-01.svg" className="w-4 h-4 object-contain" alt="DeepSeek" />
+                      <svg viewBox="0 0 500 500" className="w-4 h-4 object-contain">
+                        <path fill="#4d6bfe" d="M435.32,143.14c-6.24-1.12-11.87,15.99-28.34,14.98-12.14-.74-23.36,3.27-31.93,12.24-3.2-13.98-11.1-19.75-23.6-24.83-13.18-5.36-11.1-17.02-15.92-22.72-8.45-9.98-29.94,44.83,7.82,75.95,2.72,2.24,5.78,4.13,7.98,7.25l-5.98,17.07c-13.03-4.74-23.99-12.85-33.5-23-12.38-13.22-24.45-26.22-39.88-36.03-5.45-3.47-10.66-8.77-9.57-15.82,1.08-7.05,6.97-11.73,13.36-14.84-.02-2.16-2.6-3.91-4.73-4.39-22.48-5.09-46.26,10.9-55.15,10.34l-26.92-1.7c-20.26.4-39.97,3.89-56.99,15.4-29.76,20.14-46.47,53.96-46.1,89.94.37,34.86,12.71,67.42,36.35,92.77,15.39,16.5,33.16,29.44,54.18,37.72,23.53,9.28,47.79,10.45,72.78,7.12,21.39-2.85,40.48-11.26,57.22-26.01,16.06,7.23,39.57,7.85,54.92,2.86,4.69-1.52,8.21-9.45,3.76-12.38-7.71-5.09-16.69-7.69-25.14-11.18-2.49-1.03-4.83-1.12-6.39-4l6.85-7.51c11.99-13.15,22.22-27.14,29.1-43.77,7.63-18.44,12.3-37.35,14.21-57.35.26-2.75-2.14-7.68.85-9.73,34.48-3.6,55.7-28.94,55.62-63.25,0-2.78-3.13-4.82-4.88-5.13ZM254.8,341.17c-11.82-9.54-44.52-34.79-52.49-29.47-4.47,2.98-1,13.35,4.19,20.83,1.32,1.9,2.22,4.42,1.35,6.65-2.45,6.24-17.59,6.42-27.64,1.4-42.11-21.02-66.79-65.87-70.41-112.54-.24-3.1-.98-8.72,2.05-10.13,6.63-3.08,14.69-3.43,22.25-2.74,30.73,2.79,58.23,16.23,80.93,36.8,12.39,11.22,21.66,24.16,31.03,38.03,15.11,23.47,32.09,45.86,55.25,61.66-17.33,2.12-33.45.07-46.52-10.48ZM271.98,247.89c0-2.43,1.97-4.4,4.4-4.4s4.4,1.97,4.4,4.4-1.97,4.4-4.4,4.4-4.4-1.97-4.4-4.4ZM297.46,270.24c-15.39-10.88-4.09-21.41-9.53-28.62-5.67-7.51-16.81-2.97-17.88-8.81-.81-4.41,4.24-7.19,8.42-7.45,15.03-.95,27.48,13.49,35.8,26.42,3.24,5.04,6.54,9.89,7.59,16.04-6.45,6.78-16.71,7.84-24.39,2.42Z"/>
+                      </svg>
                     )
                   },
                   { 
                     value: "groq", 
                     label: "Groq",
                     icon: (
-                      <img src="/groq.svg" className="w-4 h-4 object-contain" alt="Groq" />
+                      <svg viewBox="0 0 453 453" className="w-4 h-4 object-contain">
+                        <path fill="#f45036" d="M251.67,0c103.8,5.06,199.26,98.29,201.33,203.35v50.33c-6.37,102.84-98.84,197.34-203.35,199.32h-50.33C95.98,446.6,5.11,355.41,0,251.67v-52.35C6.35,96.23,98.84,2.44,203.35,0h48.32Z"/>
+                        <path fill="#fefefe" d="M286.92,278.53l.23-97.15c.08-33.19-29.12-58.48-60.62-58.53-32.91-.05-60.07,26.74-60.96,59.35s24.54,62.06,58.32,62.5l35.46.47-.03,36.62-29.83.02c-34.44.02-65.78-16.13-84.12-42.56-20.1-28.97-23.75-64.93-9.1-96.98,18.95-41.47,61.99-64.73,107.23-57.01,41.53,7.09,78.06,42.57,80.23,87.86l.28,102.83c.12,43.58-31.75,80.31-73.05,91.47-33.74,9.12-67.39-.85-92.26-25.34l25.89-26.03c17.89,17.14,41.58,22.95,64.87,13.57,18.89-7.6,37.39-26.49,37.45-51.09Z"/>
+                      </svg>
                     )
                   },
                   { 
                     value: "openrouter", 
                     label: "OpenRouter",
                     icon: (
-                      <img src="/openrouter.svg" className="w-4 h-4 object-contain" alt="OpenRouter" />
+                      <svg viewBox="0 0 362.15 306.13" className="w-4 h-4 object-contain">
+                        <path fill="#93a3b8" d="M251.94,306.13l-.79-28.35c-47.94,2.45-89.25-4.54-128.56-32.25l-24.23-17.07c-15.07-11.05-30.2-20.77-46.88-29.41-16.87-6.67-33.79-11.31-51.48-14.19v-63.31c33.64-4.42,59.4-14.46,86.77-33.83l42.63-29.84c36.07-25.25,80.45-31.84,124.15-29.23l.22-28.65,108.38,62.85-108,62.53-.67-32.05c-17.69-1.89-34.89-1.98-52.25,1.45-15.53,3.52-28.85,10.34-41.72,19.55-19.26,13.78-37.97,27.21-57.78,39.58,20.5,12.82,38.33,25.77,56.99,39.15,19.46,13.96,40.87,22,64.87,21.18l27.62-.94.64-32.4,108.42,62.74-108.34,62.48Z"/>
+                      </svg>
                     )
                   }
                 ]}
@@ -575,7 +584,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           <button
             type="submit"
             disabled={isValidating}
-            className="w-full bg-brand-blue text-white font-bold text-base py-4 rounded-xl hover:bg-opacity-90 transition-all active:scale-[0.98] shadow-xl shadow-brand-blue/20 disabled:opacity-50 flex justify-center items-center"
+            className="w-full text-white font-bold text-base py-4 rounded-xl hover:bg-opacity-90 transition-all active:scale-[0.98] shadow-xl disabled:opacity-50 flex justify-center items-center"
+            style={{ backgroundColor: 'var(--accent-primary, #4287f5)' }}
           >
             {isValidating ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>

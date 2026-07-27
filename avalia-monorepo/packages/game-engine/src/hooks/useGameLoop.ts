@@ -5,7 +5,8 @@ import {
 import { 
   generateQuizContent, generateReplacementQuestion, preGenerateQuizAudio,
   playSound, playTimerTick, playCountdownTick, playGoSound, startLoadingDrone, stopLoadingDrone, resumeAudioContext,
-  getGlobalKeywords, saveGeneratedQuiz, getRandomPrebuiltQuiz, getAvailableLibraryThemes, uploadQuizAudiosToStorage
+  getGlobalKeywords, saveGeneratedQuiz, getRandomPrebuiltQuiz, getAvailableLibraryThemes, uploadQuizAudiosToStorage,
+  logTelemetryEvent, resolveAiModelLabel
 } from '@avalia/services';
 
 type GameState = 'START_SCREEN' | 'SETUP' | 'READY_CHECK' | 'COUNTDOWN' | 'PLAYING' | 'ROUND_SUMMARY' | 'FINISHED';
@@ -73,7 +74,13 @@ export function useGameLoop({
   const [isSkipping, setIsSkipping] = useState(false);
   const [voidedIndices, setVoidedIndices] = useState<Set<number>>(new Set());
 
-  const [teams, setTeams] = useState<Team[]>(_session?.teams ?? []);
+  const [teams, setTeams] = useState<Team[]>(() => {
+    const raw: Team[] = _session?.teams ?? [];
+    return raw.map(t => ({
+      ...t,
+      color: (t.color === '#4287f5' || t.color === '#3b82f6') ? 'var(--accent-primary)' : t.color
+    }));
+  });
   const [currentTeamIndex, setCurrentTeamIndex] = useState(_session?.currentTeamIndex ?? 0);
   const [currentRound, setCurrentRound] = useState(_session?.currentRound ?? 1);
   const [hintsRemaining, setHintsRemaining] = useState<number>(_session?.hintsRemaining ?? -1);
@@ -121,30 +128,135 @@ export function useGameLoop({
     currentRound, hintsRemaining, SESSION_KEY
   ]);
 
+  // --- Countdown Timer Effect ---
+  useEffect(() => {
+    if (gameState !== 'COUNTDOWN') return;
+
+    const timer = setInterval(() => {
+      setCountdownValue((prev) => {
+        if (prev > 1) {
+          playSound('click');
+          return prev - 1;
+        } else if (prev === 1) {
+          playSound('click');
+          return 0; // Exibe 'JÁ!'
+        } else {
+          // Quando chega a 0, transiciona para PLAYING
+          setGameState('PLAYING');
+          return 3;
+        }
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [gameState, playSound]);
+
+  // --- Question Timer Effect (timeLeft) ---
+  useEffect(() => {
+    if (gameState !== 'PLAYING' || isCurrentQuestionAnswered || isReviewing) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [gameState, isCurrentQuestionAnswered, isReviewing]);
+
+  // --- Cooldown Timer Effect ---
+  useEffect(() => {
+    if (cooldownTime <= 0) return;
+
+    const timer = setInterval(() => {
+      setCooldownTime((prev) => (prev > 1 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [cooldownTime]);
+
+
   // --- Handlers ---
 
   const handleApiError = useCallback((err: any) => {
-    const msg = (err?.message || String(err)).toLowerCase();
+    let rawMsg = err?.message || String(err);
+
+    // Tentar extrair mensagem limpa de erros formatados em JSON pela API
+    if (typeof rawMsg === 'string' && (rawMsg.trim().startsWith('{') || rawMsg.trim().startsWith('['))) {
+      try {
+        const parsedJson = JSON.parse(rawMsg);
+        if (parsedJson?.error?.message) {
+          rawMsg = parsedJson.error.message;
+        } else if (parsedJson?.message) {
+          rawMsg = parsedJson.message;
+        }
+      } catch {
+        // mantém a string original se não for JSON válido
+      }
+    }
+
+    const msgLower = rawMsg.toLowerCase();
     let parsed: ApiErrorDetail;
 
-    if (msg.includes('429') || msg.includes('quota')) {
+    if (msgLower.includes('503') || msgLower.includes('high demand') || msgLower.includes('unavailable') || msgLower.includes('overloaded')) {
+      parsed = {
+        code: '503',
+        title: 'Servidor Sobrecarregado (503)',
+        message: 'O servidor de Inteligência Artificial está enfrentando uma alta demanda temporária no momento.',
+        solution: 'Aguarde alguns segundos e tente novamente.'
+      };
+    } else if (msgLower.includes('429') || msgLower.includes('quota') || msgLower.includes('exceeded limit')) {
       parsed = { 
         code: '429', 
-        title: 'Limite Excedido', 
-        message: 'A cota gratuita da API foi atingida temporariamente.', 
-        solution: 'O sistema entrará em pausa por 60s.' 
+        title: 'Limite Excedido (429)', 
+        message: 'A cota de requisições da API foi atingida temporariamente.', 
+        solution: 'O sistema entrará em pausa por 60 segundos.' 
       };
       setCooldownTime(60);
       stopSpeech();
-    } else if (msg.includes('400') || msg.includes('403')) {
-      parsed = { code: '403', title: 'Chave Inválida', message: 'A chave foi rejeitada.', solution: 'Verifique sua chave.' };
-    } else if (msg.includes('safety') || msg.includes('blocked')) {
-      parsed = { code: 'SAFETY', title: 'Conteúdo Bloqueado', message: 'IA recusou gerar por filtros de segurança.', solution: 'Mude o tema.' };
+    } else if (msgLower.includes('400') || msgLower.includes('403') || msgLower.includes('api_key_invalid') || msgLower.includes('invalid api key')) {
+      parsed = { 
+        code: '403', 
+        title: 'Chave Inválida (403)', 
+        message: 'A chave de API configurada foi rejeitada ou é inválida.', 
+        solution: 'Verifique se a sua Chave de API está correta no painel de configurações.' 
+      };
+    } else if (msgLower.includes('safety') || msgLower.includes('blocked') || msgLower.includes('finish_reason_safety')) {
+      parsed = { 
+        code: 'SAFETY', 
+        title: 'Conteúdo Bloqueado', 
+        message: 'A IA recusou a geração devido aos filtros de segurança.', 
+        solution: 'Tente escolher outro tema ou modificar a descrição.' 
+      };
+    } else if (msgLower.includes('500') || msgLower.includes('internal error')) {
+      parsed = {
+        code: '500',
+        title: 'Erro Interno do Servidor (500)',
+        message: 'Ocorreu uma falha interna nos servidores do provedor de IA.',
+        solution: 'Aguarde um momento e tente novamente.'
+      };
     } else {
-      parsed = { code: 'UNKNOWN', title: 'Erro', message: msg, solution: 'Tente novamente.' };
+      parsed = { 
+        code: 'ERRO', 
+        title: 'Falha na Requisição', 
+        message: rawMsg, 
+        solution: 'Tente novamente em alguns instantes.' 
+      };
     }
     setErrorDetail(parsed);
     setLoading(false);
+    logTelemetryEvent({
+      eventType: 'error',
+      appName: appName || 'Avalia Quiz',
+      errorCode: parsed.code,
+      errorMessage: parsed.message,
+      title: parsed.title,
+      solution: parsed.solution,
+      aiModel: resolveAiModelLabel(provider),
+    });
   }, [stopSpeech]);
 
   const handlePlayPrebuilt = useCallback(async () => {
@@ -180,12 +292,14 @@ export function useGameLoop({
       setTimeLimit(finalConfig.timeLimit);
       setHintsRemaining(finalConfig.maxHints);
 
+      const themePrimaryColor = finalConfig.theme?.primaryColor || 'var(--accent-primary)';
+
       let tempTeams: Team[] = finalConfig.isTeamMode 
         ? finalConfig.teams.map((name, idx) => ({ 
-            id: `team-${idx}`, name, color: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b'][idx % 4], 
+            id: `team-${idx}`, name, color: [themePrimaryColor, '#ef4444', '#10b981', '#f59e0b'][idx % 4], 
             score: 0, correctCount: 0, wrongCount: 0, hintsUsed: 0 
           }))
-        : [{ id: 'solo', name: 'Você', color: '#4287f5', score: 0, correctCount: 0, wrongCount: 0, hintsUsed: 0 }];
+        : [{ id: 'solo', name: 'Você', color: themePrimaryColor, score: 0, correctCount: 0, wrongCount: 0, hintsUsed: 0 }];
       
       setTeams(tempTeams);
 
@@ -208,12 +322,13 @@ export function useGameLoop({
           setLoadingMessage("Gerando áudio...");
           data = await preGenerateQuizAudio(apiKey, data, finalConfig.tts, tempTeams.map(t => t.name));
         }
+        const aiModel = resolveAiModelLabel(provider);
         const docId = await saveGeneratedQuiz(
           data, 
           appName, 
           finalConfig.mode, 
           finalConfig.subTopic || finalConfig.specificTopic,
-          { clientId }
+          { clientId, aiModel }
         );
         if (docId && data.questions.some(q => q.audioBase64)) {
           setLoadingMessage("Salvando áudios...");

@@ -6,6 +6,25 @@ import { speakText, stopSpeech, isSpeaking, getQuestionReadAloudText } from '@av
 import { SettingsMenu, ThemeMode, VLibras, VLibrasTest, QuizOptions } from '@avalia/design-system';
 import { askAiAboutQuestion, evaluateFreeResponse, LiveApiSession, LiveSessionPhase } from '@avalia/services';
 
+/**
+ * Converte marcadores simples de Markdown (**negrito**, *itálico*) em elementos JSX seguros.
+ */
+const renderFormattedMarkdown = (text: string) => {
+  if (!text) return null;
+
+  // Split por blocos de negrito **texto**
+  const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="font-bold text-yellow-300 dark:text-yellow-200">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('*') && part.endsWith('*')) {
+      return <em key={i} className="italic">{part.slice(1, -1)}</em>;
+    }
+    return part;
+  });
+};
+
 interface QuizCardProps {
   question: QuizQuestion;
   index: number;
@@ -227,9 +246,12 @@ export const QuizCard: React.FC<QuizCardProps> = ({
       const result = await evaluateFreeResponse(apiKey, question.question, question.correctAnswerText || '', textAnswer, provider || 'google-ai');
       setEvaluationResult(result);
       if (onAnswer) onAnswer({ score: result.score, isCorrect: result.isCorrect, textAnswer: textAnswer });
-    } catch (e) {
-      exibirNotificacao('Erro ao avaliar resposta. Tente novamente.');
+    } catch (e: any) {
+      console.error("Erro ao avaliar resposta livre:", e);
+      exibirNotificacao(e?.message || 'Erro ao avaliar resposta. Tente novamente.');
     } finally {
+
+
       setIsEvaluating(false);
     }
   };
@@ -525,7 +547,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
            {question.explanation && (
               <div className="bg-brand-hover/50 p-4 rounded-lg border-l-4 border-brand-blue text-sm leading-relaxed text-brand-text opacity-90">
                   <strong className="block text-xs uppercase tracking-wider opacity-60 mb-1">Por que?</strong>
-                  {question.explanation}
+                  {renderFormattedMarkdown(question.explanation)}
               </div>
            )}
            <div className="flex gap-2">
@@ -598,7 +620,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
               <div className="text-sm">
                 <div className="mb-2 font-medium opacity-60">Sua pergunta: "{askInput}"</div>
                 <div className="text-indigo-900 dark:text-indigo-100 bg-indigo-50 dark:bg-indigo-900/40 p-4 rounded-lg border border-indigo-200 dark:border-indigo-700/50 shadow-inner leading-relaxed">
-                  <span className="font-bold mr-1 text-indigo-700 dark:text-indigo-300">🤖 Resposta:</span> {askResponse}
+                  <span className="font-bold mr-1 text-indigo-700 dark:text-indigo-300">🤖 Resposta:</span> {renderFormattedMarkdown(askResponse)}
                 </div>
                 <button onClick={() => { setAskResponse(null); setAskInput(''); }} className="mt-2 text-xs opacity-50 hover:opacity-100 underline">Fazer outra pergunta</button>
               </div>

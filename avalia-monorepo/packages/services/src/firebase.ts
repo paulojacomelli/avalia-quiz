@@ -1,7 +1,8 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, where } from "firebase/firestore";
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
-import { GeneratedQuiz, QuizQuestion } from "../types";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from "firebase/auth";
+import { GeneratedQuiz, QuizQuestion, TelemetryLogEntry } from "../types";
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,14 +17,44 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+export const auth = getAuth(app);
 
 const QUIZZES_COLLECTION = "generated_quizzes";
+const TELEMETRY_COLLECTION = "telemetry_logs";
+
+export const googleProvider = new GoogleAuthProvider();
+
+export const loginWithGoogle = async (): Promise<User | null> => {
+    try {
+        const result = await signInWithPopup(auth, googleProvider);
+        return result.user;
+    } catch (error) {
+        console.error("Erro no login com Google:", error);
+        throw error;
+    }
+};
+
+export const logoutGoogle = async (): Promise<void> => {
+    try {
+        await signOut(auth);
+    } catch (error) {
+        console.error("Erro ao fazer logout:", error);
+    }
+};
+
+export const subscribeAuthState = (callback: (user: User | null) => void) => {
+    return onAuthStateChanged(auth, callback);
+};
 
 /**
  * Remove recursivamente propriedades com valor undefined para evitar erros no Firestore.
  */
 function cleanUndefined(obj: any): any {
     if (obj === null || obj === undefined) return obj;
+    // Preservar objetos FieldValue (como serverTimestamp) sem destructurar suas propriedades internas
+    if (typeof obj === 'object' && (obj._methodName || obj.constructor?.name === 'FieldValue' || '_delegate' in obj)) {
+        return obj;
+    }
     if (Array.isArray(obj)) {
         return obj.map(item => {
             if (item !== null && typeof item === 'object') {
@@ -98,7 +129,7 @@ export const saveGeneratedQuiz = async (
     appName: string,
     theme?: string,
     subTopic?: string,
-    metadata?: { clientId?: string | null; userAgent?: string }
+    metadata?: { clientId?: string | null; userAgent?: string; aiModel?: string }
 ): Promise<string | null> => {
     try {
         const rawData = {
@@ -112,6 +143,7 @@ export const saveGeneratedQuiz = async (
             createdAt: serverTimestamp(),
             clientId: metadata?.clientId || null,
             userAgent: metadata?.userAgent || (typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown'),
+            aiModel: metadata?.aiModel || null,
             // Persiste questões sem audioBase64 — apenas texto e audioUrl (se houver)
             questions: quiz.questions.map(q => ({
                 id: q.id,
@@ -252,5 +284,122 @@ export const getAvailableLibraryThemes = async (appName: string): Promise<Record
     } catch (error) {
         console.error("Error identifying available themes:", error);
         return {};
+    }
+};
+
+/**
+ * Salva um evento de telemetria / log no Firestore e mantem um backup local no localStorage.
+ */
+export const logTelemetryEvent = async (entry: TelemetryLogEntry): Promise<void> => {
+    const isoDate = new Date().toISOString();
+    const localId = `local_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const localEntry: TelemetryLogEntry = {
+        ...entry,
+        id: localId,
+        isoDate,
+        timestamp: isoDate,
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+    };
+
+    // 1. Backup em localStorage
+    try {
+        const storedStr = localStorage.getItem('avalia_telemetry_logs_backup') || '[]';
+        const storedLogs: TelemetryLogEntry[] = JSON.parse(storedStr);
+        storedLogs.unshift(localEntry);
+        if (storedLogs.length > 250) storedLogs.pop();
+        localStorage.setItem('avalia_telemetry_logs_backup', JSON.stringify(storedLogs));
+    } catch {
+        // ignora se localStorage falhar
+    }
+
+    // 2. Persistencia no Firestore
+    try {
+        const payload = cleanUndefined({
+            ...entry,
+            isoDate,
+            createdAt: serverTimestamp(),
+            userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+        });
+        await addDoc(collection(db, TELEMETRY_COLLECTION), payload);
+    } catch (error) {
+        console.warn("Falha ao gravar no Firestore, mantido backup local:", error);
+    }
+};
+
+/**
+ * Busca logs recentes de telemetria para o Painel Administrativo (mesclando Firestore + backup local).
+ */
+export const fetchTelemetryLogs = async (limitCount: number = 100): Promise<TelemetryLogEntry[]> => {
+    let remoteLogs: TelemetryLogEntry[] = [];
+    try {
+        let snapshot;
+        try {
+            const q = query(
+                collection(db, TELEMETRY_COLLECTION),
+                orderBy("createdAt", "desc"),
+                limit(limitCount)
+            );
+            snapshot = await getDocs(q);
+        } catch {
+            const qSimple = query(collection(db, TELEMETRY_COLLECTION), limit(limitCount));
+            snapshot = await getDocs(qSimple);
+        }
+
+        remoteLogs = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                timestamp: data.isoDate || (data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000).toLocaleString('pt-BR') : 'Recente')
+            };
+        }) as TelemetryLogEntry[];
+    } catch (error) {
+        console.warn("Erro ao carregar logs remotos:", error);
+    }
+
+    let localLogs: TelemetryLogEntry[] = [];
+    try {
+        const storedStr = localStorage.getItem('avalia_telemetry_logs_backup') || '[]';
+        localLogs = JSON.parse(storedStr);
+    } catch {
+        localLogs = [];
+    }
+
+    const logMap = new Map<string, TelemetryLogEntry>();
+    remoteLogs.forEach(item => { if (item.id) logMap.set(item.id, item); });
+    localLogs.forEach(item => {
+        if (item.id && !logMap.has(item.id)) {
+            logMap.set(item.id, item);
+        }
+    });
+
+    const combined = Array.from(logMap.values());
+    combined.sort((a, b) => {
+        const dateA = String(a.isoDate || a.timestamp || '');
+        const dateB = String(b.isoDate || b.timestamp || '');
+        return dateB.localeCompare(dateA);
+    });
+
+    return combined.slice(0, limitCount);
+};
+
+/**
+ * Busca todos os quizzes salvos no Firestore para o Painel Administrativo.
+ */
+export const fetchSavedQuizzes = async (limitCount: number = 100): Promise<any[]> => {
+    try {
+        const q = query(
+            collection(db, QUIZZES_COLLECTION),
+            orderBy("createdAt", "desc"),
+            limit(limitCount)
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+    } catch (error) {
+        console.error("Erro ao buscar quizzes salvos:", error);
+        return [];
     }
 };

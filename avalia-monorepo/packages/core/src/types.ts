@@ -52,7 +52,7 @@ export interface Team {
 export interface TTSConfig {
   enabled: boolean;
   autoRead: boolean;
-  engine: 'browser' | 'gemini';
+  engine: 'gemini' | 'browser';
   gender: 'female' | 'male';
   rate: number; // 0.5 to 2
   volume: number; // 0 to 1
@@ -111,10 +111,40 @@ export interface ApiErrorDetail {
 
 export type AiProvider = 'google-ai' | 'vertex' | 'deepseek' | 'groq' | 'openrouter';
 
+export type TelemetryEventType = 
+  | 'error' 
+  | 'quiz_generated' 
+  | 'question_answered' 
+  | 'question_skipped' 
+  | 'question_voided' 
+  | 'hint_used';
+
+export interface TelemetryLogEntry {
+  id?: string;
+  eventType: TelemetryEventType;
+  appName: string;
+  timestamp?: any;
+  isoDate?: string;
+  title?: string;
+  topic?: string;
+  subTopic?: string;
+  errorCode?: string;
+  errorMessage?: string;
+  solution?: string;
+  questionId?: string;
+  questionText?: string;
+  selectedIndex?: number | null;
+  isCorrect?: boolean;
+  score?: number;
+  userEmail?: string | null;
+  userAgent?: string;
+  /** Identificador do provedor e modelo de IA utilizado (ex: "groq/llama-3.3-70b-versatile") */
+  aiModel?: string;
+}
+
 export interface AppConfig {
   appName: string;
   storagePrefix: string;
-  appTitle: React.ReactNode;
   themeColors: {
     primary: string;
   };
@@ -131,10 +161,5 @@ export interface AppConfig {
     customInputLabel?: string;
     customInputPlaceholder?: string;
   }[];
-  /**
-   * Logo customizável (SVG em string ou React component)
-   * Usado na tela de login/setup
-   */
-  customLogo?: React.ReactNode | string;
 }
 

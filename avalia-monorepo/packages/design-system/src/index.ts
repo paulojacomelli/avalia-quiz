@@ -6,6 +6,10 @@ export * from './components/TourOverlay';
 export * from './components/CookieBanner';
 export * from './components/PrivacyPolicyModal';
 export * from './components/ReadyCheck';
+export * from './components/AdminDashboard';
+export * from './components/AppLogo';
+export * from './components/FormattedTitle';
+export * from './components/DuotoneIcons';
 
 export { default as VLibras } from './components/VLibras';
 export type { VLibrasHandle } from './components/VLibras';
