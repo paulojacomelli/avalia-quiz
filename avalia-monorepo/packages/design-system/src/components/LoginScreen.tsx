@@ -26,60 +26,65 @@ interface ModelOption {
 }
 
 const TEXT_MODELS: ModelOption[] = [
-  { value: "gemini-3.6-flash", label: "Gemini 3.6 Flash (Novo)", status: "Alta Performance" },
-  { value: "gemini-3.5-flash", label: "Gemini 3.5 Flash", status: "Recomendado" },
-  { value: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash-Lite", status: "Rápido" },
-  { value: "gemini-3.1-flash-lite", label: "Gemini 3.1 Flash-Lite", status: "Econômico" },
-  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash", status: "Estável" },
-  { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite", status: "Estável" },
-  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", status: "Avançado" }
+  { value: "gemini-3.6-flash", label: "Gemini 3.6 Flash", status: "Estável" },
+  { value: "gemini-3.5-flash", label: "Gemini 3.5 Flash", status: "Estável" },
+  { value: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash-Lite", status: "Estável" },
+  { value: "gemini-3.1-flash-lite", label: "Gemini 3.1 Flash-Lite", status: "Estável" },
+  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash", status: "Legado" },
+  { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite", status: "Legado" },
+  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", status: "Legado" }
 ];
 
 
 
 const DEEPSEEK_MODELS: ModelOption[] = [
-  { value: "deepseek-chat", label: "deepseek-chat (V3)" },
-  { value: "deepseek-reasoner", label: "deepseek-reasoner (R1)" }
+  { value: "deepseek-v4-flash", label: "deepseek-v4-flash", status: "Estável" },
+  { value: "deepseek-v4-pro", label: "deepseek-v4-pro", status: "Estável" },
+  { value: "deepseek-chat", label: "deepseek-chat (V3)", status: "Estável" },
+  { value: "deepseek-reasoner", label: "deepseek-reasoner (R1)", status: "Estável" }
 ];
 
 const GROQ_MODELS: ModelOption[] = [
-  { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B" },
-  { value: "llama-3.1-8b-instant", label: "Llama 3.1 8B (Rápido)" }
+  { value: "groq/compound", label: "groq/compound", status: "Estável" },
+  { value: "openai/gpt-oss-120b", label: "openai/gpt-oss-120b", status: "Estável" },
+  { value: "llama-3.1-8b-instant", label: "llama-3.1-8b-instant", status: "Estável" },
+  { value: "llama-3.3-70b-versatile", label: "llama-3.3-70b-versatile", status: "Estável" },
+  { value: "custom", label: "Outro modelo (digitar ID)" }
 ];
+
 
 const OPENROUTER_MODELS: ModelOption[] = [
-  { value: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B (Grátis)", status: "Grátis" },
-  { value: "meta-llama/llama-3.2-3b-instruct:free", label: "Llama 3.2 3B (Grátis)", status: "Grátis" },
-  { value: "google/gemini-3.5-flash", label: "Gemini 3.5 Flash", status: "Pago" },
-  { value: "google/gemini-3.1-flash-lite", label: "Gemini 3.1 Flash Lite", status: "Pago" },
-  { value: "~anthropic/claude-fable-latest", label: "Claude Fable Latest", status: "Pago" },
-  { value: "anthropic/claude-fable-5", label: "Claude Fable 5", status: "Pago" },
-  { value: "nex-agi/nex-n2-pro:free", label: "Nex-N2-Pro (Grátis)", status: "Grátis" },
-  { value: "nvidia/nemotron-3.5-content-safety:free", label: "Nemotron 3.5 Content Safety (Grátis)", status: "Grátis" },
-  { value: "nvidia/nemotron-3-ultra-550b-a55b:free", label: "Nemotron 3 Ultra (Grátis)", status: "Grátis" },
-  { value: "nvidia/nemotron-3-ultra-550b-a55b", label: "Nemotron 3 Ultra", status: "Pago" },
-  { value: "qwen/qwen3.7-plus", label: "Qwen 3.7 Plus", status: "Pago" },
-  { value: "qwen/qwen3.7-max", label: "Qwen 3.7 Max", status: "Pago" },
-  { value: "minimax/minimax-m3", label: "MiniMax M3", status: "Pago" },
-  { value: "stepfun/step-3.7-flash", label: "Step 3.7 Flash", status: "Pago" },
-  { value: "anthropic/claude-opus-4.8-fast", label: "Claude Opus 4.8 Fast", status: "Pago" },
-  { value: "anthropic/claude-opus-4.8", label: "Claude Opus 4.8", status: "Pago" },
-  { value: "anthropic/claude-opus-4.7-fast", label: "Claude Opus 4.7 Fast", status: "Pago" },
-  { value: "x-ai/grok-build-0.1", label: "Grok Build 0.1", status: "Pago" },
-  { value: "perceptron/perceptron-mk1", label: "Perceptron MK1", status: "Pago" },
-  { value: "inclusionai/ring-2.6-1t", label: "Ring 2.6 1T", status: "Pago" }
+  { value: "openrouter/auto:free", label: "Modelos gratuitos", status: "Estável" },
+  { value: "openrouter/auto", label: "Modo automático", status: "Estável" },
 ];
 
-const TTS_MODELS: ModelOption[] = [
+const OPENAI_MODELS: ModelOption[] = [
+  { value: "gpt-5.6-sol", label: "gpt-5.6-sol", status: "Estável" },
+  { value: "gpt-5.6-terra", label: "gpt-5.6-terra", status: "Estável" },
+  { value: "gpt-5.6-luna", label: "gpt-5.6-luna", status: "Estável" },
+  { value: "gpt-5.5", label: "gpt-5.5", status: "Legado" },
+  { value: "gpt-5.4", label: "gpt-5.4", status: "Legado" },
+  { value: "gpt-5.4-mini", label: "gpt-5.4-mini", status: "Legado" },
+  { value: "gpt-5.4-nano", label: "gpt-5.4-nano", status: "Legado" }
+];
+
+
+
+const GEMINI_TTS_MODELS: ModelOption[] = [
   { value: "gemini-3.1-flash-tts-preview", label: "gemini-3.1-flash-tts-preview", status: "Pré-lançamento" },
-  { value: "gemini-2.5-flash-preview-tts", label: "gemini-2.5-flash-preview-tts", status: "Legado" },
-  { value: "gemini-2.5-pro-preview-tts", label: "gemini-2.5-pro-preview-tts", status: "Legado" }
+  { value: "gemini-2.5-flash-preview-tts", label: "gemini-2.5-flash-preview-tts", status: "Estável" }
 ];
 
-const LIVE_MODELS: ModelOption[] = [
-  { value: "gemini-3.1-flash-live-preview", label: "gemini-3.1-flash-live-preview", status: "Pré-lançamento" },
-  { value: "gemini-2.5-flash-native-audio-preview-12-2025", label: "gemini-2.5-flash-native-audio-preview", status: "Legado" }
+const OPENAI_TTS_MODELS: ModelOption[] = [
+  { value: "gpt-4o-mini-tts", label: "gpt-4o-mini-tts", status: "Estável" },
+  { value: "tts-1", label: "tts-1", status: "Estável" },
+  { value: "tts-1-hd", label: "tts-1-hd", status: "Estável" }
 ];
+
+// Alias mantido para compatibilidade com CODE_TTS_MODELS
+const TTS_MODELS = GEMINI_TTS_MODELS;
+
+
 
 const CODE_TEXT_MODELS: ModelOption[] = [
   { value: "gemini-3.1-flash-lite", label: "gemini-3.1-flash-lite" }
@@ -89,9 +94,7 @@ const CODE_TTS_MODELS: ModelOption[] = [
   { value: "gemini-3.1-flash-tts-preview", label: "gemini-3.1-flash-tts-preview", status: "Pré-lançamento" }
 ];
 
-const CODE_LIVE_MODELS: ModelOption[] = [
-  { value: "gemini-3.1-flash-live-preview", label: "gemini-3.1-flash-live-preview", status: "Pré-lançamento" }
-];
+
 
 const getStatusColor = (status: string) => {
   if (status === 'Estável' || status === 'Grátis' || status.includes('0.00') || status.toLowerCase().includes('grátis')) {
@@ -191,59 +194,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   onLoginWithCode,
   onLoginWithApiKey
 }) => {
-  const [provider, setProvider] = useState<AiProvider>('google-ai');
+  const [provider, setProvider] = useState<AiProvider>('auto');
   const [loginMode, setLoginMode] = useState<'code' | 'api'>('code');
   const [accessCode, setAccessCode] = useState('');
   const [inputKey, setInputKey] = useState('');
   const [error, setError] = useState<string>('');
   const [isValidating, setIsValidating] = useState(false);
-  const [openRouterModels, setOpenRouterModels] = useState<ModelOption[]>(OPENROUTER_MODELS);
 
-  useEffect(() => {
-    const fetchOpenRouterPrices = async () => {
-      try {
-        const response = await fetch('https://openrouter.ai/api/v1/models');
-        if (!response.ok) return;
-        const json = await response.json();
-        if (json && Array.isArray(json.data)) {
-          const apiModels = json.data;
-          setOpenRouterModels(prev => 
-            prev.map(model => {
-              const apiMatch = apiModels.find((m: any) => m.id === model.value);
-              if (apiMatch && apiMatch.pricing) {
-                const promptPrice = parseFloat(apiMatch.pricing.prompt) * 1000000;
-                const completionPrice = parseFloat(apiMatch.pricing.completion) * 1000000;
-                if (promptPrice === 0 && completionPrice === 0) {
-                  return { ...model, status: 'Grátis' };
-                } else {
-                  const format = (val: number) => {
-                    if (val === 0) return '0';
-                    if (val < 0.01) return val.toFixed(4);
-                    if (val < 0.1) return val.toFixed(3);
-                    return val.toFixed(2);
-                  };
-                  return { 
-                    ...model, 
-                    status: `$${format(promptPrice)}/$${format(completionPrice)}` 
-                  };
-                }
-              }
-              return model;
-            })
-          );
-        }
-      } catch (err) {
-        console.warn('Erro ao carregar preços do OpenRouter:', err);
-      }
-    };
-
-    fetchOpenRouterPrices();
-  }, []);
 
   const [textModelOption, setTextModelOption] = useState(() => {
     const saved = localStorage.getItem('gemini_text_model');
-    return TEXT_MODELS.some(m => m.value === saved) ? saved || 'gemini-2.5-flash' : (saved ? 'custom' : 'gemini-2.5-flash');
-
+    if (!saved) return TEXT_MODELS[0]?.value || '';
+    return TEXT_MODELS.some(m => m.value === saved) ? saved : 'custom';
   });
   const [customTextModel, setCustomTextModel] = useState(() => {
     const saved = localStorage.getItem('gemini_text_model');
@@ -252,21 +214,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   const [ttsModelOption, setTtsModelOption] = useState(() => {
     const saved = localStorage.getItem('gemini_tts_model');
-    return TTS_MODELS.some(m => m.value === saved) ? saved || 'gemini-2.5-flash-preview-tts' : (saved ? 'custom' : 'gemini-2.5-flash-preview-tts');
+    if (!saved) return TTS_MODELS[0]?.value || '';
+    return TTS_MODELS.some(m => m.value === saved) ? saved : 'custom';
   });
   const [customTtsModel, setCustomTtsModel] = useState(() => {
     const saved = localStorage.getItem('gemini_tts_model');
     return TTS_MODELS.some(m => m.value === saved) || !saved ? '' : saved;
   });
 
-  const [liveModelOption, setLiveModelOption] = useState(() => {
-    const saved = localStorage.getItem('gemini_live_model');
-    return LIVE_MODELS.some(m => m.value === saved) ? saved || 'gemini-3.1-flash-live-preview' : (saved ? 'custom' : 'gemini-3.1-flash-live-preview');
-  });
-  const [customLiveModel, setCustomLiveModel] = useState(() => {
-    const saved = localStorage.getItem('gemini_live_model');
-    return LIVE_MODELS.some(m => m.value === saved) || !saved ? '' : saved;
-  });
+
 
   useEffect(() => {
     const modelToSave = textModelOption === 'custom' ? customTextModel : textModelOption;
@@ -278,10 +234,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     if (modelToSave) localStorage.setItem('gemini_tts_model', modelToSave);
   }, [ttsModelOption, customTtsModel]);
 
-  useEffect(() => {
-    const modelToSave = liveModelOption === 'custom' ? customLiveModel : liveModelOption;
-    if (modelToSave) localStorage.setItem('gemini_live_model', modelToSave);
-  }, [liveModelOption, customLiveModel]);
+
 
   // Modelos do modo código agora são definidos de forma flexível pelo usuário na tela
 
@@ -295,6 +248,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         setProvider('groq');
       } else if (key.startsWith('sk-or-')) {
         setProvider('openrouter');
+      } else if (key.startsWith('sk-proj-')) {
+        setProvider('openai');
       } else if (key.startsWith('sk-')) {
         setProvider('deepseek');
       }
@@ -304,15 +259,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   // Sincroniza o modelo padrão se o provedor mudar
   useEffect(() => {
     let models = TEXT_MODELS;
-    if (provider === 'deepseek') models = DEEPSEEK_MODELS;
+    if (provider === 'openai') models = OPENAI_MODELS;
+    else if (provider === 'deepseek') models = DEEPSEEK_MODELS;
     else if (provider === 'groq') models = GROQ_MODELS;
-    else if (provider === 'openrouter') models = openRouterModels;
+    else if (provider === 'openrouter') models = OPENROUTER_MODELS;
 
     const isModelValid = models.some(m => m.value === textModelOption) || textModelOption === 'custom';
     if (!isModelValid && models.length > 0) {
       setTextModelOption(models[0].value);
     }
-  }, [provider, textModelOption, openRouterModels]);
+  }, [provider, textModelOption]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -340,7 +296,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         return;
       }
 
-      
+
       setIsValidating(true);
       try {
         await onLoginWithApiKey(cleanedKey, provider);
@@ -374,7 +330,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         {/* Barra de Abas: Alterna entre Login por Código ou Chave de API */}
         <div className="w-full bg-black/40 p-1 rounded-2xl flex gap-1 mb-10 border border-white/5">
           <button
-            onClick={() => { setLoginMode('code'); setError(''); }}
+            onClick={() => {
+              setLoginMode('code');
+              setError('');
+              setProvider('auto');
+            }}
             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all font-bold text-sm ${loginMode === 'code' ? 'bg-[#2a2a2a] text-white shadow-lg' : 'text-gray-600 hover:text-gray-400'}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -383,7 +343,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             Código
           </button>
           <button
-            onClick={() => { setLoginMode('api'); setError(''); }}
+            onClick={() => {
+              setLoginMode('api');
+              setError('');
+              if (provider === 'auto') setProvider('openrouter');
+            }}
             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all font-bold text-sm ${loginMode === 'api' ? 'bg-[#2a2a2a] text-white shadow-lg' : 'text-gray-600 hover:text-gray-400'}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -411,83 +375,121 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             )}
 
             <div>
-              <label className="text-xs font-bold text-gray-500 mb-2 block tracking-wide text-left">Provedor de API</label>
-              <CustomSelect
-                value={provider}
-                onChange={(val) => {
-                  const nextProvider = val as AiProvider;
-                  setProvider(nextProvider);
-                  let models = TEXT_MODELS;
-                  if (nextProvider === 'deepseek') models = DEEPSEEK_MODELS;
-                  else if (nextProvider === 'groq') models = GROQ_MODELS;
-                  else if (nextProvider === 'openrouter') models = openRouterModels;
-                  
-                  if (models.length > 0) {
-                    setTextModelOption(models[0].value);
-                  }
-                }}
-                options={[
-                  { 
-                    value: "google-ai", 
-                    label: "Google",
-                    icon: (
-                      <svg viewBox="0 0 24 24" className="w-4 h-4">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                      </svg>
-                    )
-                  },
-                  { 
-                    value: "deepseek", 
-                    label: "DeepSeek",
-                    icon: (
-                      <svg viewBox="0 0 500 500" className="w-4 h-4 object-contain">
-                        <path fill="#4d6bfe" d="M435.32,143.14c-6.24-1.12-11.87,15.99-28.34,14.98-12.14-.74-23.36,3.27-31.93,12.24-3.2-13.98-11.1-19.75-23.6-24.83-13.18-5.36-11.1-17.02-15.92-22.72-8.45-9.98-29.94,44.83,7.82,75.95,2.72,2.24,5.78,4.13,7.98,7.25l-5.98,17.07c-13.03-4.74-23.99-12.85-33.5-23-12.38-13.22-24.45-26.22-39.88-36.03-5.45-3.47-10.66-8.77-9.57-15.82,1.08-7.05,6.97-11.73,13.36-14.84-.02-2.16-2.6-3.91-4.73-4.39-22.48-5.09-46.26,10.9-55.15,10.34l-26.92-1.7c-20.26.4-39.97,3.89-56.99,15.4-29.76,20.14-46.47,53.96-46.1,89.94.37,34.86,12.71,67.42,36.35,92.77,15.39,16.5,33.16,29.44,54.18,37.72,23.53,9.28,47.79,10.45,72.78,7.12,21.39-2.85,40.48-11.26,57.22-26.01,16.06,7.23,39.57,7.85,54.92,2.86,4.69-1.52,8.21-9.45,3.76-12.38-7.71-5.09-16.69-7.69-25.14-11.18-2.49-1.03-4.83-1.12-6.39-4l6.85-7.51c11.99-13.15,22.22-27.14,29.1-43.77,7.63-18.44,12.3-37.35,14.21-57.35.26-2.75-2.14-7.68.85-9.73,34.48-3.6,55.7-28.94,55.62-63.25,0-2.78-3.13-4.82-4.88-5.13ZM254.8,341.17c-11.82-9.54-44.52-34.79-52.49-29.47-4.47,2.98-1,13.35,4.19,20.83,1.32,1.9,2.22,4.42,1.35,6.65-2.45,6.24-17.59,6.42-27.64,1.4-42.11-21.02-66.79-65.87-70.41-112.54-.24-3.1-.98-8.72,2.05-10.13,6.63-3.08,14.69-3.43,22.25-2.74,30.73,2.79,58.23,16.23,80.93,36.8,12.39,11.22,21.66,24.16,31.03,38.03,15.11,23.47,32.09,45.86,55.25,61.66-17.33,2.12-33.45.07-46.52-10.48ZM271.98,247.89c0-2.43,1.97-4.4,4.4-4.4s4.4,1.97,4.4,4.4-1.97,4.4-4.4,4.4-4.4-1.97-4.4-4.4ZM297.46,270.24c-15.39-10.88-4.09-21.41-9.53-28.62-5.67-7.51-16.81-2.97-17.88-8.81-.81-4.41,4.24-7.19,8.42-7.45,15.03-.95,27.48,13.49,35.8,26.42,3.24,5.04,6.54,9.89,7.59,16.04-6.45,6.78-16.71,7.84-24.39,2.42Z"/>
-                      </svg>
-                    )
-                  },
-                  { 
-                    value: "groq", 
-                    label: "Groq",
-                    icon: (
-                      <svg viewBox="0 0 453 453" className="w-4 h-4 object-contain">
-                        <path fill="#f45036" d="M251.67,0c103.8,5.06,199.26,98.29,201.33,203.35v50.33c-6.37,102.84-98.84,197.34-203.35,199.32h-50.33C95.98,446.6,5.11,355.41,0,251.67v-52.35C6.35,96.23,98.84,2.44,203.35,0h48.32Z"/>
-                        <path fill="#fefefe" d="M286.92,278.53l.23-97.15c.08-33.19-29.12-58.48-60.62-58.53-32.91-.05-60.07,26.74-60.96,59.35s24.54,62.06,58.32,62.5l35.46.47-.03,36.62-29.83.02c-34.44.02-65.78-16.13-84.12-42.56-20.1-28.97-23.75-64.93-9.1-96.98,18.95-41.47,61.99-64.73,107.23-57.01,41.53,7.09,78.06,42.57,80.23,87.86l.28,102.83c.12,43.58-31.75,80.31-73.05,91.47-33.74,9.12-67.39-.85-92.26-25.34l25.89-26.03c17.89,17.14,41.58,22.95,64.87,13.57,18.89-7.6,37.39-26.49,37.45-51.09Z"/>
-                      </svg>
-                    )
-                  },
-                  { 
-                    value: "openrouter", 
-                    label: "OpenRouter",
-                    icon: (
-                      <svg viewBox="0 0 362.15 306.13" className="w-4 h-4 object-contain">
-                        <path fill="#93a3b8" d="M251.94,306.13l-.79-28.35c-47.94,2.45-89.25-4.54-128.56-32.25l-24.23-17.07c-15.07-11.05-30.2-20.77-46.88-29.41-16.87-6.67-33.79-11.31-51.48-14.19v-63.31c33.64-4.42,59.4-14.46,86.77-33.83l42.63-29.84c36.07-25.25,80.45-31.84,124.15-29.23l.22-28.65,108.38,62.85-108,62.53-.67-32.05c-17.69-1.89-34.89-1.98-52.25,1.45-15.53,3.52-28.85,10.34-41.72,19.55-19.26,13.78-37.97,27.21-57.78,39.58,20.5,12.82,38.33,25.77,56.99,39.15,19.46,13.96,40.87,22,64.87,21.18l27.62-.94.64-32.4,108.42,62.74-108.34,62.48Z"/>
-                      </svg>
-                    )
-                  }
-                ]}
-                placeholder="Selecione o provedor..."
-                disableCustom={true}
-              />
+              <label className="text-xs font-bold text-gray-500 mb-3 block tracking-wide text-left">Provedor de API</label>
+              <div className="flex flex-col gap-1.5">
+                {(
+                  [
+                    {
+                      value: "auto",
+                      label: "Auto",
+                      icon: (
+                        <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" className="text-amber-400 fill-amber-400" />
+                        </svg>
+                      )
+                    },
+                    {
+                      value: "google-ai",
+                      label: "Google",
+                      icon: (
+                        <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0">
+                          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                        </svg>
+                      )
+                    },
+                    {
+                      value: "openai",
+                      label: "OpenAI",
+                      icon: (
+                        <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="currentColor">
+                          <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.843-3.372L15.115 7.2a.076.076 0 0 1 .071 0l4.83 2.786a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.403-.662zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" />
+                        </svg>
+                      )
+                    },
+                    {
+                      value: "deepseek",
+                      label: "DeepSeek",
+                      icon: (
+                        <svg viewBox="0 0 500 500" className="w-4 h-4 shrink-0 object-contain">
+                          <path fill="#4d6bfe" d="M435.32,143.14c-6.24-1.12-11.87,15.99-28.34,14.98-12.14-.74-23.36,3.27-31.93,12.24-3.2-13.98-11.1-19.75-23.6-24.83-13.18-5.36-11.1-17.02-15.92-22.72-8.45-9.98-29.94,44.83,7.82,75.95,2.72,2.24,5.78,4.13,7.98,7.25l-5.98,17.07c-13.03-4.74-23.99-12.85-33.5-23-12.38-13.22-24.45-26.22-39.88-36.03-5.45-3.47-10.66-8.77-9.57-15.82,1.08-7.05,6.97-11.73,13.36-14.84-.02-2.16-2.6-3.91-4.73-4.39-22.48-5.09-46.26,10.9-55.15,10.34l-26.92-1.7c-20.26.4-39.97,3.89-56.99,15.4-29.76,20.14-46.47,53.96-46.1,89.94.37,34.86,12.71,67.42,36.35,92.77,15.39,16.5,33.16,29.44,54.18,37.72,23.53,9.28,47.79,10.45,72.78,7.12,21.39-2.85,40.48-11.26,57.22-26.01,16.06,7.23,39.57,7.85,54.92,2.86,4.69-1.52,8.21-9.45,3.76-12.38-7.71-5.09-16.69-7.69-25.14-11.18-2.49-1.03-4.83-1.12-6.39-4l6.85-7.51c11.99-13.15,22.22-27.14,29.1-43.77,7.63-18.44,12.3-37.35,14.21-57.35.26-2.75-2.14-7.68.85-9.73,34.48-3.6,55.7-28.94,55.62-63.25,0-2.78-3.13-4.82-4.88-5.13Z" />
+                        </svg>
+                      )
+                    },
+                    {
+                      value: "groq",
+                      label: "Groq",
+                      icon: (
+                        <svg viewBox="0 0 453 453" className="w-4 h-4 shrink-0 object-contain">
+                          <path fill="#f45036" d="M251.67,0c103.8,5.06,199.26,98.29,201.33,203.35v50.33c-6.37,102.84-98.84,197.34-203.35,199.32h-50.33C95.98,446.6,5.11,355.41,0,251.67v-52.35C6.35,96.23,98.84,2.44,203.35,0h48.32Z" />
+                          <path fill="#fefefe" d="M286.92,278.53l.23-97.15c.08-33.19-29.12-58.48-60.62-58.53-32.91-.05-60.07,26.74-60.96,59.35s24.54,62.06,58.32,62.5l35.46.47-.03,36.62-29.83.02c-34.44.02-65.78-16.13-84.12-42.56-20.1-28.97-23.75-64.93-9.1-96.98,18.95-41.47,61.99-64.73,107.23-57.01,41.53,7.09,78.06,42.57,80.23,87.86l.28,102.83c.12,43.58-31.75,80.31-73.05,91.47-33.74,9.12-67.39-.85-92.26-25.34l25.89-26.03c17.89,17.14,41.58,22.95,64.87,13.57,18.89-7.6,37.39-26.49,37.45-51.09Z" />
+                        </svg>
+                      )
+                    },
+                    {
+                      value: "openrouter",
+                      label: "OpenRouter",
+                      icon: (
+                        <svg viewBox="0 0 362.15 306.13" className="w-4 h-4 shrink-0 object-contain">
+                          <path fill="#C8FF00" d="M251.94,306.13l-.79-28.35c-47.94,2.45-89.25-4.54-128.56-32.25l-24.23-17.07c-15.07-11.05-30.2-20.77-46.88-29.41-16.87-6.67-33.79-11.31-51.48-14.19v-63.31c33.64-4.42,59.4-14.46,86.77-33.83l42.63-29.84c36.07-25.25,80.45-31.84,124.15-29.23l.22-28.65,108.38,62.85-108,62.53-.67-32.05c-17.69-1.89-34.89-1.98-52.25,1.45-15.53,3.52-28.85,10.34-41.72,19.55-19.26,13.78-37.97,27.21-57.78,39.58,20.5,12.82,38.33,25.77,56.99,39.15,19.46,13.96,40.87,22,64.87,21.18l27.62-.94.64-32.4,108.42,62.74-108.34,62.48Z" />
+                        </svg>
+                      )
+                    }
+                  ] as { value: string; label: string; icon: React.ReactNode }[]
+                ).filter(opt => loginMode !== 'api' || opt.value !== 'auto').map(opt => {
+                  const isSelected = provider === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        const nextProvider = opt.value as AiProvider;
+                        setProvider(nextProvider);
+                        let models = TEXT_MODELS;
+                        if (nextProvider === 'openai') models = OPENAI_MODELS;
+                        else if (nextProvider === 'deepseek') models = DEEPSEEK_MODELS;
+                        else if (nextProvider === 'groq') models = GROQ_MODELS;
+                        else if (nextProvider === 'openrouter') models = OPENROUTER_MODELS;
+                        if (models.length > 0) setTextModelOption(models[0].value);
+                      }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer text-left border-0 outline-none
+                        ${isSelected
+                          ? 'bg-brand-blue/10 ring-1 ring-brand-blue/30 text-white'
+                          : 'bg-[#1c1c1c] text-gray-400 hover:bg-white/4 hover:text-gray-200'
+                        }`}
+                    >
+                      <span className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-colors ${isSelected ? 'bg-brand-blue/15' : 'bg-white/5'}`}>
+                        {opt.icon}
+                      </span>
+                      <span className="flex-1">{opt.label}</span>
+                      {isSelected && (
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-brand-blue shrink-0">
+                          <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {loginMode === 'api' && (
               <div>
                 <label className="text-xs font-bold text-gray-500 mb-2 block tracking-wide text-left">
-                  {provider === 'deepseek' ? "Chave de API do DeepSeek" : provider === 'groq' ? "Chave de API do Groq" : provider === 'openrouter' ? "Chave de API do OpenRouter" : "Chave de API do Google"}
+                  {provider === 'openai' ? "Chave de API da OpenAI" : provider === 'deepseek' ? "Chave de API do DeepSeek" : provider === 'groq' ? "Chave de API do Groq" : provider === 'openrouter' ? "Chave de API do OpenRouter" : "Chave de API do Google"}
                 </label>
                 <input
                   type="password"
                   value={inputKey}
                   onChange={(e) => { setInputKey(e.target.value); setError(''); }}
-                  placeholder={provider === 'deepseek' ? "sk-..." : provider === 'groq' ? "gsk_..." : provider === 'openrouter' ? "sk-or-..." : "AIzaSy..."}
+                  placeholder={provider === 'openai' ? "sk-proj-..." : provider === 'deepseek' ? "sk-..." : provider === 'groq' ? "gsk_..." : provider === 'openrouter' ? "sk-or-..." : "AIzaSy..."}
                   className="w-full bg-[#262626] border border-white/5 rounded-xl px-4 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-blue/40 transition-all text-sm font-medium mb-3"
                 />
                 <div className="flex justify-end">
                   <a
-                    href={provider === 'deepseek' ? "https://platform.deepseek.com/api_keys" : provider === 'groq' ? "https://console.groq.com/keys" : provider === 'openrouter' ? "https://openrouter.ai/keys" : "https://aistudio.google.com/app/api-keys"}
+                    href={provider === 'openai' ? "https://platform.openai.com/api-keys" : provider === 'deepseek' ? "https://platform.deepseek.com/api_keys" : provider === 'groq' ? "https://console.groq.com/keys" : provider === 'openrouter' ? "https://openrouter.ai/keys" : "https://aistudio.google.com/app/api-keys"}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[11px] font-bold text-[#F7D33C] hover:opacity-80 flex items-center gap-1 transition-opacity"
@@ -505,32 +507,33 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           {/* Seletores de Modelos - Apenas na aba de Chave API */}
           {loginMode !== 'code' && (
             <div className="animate-fade-in flex flex-col relative z-20 mt-4 space-y-4">
-            {/* Text Model Selection */}
-            <div>
-              <label className="text-xs font-bold text-gray-500 mb-2 block tracking-wide text-left">Agente de Texto</label>
-              <CustomSelect
-                value={textModelOption}
-                onChange={setTextModelOption}
-                options={provider === 'deepseek' ? DEEPSEEK_MODELS : provider === 'groq' ? GROQ_MODELS : provider === 'openrouter' ? openRouterModels : TEXT_MODELS}
-                placeholder="Selecione um modelo..."
-              />
-              {textModelOption === 'custom' && (
+              {/* Text Model Selection */}
+              <div>
+                <label className="text-xs font-bold text-gray-500 mb-2 block tracking-wide text-left">Agente de Texto</label>
+                <CustomSelect
+                  value={textModelOption}
+                  onChange={setTextModelOption}
+                  options={provider === 'openai' ? OPENAI_MODELS : provider === 'deepseek' ? DEEPSEEK_MODELS : provider === 'groq' ? GROQ_MODELS : provider === 'openrouter' ? OPENROUTER_MODELS : TEXT_MODELS}
+                  placeholder="Selecione um modelo..."
+                />
+                {textModelOption === 'custom' && (
                   <input
                     type="text"
                     value={customTextModel}
                     onChange={(e) => setCustomTextModel(e.target.value)}
                     placeholder={
-                      provider === 'deepseek' ? "Digite o nome do modelo (ex: deepseek-chat)" :
-                      provider === 'groq' ? "Digite o nome do modelo (ex: llama-3.3-70b-versatile)" :
-                      provider === 'openrouter' ? "Digite o nome do modelo (ex: google/gemini-2.5-flash)" :
-                      "Digite o nome do modelo (ex: gemini-4.0-flash)"
+                      provider === 'openai' ? "Digite o nome do modelo (ex: gpt-5.6-sol)" :
+                        provider === 'deepseek' ? "Digite o nome do modelo (ex: deepseek-chat)" :
+                          provider === 'groq' ? "Digite o nome do modelo (ex: llama-3.3-70b-versatile)" :
+                            provider === 'openrouter' ? "Digite o nome do modelo (ex: google/gemini-2.5-flash)" :
+                              "Digite o nome do modelo (ex: gemini-4.0-flash)"
                     }
                     className="w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-brand-blue/40 transition-all text-sm font-medium"
                   />
                 )}
               </div>
 
-              {provider !== 'deepseek' && provider !== 'groq' && provider !== 'openrouter' && (
+              {(provider === 'google-ai' || provider === 'auto' || provider === 'openai') && (
                 <>
                   {/* TTS Model Selection */}
                   <div>
@@ -538,7 +541,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     <CustomSelect
                       value={ttsModelOption}
                       onChange={setTtsModelOption}
-                      options={TTS_MODELS}
+                      options={provider === 'openai' ? OPENAI_TTS_MODELS : GEMINI_TTS_MODELS}
                       placeholder="Selecione um modelo TTS..."
                     />
                     {ttsModelOption === 'custom' && (
@@ -552,34 +555,33 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     )}
                   </div>
 
-                  {/* Live Model Selection */}
-                  <div>
-                    <label className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-2 tracking-wide text-left">
-                      Modo Live (Multimodal)
-                      <span className="bg-gray-700/30 border border-gray-600/50 text-[9px] px-1.5 py-0.5 rounded text-gray-400">Em Breve</span>
-                    </label>
-                    <CustomSelect
-                      value={liveModelOption}
-                      onChange={setLiveModelOption}
-                      options={LIVE_MODELS}
-                      placeholder="Selecione um modelo Live..."
-                    />
-                    {liveModelOption === 'custom' && (
-                      <input
-                        type="text"
-                        value={customLiveModel}
-                        onChange={(e) => setCustomLiveModel(e.target.value)}
-                        placeholder="Digite o nome do modelo Live"
-                        className="w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-brand-blue/40 transition-all text-sm font-medium"
-                      />
-                    )}
-                  </div>
+
                 </>
               )}
             </div>
           )}
 
-          {error && <p className="text-xs text-red-500 font-bold animate-pulse">{error}</p>}
+          {error && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fade-in">
+              <div className="bg-[#1f1f1f] border border-red-500/30 rounded-2xl p-6 max-w-sm w-full shadow-2xl flex flex-col items-center text-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-red-500"></div>
+                <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4 text-red-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">Falha de Conexão</h3>
+                <p className="text-xs text-gray-300 mb-6 leading-relaxed font-medium">{error}</p>
+                <button
+                  type="button"
+                  onClick={() => setError('')}
+                  className="w-full bg-red-600/80 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-all active:scale-[0.98] shadow-lg text-sm"
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"

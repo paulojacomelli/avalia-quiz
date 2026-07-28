@@ -29,7 +29,15 @@ export function buildQuizPrompt(config: QuizConfig, globalExclusions: string[] =
     ${exclusionList}
     VARIAÇÃO: Escolha um subtema criativo e inovador dentro da área especificada.
     PALAVRAS-CHAVE: Ao final, extraia APENAS UM termo (keyword) principal que define o foco deste quiz para controle de entropia futura.
-    REGRAS: Busque fatos curiosos e condizentes com a dificuldade solicitada. O título deve ser cativante.
+    
+    REGRAS DE INTEGRIDADE DO QUIZ:
+    Cada pergunta deve ser internamente consistente:
+    - 'textoRespostaCorreta' deve ser exatamente igual ao conteúdo de 'opcoes[indiceRespostaCorreta]'.
+    - A 'justificativa' não pode contradizer a alternativa indicada por 'indiceRespostaCorreta'.
+    - A 'referencia' deve embasar a resposta correta quando existir uma referência aplicável.
+    - Todas as alternativas devem ser completas, coerentes, gramaticalmente corretas e plausíveis dentro do contexto da pergunta.
+    - Nunca gere alternativas sem sentido, contraditórias ou incompletas.
+
     IMPORTANTE: Responda APENAS com o JSON estruturado abaixo.
     
     A resposta deve obrigatoriamente seguir este formato JSON exatamente:
@@ -40,9 +48,9 @@ export function buildQuizPrompt(config: QuizConfig, globalExclusions: string[] =
         {
           "id": "Identificador único da pergunta (UUID curto)",
           "enunciado": "O texto da pergunta.",
-          "opcoes": ["Alternativa 1", "Alternativa 2", "Alternativa 3", "Alternativa 4"], // ou array vazio se Resposta Livre
-          "indiceRespostaCorreta": 0, // Índice da alternativa correta no array de opcoes (usar -1 para Resposta Livre)
-          "textoRespostaCorreta": "O texto da resposta correta.",
+          "opcoes": ["Alternativa 1", "Alternativa 2", "Alternativa 3", "Alternativa 4"],
+          "indiceRespostaCorreta": 0,
+          "textoRespostaCorreta": "Texto exatamente idêntico a opcoes[indiceRespostaCorreta]",
           "referencia": "Fonte, link ou contexto que embasa a resposta correta.",
           "justificativa": "A explicação do porquê a resposta está correta.",
           "glosa": "Tradução adaptada para a estrutura gramatical da Língua Brasileira de Sinais.",

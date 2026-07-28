@@ -15,24 +15,24 @@ export default defineConfig(({ mode }) => {
         manifest: {
           name: env.VITE_APP_TITLE || 'Avalia Quiz',
           short_name: env.VITE_APP_NAME || 'Avalia Quiz',
-        description: 'Quiz inteligente com IA para desafiar seus conhecimentos',
-        theme_color: '#4287f5',
-        background_color: '#121212',
-        display: 'standalone',
-        icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
-      }
-    })
-  ]
+          description: 'Quiz inteligente com IA para desafiar seus conhecimentos',
+          theme_color: '#4287f5',
+          background_color: '#121212',
+          display: 'standalone',
+          icons: [
+            {
+              src: 'pwa-192x192.png',
+              sizes: '192x192',
+              type: 'image/png'
+            },
+            {
+              src: 'pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png'
+            }
+          ]
+        }
+      })
+    ]
   };
 });

@@ -13,7 +13,13 @@ export interface LiveSessionCallbacks {
   onError: (message: string) => void;
 }
 
-const DEFAULT_LIVE_MODEL = 'gemini-2.5-flash-native-audio-preview';
+const getLiveModel = (customModel?: string): string => {
+  if (customModel?.trim()) return customModel.trim();
+  if (typeof localStorage !== 'undefined') {
+    return localStorage.getItem('gemini_live_model') || '';
+  }
+  return '';
+};
 const MIC_SAMPLE_RATE = 16000;
 const OUT_SAMPLE_RATE = 24000;
 
@@ -79,7 +85,7 @@ export class LiveApiSession {
     this.userTranscript = '';
     this.setPhase('connecting');
 
-    const resolvedModel = model?.trim() || DEFAULT_LIVE_MODEL;
+    const resolvedModel = getLiveModel(model);
 
     // 1. Solicitar microfone antes de abrir WebSocket
     try {

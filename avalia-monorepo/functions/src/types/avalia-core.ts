@@ -102,4 +102,4 @@ export interface ApiErrorDetail {
   code: string;
 }
 
-export type AiProvider = 'google-ai' | 'vertex' | 'deepseek' | 'groq' | 'openrouter';
+export type AiProvider = 'google-ai' | 'vertex' | 'deepseek' | 'groq' | 'openrouter' | 'openai';

@@ -38,6 +38,8 @@ lerna-debug.log*
 .firebase/
 firebase-debug.log
 *-*.json  # Service account keys
+account_service.json
+
 
 # Sistema
 .DS_Store

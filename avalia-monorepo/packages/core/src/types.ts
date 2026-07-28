@@ -87,6 +87,9 @@ export interface QuizConfig {
 
   // System prompt customizado injetado pelo app consumidor (ex: JW Quiz)
   systemPrompt?: string;
+
+  // Modos de tópico com rótulos amigáveis passados pelas configurações dos apps
+  topicModes?: Array<{ value: string; label: string }>;
 }
 
 export interface GeneratedQuiz {
@@ -109,9 +112,11 @@ export interface ApiErrorDetail {
   code: string;
 }
 
-export type AiProvider = 'google-ai' | 'vertex' | 'deepseek' | 'groq' | 'openrouter';
+export type AiProvider = 'auto' | 'google-ai' | 'vertex' | 'deepseek' | 'groq' | 'openrouter' | 'openai';
 
 export type TelemetryEventType = 
+  | 'app_accessed'
+  | 'session_start'
   | 'error' 
   | 'quiz_generated' 
   | 'question_answered' 
@@ -140,6 +145,18 @@ export interface TelemetryLogEntry {
   userAgent?: string;
   /** Identificador do provedor e modelo de IA utilizado (ex: "groq/llama-3.3-70b-versatile") */
   aiModel?: string;
+  /** Tokens de entrada (prompt) consumidos na chamada da LLM */
+  promptTokens?: number;
+  /** Tokens de saída (resposta/completion) gerados pela LLM */
+  completionTokens?: number;
+  /** Total de tokens consumidos na requisição da LLM */
+  totalTokens?: number;
+  /** Duração em milissegundos para concluir a chamada de IA */
+  durationMs?: number;
+  /** Firebase Anonymous UID — identifica o dispositivo/usuário de forma persistente sem cadastro */
+  anonymousUid?: string | null;
+  /** Identificador único do cliente/navegador (estilo GA4 / MS Clarity UUID v4) */
+  clientId?: string | null;
 }
 
 export interface AppConfig {

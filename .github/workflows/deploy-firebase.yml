@@ -27,7 +27,7 @@ jobs:
       - name: Setup environment variables (avalia-quiz)
         run: |
           cat > ./avalia-monorepo/apps/avalia-quiz/.env << EOF
-          VITE_APP_NAME=Geral Quiz
+          VITE_APP_NAME=Quiz
           VITE_STORAGE_PREFIX=generic-quiz
           VITE_APP_TITLE=Avalia Quiz
           VITE_THEME=generic-theme

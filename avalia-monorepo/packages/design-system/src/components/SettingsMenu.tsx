@@ -148,47 +148,6 @@ export function SettingsMenu(props: SettingsMenuProps) {
                             </div>
                         </div>
 
-                        {/* TTS */}
-                        <div className="flex flex-col gap-2 p-3 bg-black/20 rounded-xl mt-1">
-                            <span className="px-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Narração (TTS)</span>
-                            {ttsDisabled ? (
-                                <div className="text-[11px] font-semibold text-red-400/80 px-1 py-1 italic">
-                                    Indisponível para este provedor
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-2 gap-1">
-                                    {(['gemini', 'off'] as TtsMode[]).map((m) => (
-                                        <button
-                                            key={m}
-                                            onClick={() => handleAction(() => onTtsChange(m))}
-                                            className={`text-[10px] py-2 rounded-lg font-bold border transition-all ${ttsMode === m ? 'bg-brand-blue border-brand-blue text-white shadow-lg' : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'}`}
-                                        >
-                                            {m === 'gemini' ? 'IA' : 'Off'}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Idioma da Interface */}
-                        <div className="flex flex-col gap-2 p-3 bg-black/20 rounded-xl mt-1">
-                            <span className="px-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Modalidade de Idioma</span>
-                            <div className="grid grid-cols-2 gap-1">
-                                <button
-                                    onClick={() => handleAction(() => onLanguageChange('pt'))}
-                                    className={`text-[10px] py-2 rounded-lg font-bold border transition-all ${interfaceLanguage === 'pt' ? 'bg-brand-blue border-brand-blue text-white shadow-lg' : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'}`}
-                                >
-                                    Português
-                                </button>
-                                <button
-                                    onClick={() => handleAction(() => onLanguageChange('libras'))}
-                                    className={`text-[10px] py-2 rounded-lg font-bold border transition-all ${interfaceLanguage === 'libras' ? 'bg-brand-blue border-brand-blue text-white shadow-lg' : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'}`}
-                                >
-                                    Libras
-                                </button>
-                            </div>
-                        </div>
-
                         {/* Zoom */}
                         <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-black/20 mt-1">
                             <div className="flex items-center gap-3">
@@ -215,21 +174,6 @@ export function SettingsMenu(props: SettingsMenuProps) {
                         </div>
 
                         <div className="h-px bg-gray-700/30 my-1 mx-2" />
-
-                        {/* Tela Cheia */}
-                        <button
-                            role="menuitem"
-                            className="flex items-center justify-between px-4 py-3 rounded-xl hover:bg-brand-hover transition-colors group"
-                            onClick={() => handleAction(onToggleFullscreen)}
-                        >
-                            <div className="flex items-center gap-3">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 opacity-60 group-hover:opacity-100 group-hover:text-brand-blue">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
-                                </svg>
-                                <span className="text-sm font-medium">Tela Cheia</span>
-                            </div>
-                            <span className="text-[10px] uppercase font-bold text-gray-500">{isFullscreen ? 'ON' : 'OFF'}</span>
-                        </button>
 
                         {/* Guia */}
                         <button

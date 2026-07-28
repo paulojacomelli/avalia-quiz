@@ -47,6 +47,7 @@ interface QuizCardProps {
   isVoided?: boolean;
   apiKey?: string | null;
   provider?: AiProvider;
+  model?: string;
   interfaceLanguage?: 'pt' | 'libras';
   openEndedMode?: 'normal' | 'live';
 }
@@ -243,15 +244,13 @@ export const QuizCard: React.FC<QuizCardProps> = ({
     setIsEvaluating(true);
     playSound('click');
     try {
-      const result = await evaluateFreeResponse(apiKey, question.question, question.correctAnswerText || '', textAnswer, provider || 'google-ai');
+      const result = await evaluateFreeResponse(apiKey, question.question, question.correctAnswerText || '', textAnswer, provider || 'google-ai', model || '');
       setEvaluationResult(result);
       if (onAnswer) onAnswer({ score: result.score, isCorrect: result.isCorrect, textAnswer: textAnswer });
     } catch (e: any) {
       console.error("Erro ao avaliar resposta livre:", e);
       exibirNotificacao(e?.message || 'Erro ao avaliar resposta. Tente novamente.');
     } finally {
-
-
       setIsEvaluating(false);
     }
   };
@@ -315,7 +314,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
     setIsAskLoading(true);
     playSound('click');
     try {
-      const response = await askAiAboutQuestion(apiKey, question, askInput, provider || 'google-ai');
+      const response = await askAiAboutQuestion(apiKey, question, askInput, provider || 'google-ai', model || '');
       setAskResponse(response);
     } catch (error) {
       setAskResponse("Desculpe, não consegui conectar ao chat agora.");

@@ -2,6 +2,37 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { TTSConfig, GeneratedQuiz, Team, QuizConfig } from '@avalia/core';
 import { speakText, stopSpeech, getQuestionReadAloudText } from '@avalia/services';
 
+export function getInitialTTSState(storagePrefix: string, provider?: string) {
+  try {
+    const savedTTS = localStorage.getItem(`${storagePrefix}-tts`);
+    const savedEngine = localStorage.getItem(`${storagePrefix}-tts-engine`) || 'gemini';
+    const isTTSActive = (provider === 'openai' || provider === 'deepseek' || provider === 'groq' || provider === 'openrouter') ? false : savedTTS === 'true';
+    
+    const ttsConfig: TTSConfig = {
+      enabled: isTTSActive,
+      autoRead: true,
+      engine: (savedEngine as 'gemini') || 'gemini',
+      gender: 'female',
+      rate: 1.5,
+      volume: 1.0
+    };
+
+    return { ttsEnabled: isTTSActive, ttsConfig };
+  } catch {
+    return {
+      ttsEnabled: false,
+      ttsConfig: {
+        enabled: false,
+        autoRead: true,
+        engine: 'gemini' as const,
+        gender: 'female' as const,
+        rate: 1.5,
+        volume: 1.0
+      }
+    };
+  }
+}
+
 interface UseNarrationProps {
   storagePrefix: string;
   provider?: string;
@@ -45,7 +76,7 @@ export function useNarration({
   // Initialize from storage
   useEffect(() => {
     const savedTTS = localStorage.getItem(`${storagePrefix}-tts`);
-    const isTTSActive = (provider === 'deepseek' || provider === 'groq' || provider === 'openrouter') ? false : savedTTS === 'true';
+    const isTTSActive = (provider === 'openai' || provider === 'deepseek' || provider === 'groq' || provider === 'openrouter') ? false : savedTTS === 'true';
     setTtsEnabled(isTTSActive);
     
     setTtsConfig(prev => ({

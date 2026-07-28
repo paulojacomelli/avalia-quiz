@@ -1,8 +1,11 @@
 import React from 'react';
 import { GraduationCap, FilmSlate, Palette, Globe, PawPrint, Sparkle } from '@phosphor-icons/react';
 
+import packageJson from '../../package.json';
+
 export const QUIZ_CONFIG = {
-  appName: 'Avalia Geral Quiz',
+  appName: 'Avalia Quiz',
+  version: packageJson.version,
   storagePrefix: 'generic-quiz',
   theme: {
     primaryColor: '#4287f5',

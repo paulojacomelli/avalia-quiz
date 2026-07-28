@@ -2,11 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { 
   GeneratedQuiz, QuizConfig, Team, HintType, ApiErrorDetail,
-  TUTORIAL_CONFIG, TUTORIAL_DATA, GLOSAS_VALIDADAS
+  TUTORIAL_CONFIG, TUTORIAL_DATA, GLOSAS_VALIDADAS, AiProvider
 } from '@avalia/core';
 import { 
-  playSound, speakText, stopSpeech, db
+  playSound, speakText, stopSpeech, db, resolveAiModelLabel, validateApiKey, resolveAutoConnection, logTelemetryEvent, getClientId
 } from '@avalia/services';
+import { 
+  Translate, HandsClapping, SpeakerHigh, SpeakerSlash, House, CornersOut
+} from '@phosphor-icons/react';
 import { 
   CookieBanner, PrivacyPolicyModal, ReadyCheck,
   SetupForm, QuizCard, LoginScreen,
@@ -20,7 +23,7 @@ import { doc, getDoc } from 'firebase/firestore';
 // Hooks Customizados
 import { useGameSettings } from './hooks/useGameSettings';
 import { useGameShortcuts } from './hooks/useGameShortcuts';
-import { useNarration } from './hooks/useNarration';
+import { useNarration, getInitialTTSState } from './hooks/useNarration';
 import { useSignLanguage } from './hooks/useSignLanguage';
 import { useGameLoop } from './hooks/useGameLoop';
 
@@ -35,8 +38,8 @@ const TOUR_STEPS: TourStep[] = [
 
 export default function GameEngine({ appConfig }: GameEngineProps) {
   const isRestrictPath = typeof window !== 'undefined' && (
-    window.location.pathname.endsWith('/restrict') || 
-    window.location.hash === '#/restrict' ||
+    window.location.pathname.includes('/restrict') || 
+    window.location.hash.includes('/restrict') ||
     window.location.search.includes('route=restrict')
   );
 
@@ -44,28 +47,13 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
 
   useEffect(() => {
     const handlePopState = () => {
-      if (window.location.pathname.endsWith('/restrict') || window.location.hash === '#/restrict') {
+      if (window.location.pathname.includes('/restrict') || window.location.hash.includes('/restrict')) {
         setShowAdmin(true);
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
-
-  if (showAdmin) {
-    return (
-      <AdminDashboard 
-        onReturnToQuiz={() => {
-          setShowAdmin(false);
-          if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
-        }} 
-      />
-    );
-  }
-
-  if (window.location.pathname === '/vlibras') {
-    return <VLibrasTest />;
-  }
 
   // --- App Identity ---
   const appName: string = appConfig?.appName ?? 'Avalia Quiz';
@@ -79,6 +67,30 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
     }
   }, [primaryColor]);
 
+  const themeLabelMap = (appConfig as any)?.topicModes?.reduce((acc: Record<string, string>, item: any) => {
+    if (item.value && item.label) {
+      acc[item.value] = item.label;
+    }
+    return acc;
+  }, {}) || {};
+
+  if (showAdmin) {
+    return (
+      <AdminDashboard 
+        appName={appName}
+        themeLabelMap={themeLabelMap}
+        onReturnToQuiz={() => {
+          setShowAdmin(false);
+          if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
+        }} 
+      />
+    );
+  }
+
+  if (window.location.pathname === '/vlibras') {
+    return <VLibrasTest />;
+  }
+
   const getTeamColor = (t?: any): string => {
     if (!t || !t.color || t.color === '#4287f5' || t.color === '#3b82f6') {
       return primaryColor;
@@ -86,7 +98,18 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
     return t.color;
   };
 
-  const { isAuthenticated, apiKey, clientId, provider, login, logout } = useAuth();
+  const { isAuthenticated, apiKey, clientId, provider, model, login, logout } = useAuth();
+
+  // --- Registra Acesso do Visitante (Analytics / GA4 style) ---
+  useEffect(() => {
+    const activeClientId = clientId || getClientId();
+    logTelemetryEvent({
+      eventType: 'app_accessed',
+      appName,
+      title: 'Acesso à Aplicação',
+      clientId: activeClientId
+    }).catch(e => console.warn("Falha ao registrar acesso inicial:", e));
+  }, [appName, clientId]);
   
   const [setupStep, setSetupStep] = useState(1);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
@@ -110,14 +133,17 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
     } catch { return []; }
   });
 
+  const initialTTS = getInitialTTSState(storagePrefix, provider || undefined);
+
   const game = useGameLoop({
     storagePrefix,
     appName,
     apiKey,
     clientId,
     provider: provider || undefined,
-    ttsEnabled: false, // Inicialmente falso, atualizado pelo hook reativo
-    ttsConfig: {} as any, 
+    model: model || '',
+    ttsEnabled: initialTTS.ttsEnabled,
+    ttsConfig: initialTTS.ttsConfig, 
     usedTopics,
     setUsedTopics,
     stopSpeech,
@@ -140,6 +166,10 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
     isSkipping: game.isSkipping,
     cooldownTime: game.cooldownTime
   });
+
+  // Estados de Dropdowns Rápidos do Header
+  const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+  const [isTtsDropdownOpen, setIsTtsDropdownOpen] = useState(false);
 
   // --- 3. Hook de Libras ---
   const [isLibrasReady, setIsLibrasReady] = useState(false);
@@ -209,9 +239,46 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
               const docSnap = await getDoc(doc(db, "auth", "config"));
               if (docSnap.exists() && docSnap.data().secret_code === code) {
                 const data = docSnap.data();
-                const adminKey = data[`admin_key_${selectedProvider.replace('-', '_')}`] || data.admin_key;
-                if (adminKey) login(adminKey, selectedProvider);
-                else throw new Error("Chave do provedor não configurada no servidor.");
+
+                let activeKey: string;
+                let activeProvider: AiProvider;
+                let activeModel: string;
+
+                if (selectedProvider === 'auto') {
+                  const connection = await resolveAutoConnection(data);
+                  activeKey = connection.apiKey;
+                  activeProvider = connection.provider;
+                  activeModel = connection.model;
+
+                  // Registra telemetria das tentativas do Modo Auto
+                  connection.attempts.forEach(attempt => {
+                    logTelemetryEvent({
+                      eventType: attempt.success ? 'info' : 'error',
+                      title: `Modo Auto: ${attempt.provider}`,
+                      errorMessage: attempt.success ? `Conectado com sucesso (${attempt.model})` : (attempt.error || 'Falha de conexão'),
+                      aiModel: `${attempt.provider}/${attempt.model}`,
+                      appName
+                    });
+                  });
+                } else {
+                  const providerSlug = selectedProvider === 'google-ai' ? 'google_ai' : selectedProvider.replace('-', '_');
+                  const adminKey = data[`admin_key_${providerSlug}`] || (selectedProvider === 'google-ai' ? data.admin_key : undefined);
+                  const adminModel = data[`admin_model_${providerSlug}`];
+
+                  if (!adminKey || typeof adminKey !== 'string' || !adminKey.trim()) {
+                    throw new Error(`Chave de API do provedor '${selectedProvider}' (admin_key_${providerSlug}) não encontrada no Firestore.`);
+                  }
+                  if (!adminModel || typeof adminModel !== 'string' || !adminModel.trim()) {
+                    throw new Error(`Modelo de IA do provedor '${selectedProvider}' (admin_model_${providerSlug}) não encontrado no Firestore.`);
+                  }
+
+                  await validateApiKey(adminKey.trim(), selectedProvider, adminModel.trim());
+                  activeKey = adminKey.trim();
+                  activeProvider = selectedProvider;
+                  activeModel = adminModel.trim();
+                }
+
+                login(activeKey, activeProvider, activeModel);
               } else throw new Error("Código de acesso incorreto.");
             } catch (err: any) {
               if (err.message && (err.message.includes('offline') || err.code === 'unavailable')) {
@@ -269,32 +336,185 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
           <header className="bg-[#161616] text-white h-16 shrink-0 flex items-center shadow-lg z-20 border-b border-white/10 relative">
             <div className="absolute top-0 left-0 right-0 h-[2.5px]" style={{ backgroundColor: 'var(--accent-primary, #4287f5)' }}></div>
             <div className="container mx-auto px-4 flex items-center justify-between">
+              {/* Lado Esquerdo: Título + Modelo + Tutorial */}
               <div className="flex items-center gap-3">
                 <h1 className="text-base font-semibold truncate">
                   {renderFormattedAppTitle(appName)}
                 </h1>
+                {model && (
+                  <span className="bg-white/10 text-gray-300 text-xs font-mono font-medium px-2.5 py-0.5 rounded-md border border-white/10 shadow-xs flex items-center gap-1.5 shrink-0 hidden md:flex">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    {resolveAiModelLabel(provider || 'google-ai', model)}
+                  </span>
+                )}
                 {game.isTutorialMode && <span className="bg-emerald-500 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">Tutorial</span>}
               </div>
-              <SettingsMenu
-                open={settings.isSettingsOpen}
-                onToggle={() => settings.setIsSettingsOpen(!settings.isSettingsOpen)}
-                onClose={() => settings.setIsSettingsOpen(false)}
-                soundEnabled={settings.soundEnabled}
-                onToggleSound={settings.toggleSound}
-                theme={settings.theme}
-                onThemeChange={settings.setTheme}
-                ttsMode={narration.ttsEnabled ? 'gemini' : 'off'}
-                onTtsChange={narration.handleTTSSelection}
-                zoomValue={settings.zoomLevel}
-                onZoomIn={() => settings.setZoomLevel(z => Math.min(1.5, z + 0.05))}
-                onZoomOut={() => settings.setZoomLevel(z => Math.max(0.75, z - 0.05))}
-                isFullscreen={settings.isFullscreen}
-                onToggleFullscreen={settings.toggleFullscreen}
-                onGoHome={game.executeReset}
-                onLogout={() => game.setPendingAction('LOGOUT')}
-                interfaceLanguage={game.interfaceLanguage}
-                onLanguageChange={game.setInterfaceLanguage}
-              />
+
+              {/* Lado Direito: Ações rápidas (Idioma + TTS + Tela Cheia + Configurações) */}
+              <div className="flex items-center gap-2">
+                {/* Dropdown de Idioma */}
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      playSound('click');
+                      setIsLangDropdownOpen(!isLangDropdownOpen);
+                      setIsTtsDropdownOpen(false);
+                    }}
+                    title="Alternar Idioma"
+                    className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center gap-1.5 transition-colors"
+                  >
+                    {game.interfaceLanguage === 'pt' ? (
+                      <svg viewBox="0 0 720 504" className="w-5 h-4 object-contain rounded-xs shadow-xs">
+                        <rect width="720" height="504" fill="#009933"/>
+                        <polygon points="360,54 666,252 360,450 54,252" fill="#ffcc00"/>
+                        <circle cx="360" cy="252" r="126" fill="#002776"/>
+                      </svg>
+                    ) : (
+                      <img src="/libras.svg" alt="Libras" className="w-5 h-5 object-contain" />
+                    )}
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isLangDropdownOpen ? 'rotate-180' : ''}`}>
+                      <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+
+                  {isLangDropdownOpen && (
+                    <div 
+                      className="absolute right-0 top-full mt-2 w-44 bg-[#1e1e24] border border-white/10 rounded-xl shadow-2xl p-1.5 z-[100] flex flex-col gap-1 animate-fade-in backdrop-blur-md"
+                      onMouseLeave={() => setIsLangDropdownOpen(false)}
+                    >
+                      <div className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-white/5 mb-1">
+                        Modalidade
+                      </div>
+                      <button
+                        onClick={() => {
+                          playSound('click');
+                          game.setInterfaceLanguage('pt');
+                          setIsLangDropdownOpen(false);
+                        }}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                          game.interfaceLanguage === 'pt' ? 'bg-brand-blue text-white' : 'text-gray-300 hover:bg-white/5'
+                        }`}
+                      >
+                        <svg viewBox="0 0 720 504" className="w-5 h-4 object-contain rounded-xs shadow-xs">
+                          <rect width="720" height="504" fill="#009933"/>
+                          <polygon points="360,54 666,252 360,450 54,252" fill="#ffcc00"/>
+                          <circle cx="360" cy="252" r="126" fill="#002776"/>
+                        </svg>
+                        <span>Português</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          playSound('click');
+                          game.setInterfaceLanguage('libras');
+                          setIsLangDropdownOpen(false);
+                        }}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                          game.interfaceLanguage === 'libras' ? 'bg-brand-blue text-white' : 'text-gray-300 hover:bg-white/5'
+                        }`}
+                      >
+                        <img src="/libras.svg" alt="Libras" className="w-5 h-5 object-contain" />
+                        <span>Libras</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Dropdown de TTS / Narração */}
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      playSound('click');
+                      setIsTtsDropdownOpen(!isTtsDropdownOpen);
+                      setIsLangDropdownOpen(false);
+                    }}
+                    title="Configurações de Narração"
+                    className={`p-2 rounded-lg border flex items-center gap-1.5 transition-all ${
+                      narration.ttsEnabled 
+                        ? 'bg-purple-600/20 border-purple-500/40 text-purple-300' 
+                        : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    {narration.ttsEnabled ? <SpeakerHigh size={18} weight="bold" /> : <SpeakerSlash size={18} weight="bold" />}
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-3.5 h-3.5 transition-transform duration-200 ${isTtsDropdownOpen ? 'rotate-180' : ''}`}>
+                      <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+
+                  {isTtsDropdownOpen && (
+                    <div 
+                      className="absolute right-0 top-full mt-2 w-48 bg-[#1e1e24] border border-white/10 rounded-xl shadow-2xl p-1.5 z-[100] flex flex-col gap-1 animate-fade-in backdrop-blur-md"
+                      onMouseLeave={() => setIsTtsDropdownOpen(false)}
+                    >
+                      <div className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-white/5 mb-1">
+                        Narração de IA (TTS)
+                      </div>
+                      <button
+                        onClick={() => {
+                          playSound('click');
+                          narration.handleTTSSelection('gemini');
+                          setIsTtsDropdownOpen(false);
+                        }}
+                        className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                          narration.ttsEnabled ? 'bg-purple-600/40 text-purple-200 border border-purple-500/50' : 'text-gray-300 hover:bg-white/5'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <SpeakerHigh size={16} weight="bold" className="text-purple-400" />
+                          <span>Ativada (IA)</span>
+                        </div>
+                        {narration.ttsEnabled && <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>}
+                      </button>
+                      <button
+                        onClick={() => {
+                          playSound('click');
+                          narration.handleTTSSelection('off');
+                          setIsTtsDropdownOpen(false);
+                        }}
+                        className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                          !narration.ttsEnabled ? 'bg-white/10 text-white border border-white/20' : 'text-gray-300 hover:bg-white/5'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <SpeakerSlash size={16} weight="bold" className="text-gray-400" />
+                          <span>Desativada</span>
+                        </div>
+                        {!narration.ttsEnabled && <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Alternador Tela Cheia */}
+                <button
+                  onClick={() => { playSound('click'); settings.toggleFullscreen(); }}
+                  title={settings.isFullscreen ? 'Sair da Tela Cheia' : 'Tela Cheia'}
+                  className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-colors border border-white/10"
+                >
+                  <CornersOut size={18} weight="bold" />
+                </button>
+
+                {/* Menu de Configurações Complementares */}
+                <SettingsMenu
+                  open={settings.isSettingsOpen}
+                  onToggle={() => settings.setIsSettingsOpen(!settings.isSettingsOpen)}
+                  onClose={() => settings.setIsSettingsOpen(false)}
+                  soundEnabled={settings.soundEnabled}
+                  onToggleSound={settings.toggleSound}
+                  theme={settings.theme}
+                  onThemeChange={settings.setTheme}
+                  ttsMode={narration.ttsEnabled ? 'gemini' : 'off'}
+                  onTtsChange={narration.handleTTSSelection}
+                  zoomValue={settings.zoomLevel}
+                  onZoomIn={() => settings.setZoomLevel(z => Math.min(1.5, z + 0.05))}
+                  onZoomOut={() => settings.setZoomLevel(z => Math.max(0.75, z - 0.05))}
+                  isFullscreen={settings.isFullscreen}
+                  onToggleFullscreen={settings.toggleFullscreen}
+                  onGoHome={game.executeReset}
+                  onLogout={() => game.setPendingAction('LOGOUT')}
+                  interfaceLanguage={game.interfaceLanguage}
+                  onLanguageChange={game.setInterfaceLanguage}
+                />
+              </div>
             </div>
           </header>
 
@@ -496,7 +716,7 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
               <footer className="w-full shrink-0 py-6 text-center text-[10px] opacity-40 hover:opacity-100 transition-opacity flex flex-col gap-1 pb-24 md:pb-12 border-t border-white/5 font-sans mt-auto">
                 <button onClick={() => game.setPendingAction('LOGOUT')} className="hover:text-red-400 underline transition-colors">Alterar Chave API / Sair</button>
                 <div className="flex flex-col gap-0.5">
-                  <span>Versão: 1.4.0-beta</span>
+                  <span>Versão: {appConfig?.version || '1.4.96'}</span>
                   <span>Copyright © Paulo Jacomelli 2026</span>
                 </div>
               </footer>

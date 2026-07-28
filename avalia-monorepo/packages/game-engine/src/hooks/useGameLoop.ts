@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
-  GeneratedQuiz, QuizConfig, Team, ApiErrorDetail, LOADING_MESSAGES, TUTORIAL_CONFIG, TUTORIAL_DATA, Difficulty 
+  GeneratedQuiz, QuizConfig, Team, ApiErrorDetail, LOADING_MESSAGES, TUTORIAL_CONFIG, TUTORIAL_DATA, Difficulty, QuizQuestion, AiProvider 
 } from '@avalia/core';
 import { 
   generateQuizContent, generateReplacementQuestion, preGenerateQuizAudio,
   playSound, playTimerTick, playCountdownTick, playGoSound, startLoadingDrone, stopLoadingDrone, resumeAudioContext,
   getGlobalKeywords, saveGeneratedQuiz, getRandomPrebuiltQuiz, getAvailableLibraryThemes, uploadQuizAudiosToStorage,
-  logTelemetryEvent, resolveAiModelLabel
+  logTelemetryEvent, resolveAiModelLabel, getClientId
 } from '@avalia/services';
 
 type GameState = 'START_SCREEN' | 'SETUP' | 'READY_CHECK' | 'COUNTDOWN' | 'PLAYING' | 'ROUND_SUMMARY' | 'FINISHED';
@@ -17,6 +17,7 @@ interface UseGameLoopProps {
   apiKey: string | null;
   clientId: string | null;
   provider?: string;
+  model: string;
   ttsEnabled: boolean;
   ttsConfig: any;
   usedTopics: string[];
@@ -33,6 +34,7 @@ export function useGameLoop({
   apiKey,
   clientId,
   provider,
+  model,
   ttsEnabled,
   ttsConfig,
   usedTopics,
@@ -156,7 +158,7 @@ export function useGameLoop({
     if (gameState !== 'PLAYING' || isCurrentQuestionAnswered || isReviewing) return;
 
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
+      setTimeLeft((prev: number) => {
         if (prev <= 1) {
           return 0;
         }
@@ -201,12 +203,26 @@ export function useGameLoop({
     const msgLower = rawMsg.toLowerCase();
     let parsed: ApiErrorDetail;
 
-    if (msgLower.includes('503') || msgLower.includes('high demand') || msgLower.includes('unavailable') || msgLower.includes('overloaded')) {
+    if (msgLower.includes('404') || msgLower.includes('unavailable for free') || msgLower.includes('slug instead') || msgLower.includes('not found')) {
+      parsed = {
+        code: '404',
+        title: 'Modelo Indisponível (404)',
+        message: 'O modelo de IA selecionado não está disponível gratuitamente ou a rota foi alterada.',
+        solution: 'Selecione um modelo ativo no painel de configurações (ex: Gemini 3.5 Flash).'
+      };
+    } else if (msgLower.includes('503') || msgLower.includes('high demand') || msgLower.includes('overloaded') || msgLower.includes('service_unavailable')) {
       parsed = {
         code: '503',
         title: 'Servidor Sobrecarregado (503)',
         message: 'O servidor de Inteligência Artificial está enfrentando uma alta demanda temporária no momento.',
         solution: 'Aguarde alguns segundos e tente novamente.'
+      };
+    } else if (msgLower.includes('402') || msgLower.includes('insufficient_quota') || msgLower.includes('saldo') || msgLower.includes('out of credits')) {
+      parsed = {
+        code: '402',
+        title: 'Saldo API Insuficiente (402)',
+        message: 'O saldo da conta do provedor de IA esgotou ou não possui créditos ativos.',
+        solution: 'Recarregue o saldo do provedor de IA no painel correspondente.'
       };
     } else if (msgLower.includes('429') || msgLower.includes('quota') || msgLower.includes('exceeded limit')) {
       parsed = { 
@@ -217,12 +233,26 @@ export function useGameLoop({
       };
       setCooldownTime(60);
       stopSpeech();
-    } else if (msgLower.includes('400') || msgLower.includes('403') || msgLower.includes('api_key_invalid') || msgLower.includes('invalid api key')) {
+    } else if (msgLower.includes('403') || msgLower.includes('401') || msgLower.includes('api_key_invalid') || msgLower.includes('invalid api key') || msgLower.includes('unauthorized') || msgLower.includes('permission_denied')) {
       parsed = { 
         code: '403', 
         title: 'Chave Inválida (403)', 
         message: 'A chave de API configurada foi rejeitada ou é inválida.', 
         solution: 'Verifique se a sua Chave de API está correta no painel de configurações.' 
+      };
+    } else if (msgLower.includes('400') || msgLower.includes('bad request') || msgLower.includes('invalid argument') || msgLower.includes('invalid_argument')) {
+      parsed = { 
+        code: '400', 
+        title: 'Requisição Inválida (400)', 
+        message: rawMsg, 
+        solution: 'Verifique as configurações do modelo ou parâmetros da requisição.' 
+      };
+    } else if (msgLower.includes('failed to fetch') || msgLower.includes('networkerror') || msgLower.includes('network error') || msgLower.includes('cors')) {
+      parsed = { 
+        code: 'NETWORK', 
+        title: 'Erro de Conexão (Rede/CORS)', 
+        message: 'O navegador não conseguiu conectar ao provedor de IA.', 
+        solution: 'Verifique sua conexão com a internet ou adicione uma chave direta no painel.' 
       };
     } else if (msgLower.includes('safety') || msgLower.includes('blocked') || msgLower.includes('finish_reason_safety')) {
       parsed = { 
@@ -248,16 +278,20 @@ export function useGameLoop({
     }
     setErrorDetail(parsed);
     setLoading(false);
+
+    const activeClientId = clientId || getClientId();
+
+    // Grava o log de erro de telemetria com o clientId do visitante
     logTelemetryEvent({
       eventType: 'error',
-      appName: appName || 'Avalia Quiz',
+      appName,
       errorCode: parsed.code,
       errorMessage: parsed.message,
-      title: parsed.title,
       solution: parsed.solution,
-      aiModel: resolveAiModelLabel(provider),
-    });
-  }, [stopSpeech]);
+      clientId: activeClientId,
+      aiModel: resolveAiModelLabel(provider || 'google-ai', model)
+    }).catch(e => console.warn("Falha ao registrar log de erro de telemetria:", e));
+  }, [stopSpeech, appName, clientId, provider, model]);
 
   const handlePlayPrebuilt = useCallback(async () => {
     setLoading(true);
@@ -310,27 +344,41 @@ export function useGameLoop({
         data.questions = data.questions.slice(0, finalConfig.count);
         
         if (ttsEnabled && finalConfig.tts.engine === 'gemini' && apiKey) {
-          const needed = data.questions.filter(q => !q.audioUrl);
+          const needed = data.questions.filter((q: QuizQuestion) => !q.audioUrl);
           if (needed.length > 0) {
-            setLoadingMessage("Gerando áudio...");
+            setLoadingMessage("Gerando narrações de IA...");
             data = await preGenerateQuizAudio(apiKey, data, finalConfig.tts, tempTeams.map(t => t.name));
           }
         }
+
+        // Registra o evento de acesso/início do quiz pré-construído com o clientId
+        const activeClientId = clientId || getClientId();
+        logTelemetryEvent({
+          eventType: 'quiz_generated',
+          appName,
+          title: data.title,
+          topic: finalConfig.mode,
+          clientId: activeClientId,
+          aiModel: 'Biblioteca Pré-Construída'
+        }).catch(e => console.warn("Falha ao registrar evento de quiz pré-construído:", e));
       } else {
-        data = await generateQuizContent(apiKey!, finalConfig, globalExclusions, provider);
+        data = await generateQuizContent(apiKey!, finalConfig, globalExclusions, provider as AiProvider, model, appName);
         if (ttsEnabled && finalConfig.tts.engine === 'gemini' && apiKey) {
-          setLoadingMessage("Gerando áudio...");
+          setLoadingMessage("Gerando narrações de IA...");
           data = await preGenerateQuizAudio(apiKey, data, finalConfig.tts, tempTeams.map(t => t.name));
         }
-        const aiModel = resolveAiModelLabel(provider);
+        const aiModel = resolveAiModelLabel(provider || 'google-ai', model);
+        const matchedTopicMode = finalConfig.topicModes?.find((tm: any) => tm.value === finalConfig.mode);
+        const themeLabel = matchedTopicMode?.label || (typeof finalConfig.mode === 'string' ? finalConfig.mode : 'Geral');
+        const activeClientId = clientId || getClientId();
         const docId = await saveGeneratedQuiz(
           data, 
           appName, 
-          finalConfig.mode, 
+          themeLabel, 
           finalConfig.subTopic || finalConfig.specificTopic,
-          { clientId, aiModel }
+          { clientId: activeClientId, aiModel }
         );
-        if (docId && data.questions.some(q => q.audioBase64)) {
+        if (docId && data.questions.some((q: QuizQuestion) => q.audioBase64)) {
           setLoadingMessage("Salvando áudios...");
           data = await uploadQuizAudiosToStorage(data, docId);
         }
@@ -391,7 +439,19 @@ export function useGameLoop({
 
     if (!isReviewing) setIsCurrentQuestionAnswered(true);
     if (onAnswerLibrasEmotion) onAnswerLibrasEmotion(result.isCorrect);
-  }, [isReviewing, reviewIndex, teams.length, currentQuestionIndex, currentTeamIndex, playSound, userAnswers, ttsEnabled, onAnswerLibrasEmotion, stopSpeech, speakText, ttsConfig, apiKey, provider]);
+
+    // Registra evento de telemetria ao responder a pergunta
+    const activeClientId = clientId || getClientId();
+    logTelemetryEvent({
+      eventType: 'question_answered',
+      appName,
+      questionId: quizData?.questions[targetIndex]?.id,
+      isCorrect: result.isCorrect,
+      score: result.score,
+      clientId: activeClientId,
+      aiModel: resolveAiModelLabel(provider || 'google-ai', model)
+    }).catch(e => console.warn("Falha ao registrar telemetria de resposta:", e));
+  }, [isReviewing, reviewIndex, currentQuestionIndex, teams.length, currentTeamIndex, playSound, userAnswers, ttsEnabled, onAnswerLibrasEmotion, stopSpeech, speakText, ttsConfig, apiKey, provider, clientId, appName, quizData, model]);
 
   const handleNextQuestion = useCallback(() => {
     stopSpeech();
@@ -436,7 +496,7 @@ export function useGameLoop({
 
     try {
       const oldQ = quizData.questions[index];
-      const newQ = await generateReplacementQuestion(apiKey, quizConfig, oldQ.question, provider);
+      const newQ = await generateReplacementQuestion(apiKey, quizConfig, oldQ.question, provider as AiProvider, model, appName);
 
       if (ttsEnabled && ttsConfig.engine === 'gemini') {
         const teamName = quizConfig.isTeamMode ? teams[index % teams.length].name : undefined;
@@ -459,7 +519,7 @@ export function useGameLoop({
     } finally {
       setLoading(false);
     }
-  }, [quizData, quizConfig, apiKey, provider, ttsEnabled, ttsConfig, teams, userAnswers, timeLimit, playSound, handleApiError]);
+  }, [quizData, quizConfig, apiKey, provider, model, ttsEnabled, ttsConfig, teams, userAnswers, timeLimit, playSound, handleApiError]);
 
   const handleSkipQuestion = useCallback(async () => {
     if (!quizData || !quizConfig || isSkipping || !apiKey) return;
@@ -471,7 +531,7 @@ export function useGameLoop({
       const currentQ = quizData.questions[currentQuestionIndex];
       const nextDiff = quizConfig.difficulty === Difficulty.EASY ? Difficulty.MEDIUM : Difficulty.HARD;
       const tempConfig = { ...quizConfig, difficulty: nextDiff };
-      const newQ = await generateReplacementQuestion(apiKey, tempConfig, currentQ.question, provider);
+      const newQ = await generateReplacementQuestion(apiKey, tempConfig, currentQ.question, provider as AiProvider, model, appName);
 
       if (ttsEnabled && ttsConfig.engine === 'gemini') {
         const teamName = quizConfig.isTeamMode ? teams[currentTeamIndex % teams.length].name : undefined;

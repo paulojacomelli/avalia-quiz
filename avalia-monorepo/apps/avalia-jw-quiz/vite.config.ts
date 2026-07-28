@@ -7,14 +7,15 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
+    appType: 'spa',
     plugins: [
       react(),
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
         manifest: {
-          name: env.VITE_APP_TITLE || 'Avalia JW Quiz',
-          short_name: env.VITE_APP_NAME || 'JW Quiz',
+          name: 'Avalia JW Quiz',
+          short_name: 'JW Quiz',
           description: 'Aprenda e teste seus conhecimentos bíblicos com IA',
           theme_color: '#5b3c88',
           background_color: '#0d0a14',

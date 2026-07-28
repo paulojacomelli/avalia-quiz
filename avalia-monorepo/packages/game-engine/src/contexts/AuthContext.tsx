@@ -4,9 +4,10 @@ import { AiProvider } from '../types';
 interface AuthContextType {
   apiKey: string | null;
   provider: AiProvider;
+  model: string;
   clientId: string | null;
   isAuthenticated: boolean;
-  login: (key: string, provider?: AiProvider) => void;
+  login: (key: string, provider?: AiProvider, model?: string) => void;
   logout: () => void;
 }
 
@@ -20,15 +21,18 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children, storageKeyPrefix = 'avalia_quiz' }) => {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [provider, setProvider] = useState<AiProvider>('google-ai');
+  const [model, setModel] = useState<string>('');
   const [clientId, setClientId] = useState<string | null>(null);
 
   const keyName = `${storageKeyPrefix}_api_key`;
   const providerName = `${storageKeyPrefix}_ai_provider`;
+  const modelNameKey = `${storageKeyPrefix}_ai_model`;
   const clientKeyName = `${storageKeyPrefix}_client_id`;
 
   useEffect(() => {
     const storedKey = localStorage.getItem(keyName);
     const storedProvider = localStorage.getItem(providerName) as AiProvider;
+    const storedModel = localStorage.getItem(modelNameKey);
     let storedClientId = localStorage.getItem(clientKeyName);
     
     if (!storedClientId) {
@@ -38,12 +42,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, storageKey
     
     if (storedKey) setApiKey(storedKey);
     if (storedProvider) setProvider(storedProvider);
+    if (storedModel) setModel(storedModel);
     setClientId(storedClientId);
-  }, [keyName, providerName, clientKeyName]);
+  }, [keyName, providerName, modelNameKey, clientKeyName]);
 
-  const login = (key: string, newProvider: AiProvider = 'google-ai') => {
+  const login = (key: string, newProvider: AiProvider = 'google-ai', newModel?: string) => {
     localStorage.setItem(keyName, key);
     localStorage.setItem(providerName, newProvider);
+    if (newModel) {
+      localStorage.setItem(modelNameKey, newModel);
+      setModel(newModel);
+    }
     setApiKey(key);
     setProvider(newProvider);
   };
@@ -51,12 +60,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, storageKey
   const logout = () => {
     localStorage.removeItem(keyName);
     localStorage.removeItem(providerName);
+    localStorage.removeItem(modelNameKey);
     setApiKey(null);
     setProvider('google-ai');
+    setModel('');
   };
 
   return (
-    <AuthContext.Provider value={{ apiKey, provider, clientId, isAuthenticated: !!apiKey, login, logout }}>
+    <AuthContext.Provider value={{ apiKey, provider, model, clientId, isAuthenticated: !!apiKey, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,8 +1,11 @@
 import React from 'react';
 import { SquaresFour, BookOpen, Hourglass, Sparkle } from '@phosphor-icons/react';
 
+import packageJson from '../../package.json';
+
 export const QUIZ_CONFIG = {
   appName: 'Avalia JW Quiz',
+  version: packageJson.version,
   storagePrefix: 'jw-quiz',
   theme: {
     primaryColor: '#5b3c88',

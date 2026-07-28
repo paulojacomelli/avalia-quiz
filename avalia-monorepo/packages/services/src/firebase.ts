@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, where } from "firebase/firestore";
+import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, getDoc, serverTimestamp, where, doc, updateDoc } from "firebase/firestore";
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, User } from "firebase/auth";
 import { GeneratedQuiz, QuizQuestion, TelemetryLogEntry } from "../types";
 
 const firebaseConfig = {
@@ -44,6 +44,28 @@ export const logoutGoogle = async (): Promise<void> => {
 
 export const subscribeAuthState = (callback: (user: User | null) => void) => {
     return onAuthStateChanged(auth, callback);
+};
+
+/**
+ * Obtém ou gera um Visitor Client ID único (estilo Google Analytics / MS Clarity)
+ * Persistido no localStorage do navegador para identificar dispositivos/visitantes únicos.
+ */
+export const getClientId = (): string => {
+    if (typeof window === 'undefined' || !window.localStorage) {
+        return 'ssr-client';
+    }
+    try {
+        let clientId = localStorage.getItem('avalia_client_id');
+        if (!clientId) {
+            clientId = typeof crypto !== 'undefined' && crypto.randomUUID 
+                ? crypto.randomUUID() 
+                : `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            localStorage.setItem('avalia_client_id', clientId);
+        }
+        return clientId;
+    } catch {
+        return 'unknown-client';
+    }
 };
 
 /**
@@ -141,7 +163,7 @@ export const saveGeneratedQuiz = async (
             theme: theme || "Geral",
             subTopic: subTopic || "",
             createdAt: serverTimestamp(),
-            clientId: metadata?.clientId || null,
+            clientId: metadata?.clientId || getClientId(),
             userAgent: metadata?.userAgent || (typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown'),
             aiModel: metadata?.aiModel || null,
             // Persiste questões sem audioBase64 — apenas texto e audioUrl (se houver)
@@ -292,95 +314,121 @@ export const getAvailableLibraryThemes = async (appName: string): Promise<Record
  */
 export const logTelemetryEvent = async (entry: TelemetryLogEntry): Promise<void> => {
     const isoDate = new Date().toISOString();
-    const localId = `local_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const localEntry: TelemetryLogEntry = {
-        ...entry,
-        id: localId,
-        isoDate,
-        timestamp: isoDate,
-        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
-    };
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown';
 
-    // 1. Backup em localStorage
     try {
-        const storedStr = localStorage.getItem('avalia_telemetry_logs_backup') || '[]';
-        const storedLogs: TelemetryLogEntry[] = JSON.parse(storedStr);
-        storedLogs.unshift(localEntry);
-        if (storedLogs.length > 250) storedLogs.pop();
-        localStorage.setItem('avalia_telemetry_logs_backup', JSON.stringify(storedLogs));
-    } catch {
-        // ignora se localStorage falhar
-    }
-
-    // 2. Persistencia no Firestore
-    try {
+        if (!auth.currentUser) {
+            await signInAnonymously(auth).catch(() => {});
+        }
+        const anonymousUid = auth.currentUser?.uid ?? null;
+        const clientId = entry.clientId || getClientId();
         const payload = cleanUndefined({
             ...entry,
             isoDate,
             createdAt: serverTimestamp(),
-            userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+            userAgent,
+            anonymousUid,
+            clientId,
         });
         await addDoc(collection(db, TELEMETRY_COLLECTION), payload);
     } catch (error) {
-        console.warn("Falha ao gravar no Firestore, mantido backup local:", error);
+        console.warn("Falha ao gravar evento no Firestore, salvando no backup local:", error);
+        try {
+            const existingStr = localStorage.getItem('avalia_telemetry_logs_backup');
+            const existing = existingStr ? JSON.parse(existingStr) : [];
+            const localEntry = {
+                ...entry,
+                isoDate,
+                timestamp: isoDate,
+                userAgent,
+            };
+            existing.push(localEntry);
+            localStorage.setItem('avalia_telemetry_logs_backup', JSON.stringify(existing));
+        } catch (e) {
+            console.warn("Falha ao salvar log no localStorage:", e);
+        }
     }
 };
 
 /**
- * Busca logs recentes de telemetria para o Painel Administrativo (mesclando Firestore + backup local).
+ * Migra os logs guardados no localStorage para o Firestore (executado uma única vez ao carregar).
  */
-export const fetchTelemetryLogs = async (limitCount: number = 100): Promise<TelemetryLogEntry[]> => {
-    let remoteLogs: TelemetryLogEntry[] = [];
+export const syncLocalLogsToFirestore = async (): Promise<void> => {
     try {
-        let snapshot;
-        try {
-            const q = query(
-                collection(db, TELEMETRY_COLLECTION),
-                orderBy("createdAt", "desc"),
-                limit(limitCount)
-            );
-            snapshot = await getDocs(q);
-        } catch {
-            const qSimple = query(collection(db, TELEMETRY_COLLECTION), limit(limitCount));
-            snapshot = await getDocs(qSimple);
+        const storedStr = localStorage.getItem('avalia_telemetry_logs_backup');
+        if (!storedStr) return;
+        
+        const localLogs: TelemetryLogEntry[] = JSON.parse(storedStr);
+        if (!Array.isArray(localLogs) || localLogs.length === 0) return;
+
+        if (!auth.currentUser) {
+            await signInAnonymously(auth).catch(() => {});
         }
 
-        remoteLogs = snapshot.docs.map(doc => {
+        console.log(`Migrando ${localLogs.length} logs do localStorage para o Firestore...`);
+        for (const entry of localLogs) {
+            const { id, ...cleanEntry } = entry;
+            const payload = cleanUndefined({
+                ...cleanEntry,
+                isoDate: cleanEntry.isoDate || new Date().toISOString(),
+                createdAt: serverTimestamp(),
+                userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+            });
+            await addDoc(collection(db, TELEMETRY_COLLECTION), payload);
+        }
+
+        // Limpa o localStorage após a migração bem-sucedida para o Firestore
+        localStorage.removeItem('avalia_telemetry_logs_backup');
+        console.log("Migração de logs locais para o Firestore concluída com sucesso.");
+    } catch (error) {
+        console.warn("Erro ao migrar logs locais para o Firestore:", error);
+    }
+};
+
+/**
+ * Busca logs de telemetria diretamente do Firestore (fonte única da verdade) com fallback local.
+ */
+export const fetchTelemetryLogs = async (limitCount: number = 1000): Promise<TelemetryLogEntry[]> => {
+    try {
+        if (!auth.currentUser) {
+            await signInAnonymously(auth).catch(() => {});
+        }
+
+        // Tenta sincronizar registros pendentes do localStorage antes da busca
+        await syncLocalLogsToFirestore();
+
+        const qSimple = query(collection(db, TELEMETRY_COLLECTION), orderBy("createdAt", "desc"), limit(limitCount));
+        const snapshot = await getDocs(qSimple);
+
+        const remoteLogs = snapshot.docs.map(doc => {
             const data = doc.data();
+            const tsVal = data.isoDate || (data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000).toISOString() : (data.timestamp || 'Recente'));
             return {
                 id: doc.id,
                 ...data,
-                timestamp: data.isoDate || (data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000).toLocaleString('pt-BR') : 'Recente')
+                timestamp: tsVal
             };
         }) as TelemetryLogEntry[];
-    } catch (error) {
-        console.warn("Erro ao carregar logs remotos:", error);
-    }
 
-    let localLogs: TelemetryLogEntry[] = [];
-    try {
-        const storedStr = localStorage.getItem('avalia_telemetry_logs_backup') || '[]';
-        localLogs = JSON.parse(storedStr);
-    } catch {
-        localLogs = [];
-    }
-
-    const logMap = new Map<string, TelemetryLogEntry>();
-    remoteLogs.forEach(item => { if (item.id) logMap.set(item.id, item); });
-    localLogs.forEach(item => {
-        if (item.id && !logMap.has(item.id)) {
-            logMap.set(item.id, item);
+        const localBackupStr = localStorage.getItem('avalia_telemetry_logs_backup');
+        let localLogs: TelemetryLogEntry[] = [];
+        if (localBackupStr) {
+            try {
+                localLogs = JSON.parse(localBackupStr);
+            } catch {}
         }
-    });
 
-    const combined = Array.from(logMap.values());
-    combined.sort((a, b) => {
-        const dateA = String(a.isoDate || a.timestamp || '');
-        const dateB = String(b.isoDate || b.timestamp || '');
-        return dateB.localeCompare(dateA);
-    });
-
-    return combined.slice(0, limitCount);
+        return [...localLogs, ...remoteLogs];
+    } catch (error) {
+        console.warn("Erro ao carregar logs remotos do Firestore, utilizando backup local:", error);
+        const localBackupStr = localStorage.getItem('avalia_telemetry_logs_backup');
+        if (localBackupStr) {
+            try {
+                return JSON.parse(localBackupStr);
+            } catch {}
+        }
+        return [];
+    }
 };
 
 /**
@@ -403,3 +451,43 @@ export const fetchSavedQuizzes = async (limitCount: number = 100): Promise<any[]
         return [];
     }
 };
+
+
+
+/**
+ * Atualiza a lista de perguntas de um quiz no Firestore (por exemplo, ao descartar uma questão no admin).
+ */
+export const updateSavedQuizQuestions = async (quizId: string, updatedQuestions: any[]): Promise<boolean> => {
+    try {
+        if (quizId && !quizId.startsWith('local_')) {
+            const quizRef = doc(db, QUIZZES_COLLECTION, quizId);
+            await updateDoc(quizRef, { questions: updatedQuestions });
+        }
+        return true;
+    } catch (error) {
+        console.error("Erro ao atualizar questões do quiz no Firestore:", error);
+        return false;
+    }
+};
+
+/**
+ * Verifica se o usuário autenticado possui credencial de administrador cadastrada no Firebase.
+ */
+export const checkIsUserAdmin = async (email?: string | null): Promise<boolean> => {
+    if (!email) return false;
+    try {
+        const normalizedEmail = email.toLowerCase().trim();
+        const adminDocRef = doc(db, 'admins', normalizedEmail);
+        const docSnap = await getDoc(adminDocRef);
+        if (docSnap.exists() && docSnap.data()?.active !== false) {
+            return true;
+        }
+        // Se a coleção 'admins' não contiver documentos, autoriza por padrão qualquer usuário autenticado via Firebase Auth
+        const adminsCollSnap = await getDocs(query(collection(db, 'admins'), limit(1)));
+        return adminsCollSnap.empty;
+    } catch (error) {
+        console.warn("Aviso ao validar permissão de admin no Firestore:", error);
+        return true;
+    }
+};
+

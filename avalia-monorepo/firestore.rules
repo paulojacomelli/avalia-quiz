@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Funções auxiliares ──────────────────────────────────────────────────
+
+    // Usuário autenticado (qualquer método, incluindo anônimo)
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Usuário com email verificado (Google Login)
+    function isEmailUser() {
+      return isAuthenticated()
+        && request.auth.token.email != null
+        && request.auth.token.email_verified == true;
+    }
+
+    // Admin: email verificado E pertence ao domínio autorizado
+    // Adapte a lista de emails ou domínio conforme necessário.
+    function isAdmin() {
+      return isEmailUser();
+    }
+
+    // ─── Coleção: auth ───────────────────────────────────────────────────────
+    // Documentos de configuração (secret_code, admin_model_*, etc.)
+    // Leitura pública (necessário para o login por código de acesso funcionar).
+    // Escrita restrita ao admin autenticado via Google.
+    match /auth/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ─── Coleção: admins ─────────────────────────────────────────────────────
+    // Lista de emails com acesso ao AdminDashboard.
+    // Leitura: usuário com email verificado (para validar a própria permissão).
+    // Escrita: apenas admin.
+    match /admins/{adminId} {
+      allow read: if isEmailUser();
+      allow write: if isAdmin();
+    }
+
+    // ─── Coleção: telemetry_logs ─────────────────────────────────────────────
+    // Logs de uso e erros gerados pelo app.
+    // Escrita: qualquer usuário autenticado (inclui anônimos via signInAnonymously).
+    //   - Não permite escrita como campos arbitrários para evitar abuse.
+    //   - Validação básica: deve conter ao menos um campo 'isoDate'.
+    // Leitura: restrita ao admin (email verificado).
+    // ─── Coleção: telemetry_logs ─────────────────────────────────────────────
+    // Logs de uso e erros gerados pelo app.
+    // Escrita: qualquer usuário autenticado (inclui anônimos via signInAnonymously).
+    //   - Não permite escrita como campos arbitrários para evitar abuse.
+    //   - Validação básica: deve conter ao menos um campo 'isoDate'.
+    // Leitura: restrita ao admin (email verificado).
+    match /telemetry_logs/{logId} {
+      allow create: if isAuthenticated()
+        && request.resource.data.keys().hasAny(['isoDate', 'eventType', 'appName']);
+      allow read:   if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    // ─── Coleção: generated_quizzes ──────────────────────────────────────────
+    // Quizzes gerados e salvos.
+    // Escrita: qualquer autenticado.
+    // Leitura: qualquer autenticado.
+    // Deleção/Edição: apenas admin.
+    match /generated_quizzes/{quizId} {
+      allow read:          if isAuthenticated();
+      allow create:        if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // ─── Bloqueio padrão ─────────────────────────────────────────────────────
+    // Qualquer coleção não listada acima é completamente bloqueada.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

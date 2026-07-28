@@ -1,3 +1,3 @@
-export { generateQuiz } from './generate-quiz';
-export { generateReplacementQuestion } from './generate-replacement';
-export { evaluateFreeResponse } from './evaluate-free-response';
+// Nenhuma Cloud Function ativa no momento.
+// As gerações de quiz e avaliação são feitas client-side via geminiService.ts (OpenRouter/Gemini/etc).
+export {};
