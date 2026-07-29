@@ -99,6 +99,48 @@ O ecossistema utiliza o **Cloud Firestore** como banco de dados NoSQL. Para o fu
     - **Chave de Acesso**: `secret_code` (ex: `"1234"`).
     - **Chaves de API dos Provedores (Admin)**: `admin_key_google_ai`, `admin_key_groq`, `admin_key_deepseek`, `admin_key_openrouter`, `admin_key_openai`, `admin_key_claude`.
     - **Modelos Padrão Liberados (Admin)**: `admin_model_google_ai`, `admin_model_groq`, `admin_model_deepseek`, `admin_model_openrouter`, `admin_model_openai`, `admin_model_claude`, `admin_model_live`, `admin_model_tts`, `admin_model_tts_openai`.
+
+  > **Exemplo Prático de Preenchimento do Documento `auth/access_control` no Firestore:**
+  ```json
+  {
+    "secret_code": "1234",
+
+    "admin_key_google_ai": "AIzaSy...",
+    "admin_model_google_ai": "gemini-3.6-flash",
+
+    "admin_key_groq": "gsk_...",
+    "admin_model_groq": "groq/compound",
+
+    "admin_key_openrouter": "sk-or-v1-...",
+    "admin_model_openrouter": "openrouter/auto:free",
+
+    "admin_key_deepseek": "sk-...",
+    "admin_model_deepseek": "deepseek-reasoner",
+
+    "admin_key_openai": "sk-proj-...",
+    "admin_model_openai": "gpt-5.6",
+
+    "admin_key_claude": "sk-ant-...",
+    "admin_model_claude": "claude-fable-5",
+
+    "admin_model_live": "gemini-3.1-flash-live-preview",
+    "admin_model_tts": "gemini-3.1-flash-tts-preview",
+    "admin_model_tts_openai": "gpt-4o-mini-tts"
+  ```
+  
+  > **Identificadores de Modelos Suportados (Exemplos por Provedor):**
+  >
+  > | Provedor | Campo no Firestore | Exemplos de Modelos Válidos |
+  > | :--- | :--- | :--- |
+  > | **Google AI** | `admin_model_google_ai` | `gemini-3.6-flash`, `gemini-3.5-flash` |
+  > | **Groq** | `admin_model_groq` | `groq/compound`, `llama-3.3-70b-versatile` |
+  > | **OpenRouter** | `admin_model_openrouter` | `openrouter/auto:free`, `deepseek/deepseek-v4-flash` |
+  > | **DeepSeek** | `admin_model_deepseek` | `deepseek-reasoner`, `deepseek-chat` |
+  > | **OpenAI** | `admin_model_openai` | `gpt-5.6`, `gpt-4o-mini` |
+  > | **Claude** | `admin_model_claude` | `claude-fable-5`, `claude-3-5-haiku-20241022` |
+  > | **Multimodal / Live** | `admin_model_live` | `gemini-3.1-flash-live-preview`, `gemini-2.0-flash-exp` |
+  > | **Voz / TTS** | `admin_model_tts` / `admin_model_tts_openai` | `gemini-3.1-flash-tts-preview`, `gpt-4o-mini-tts`, `tts-1` |
+  
   - *Acesso*: Leitura pública (necessário para o login de código de acesso) / Escrita restrita a administradores.
 
 - **`admins/`**:
@@ -162,6 +204,15 @@ Para consultas otimizadas no `AdminDashboard` e recuperação de quizzes por tem
 
 Este projeto é distribuído sob a licença **GPLv3**.
 Você é livre para estudar, modificar e estender a plataforma mantendo a transparência open-source.
+
+---
+
+## 📐 Diretrizes Arquiteturais do Monorepo
+
+- **Zero Contexto de Domínio nos Pacotes (`packages/`)**:
+  Nenhum arquivo dentro de `packages/` tem permissão de conhecer a identidade do aplicativo consumidor. É proibido usar checagens diretas de marca (ex: `if (APP === 'JW_QUIZ')`). Variações visuais ou comportamentais devem ser injetadas via Props ou Context Providers a partir de `apps/*`.
+
+---
 
 ---
 

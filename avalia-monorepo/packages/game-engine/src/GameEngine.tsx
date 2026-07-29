@@ -103,6 +103,11 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
 
   // --- Registra Acesso do Visitante (Analytics / GA4 style) ---
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sessionKey = `app_accessed_${appName}`;
+    if (sessionStorage.getItem(sessionKey)) return;
+    sessionStorage.setItem(sessionKey, 'true');
+
     const activeClientId = clientId || getClientId();
     logTelemetryEvent({
       eventType: 'app_accessed',
@@ -110,7 +115,7 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
       title: 'Acesso à Aplicação',
       clientId: activeClientId
     }).catch(e => console.warn("Falha ao registrar acesso inicial:", e));
-  }, [appName, clientId]);
+  }, [appName]);
   
   const [setupStep, setSetupStep] = useState(1);
   const [isGuideOpen, setIsGuideOpen] = useState(false);

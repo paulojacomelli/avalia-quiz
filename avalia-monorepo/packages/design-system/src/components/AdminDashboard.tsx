@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { User } from 'firebase/auth';
 import {
   loginWithGoogle, logoutGoogle, subscribeAuthState,
-  fetchTelemetryLogs, fetchSavedQuizzes,
+  fetchTelemetryLogs, fetchSavedQuizzes, subscribeTelemetryLogs,
   logTelemetryEvent, updateSavedQuizQuestions, deleteSavedQuiz, checkIsUserAdmin
 } from '@avalia/services';
 import { TelemetryLogEntry } from '@avalia/core';
@@ -475,6 +475,7 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [latencyViewMode, setLatencyViewMode] = useState<'provider' | 'model'>('provider');
   const [tokenViewMode, setTokenViewMode] = useState<'model' | 'provider'>('model');
+  const [avgTokenViewMode, setAvgTokenViewMode] = useState<'model' | 'provider'>('model');
 
   const [logsPage, setLogsPage] = useState<number>(1);
   const [quizzesPage, setQuizzesPage] = useState<number>(1);
@@ -588,8 +589,8 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
     const unsubscribe = subscribeAuthState((currentUser) => {
       if (!isMounted) return;
       setUser(currentUser);
-      if (currentUser?.email) {
-        checkIsUserAdmin(currentUser.email)
+      if (currentUser) {
+        checkIsUserAdmin(currentUser.email, currentUser.uid)
           .then((authorized) => {
             if (isMounted) {
               setIsAuthorized(authorized);
@@ -638,7 +639,20 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
 
   useEffect(() => {
     console.log('[DEBUG AUTH] Status atual -> user:', user?.email, 'isAuthorized:', isAuthorized);
-    if (user && isAuthorized) loadData();
+    if (!user || !isAuthorized) return;
+
+    loadData();
+
+    // Listener em tempo real para novos logs (Edge, Firefox, Chrome, Mobile, etc.)
+    const unsubscribe = subscribeTelemetryLogs((realtimeLogs) => {
+      if (realtimeLogs && realtimeLogs.length > 0) {
+        setLogs(realtimeLogs);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [user, isAuthorized]);
 
   const handleGoogleLogin = async () => {
@@ -775,10 +789,28 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
     return Math.max(1, userSet.size);
   }, [scopedLogs, scopedQuizzes]);
 
+  // Usuários únicos que efetivamente GERARAM pelo menos um quiz
+  const quizCreatorsCount = useMemo(() => {
+    const creatorsSet = new Set<string>();
+    (scopedQuizzes || []).forEach(q => {
+      if (!q) return;
+      const userId = q.clientId || q.userEmail || q.createdBy || q.userId;
+      if (userId) creatorsSet.add(userId);
+    });
+    (scopedLogs || []).forEach(l => {
+      if (!l) return;
+      if (l.eventType === 'quiz_generated') {
+        const userId = (l as any).clientId || l.userEmail;
+        if (userId) creatorsSet.add(userId);
+      }
+    });
+    return creatorsSet.size;
+  }, [scopedQuizzes, scopedLogs]);
+
   const quizzesPerUserAverage = useMemo(() => {
-    if (uniqueUsersCount === 0) return '0.0';
-    return (totalQuizzes / uniqueUsersCount).toFixed(1);
-  }, [totalQuizzes, uniqueUsersCount]);
+    if (quizCreatorsCount === 0) return '0.0';
+    return (totalQuizzes / quizCreatorsCount).toFixed(1);
+  }, [totalQuizzes, quizCreatorsCount]);
 
   const normalizeErrorCode = (l: any): string => {
     let code = (l.errorCode || '').toString().trim();
@@ -795,9 +827,8 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
 
   const formatThemeLabel = useCallback((rawTheme?: string): string => {
     if (!rawTheme) return 'Geral';
-    const themeStr = rawTheme.trim();
-    return themeLabelMap[themeStr] || themeLabelMap[themeStr.toUpperCase()] || themeStr;
-  }, [themeLabelMap]);
+    return rawTheme.trim();
+  }, []);
 
   // Contagem por Código de Erro
   const errorCodeCounts = useMemo(() => {
@@ -808,7 +839,7 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
       else counts['Outros'] += 1;
     });
     return counts;
-  }, [scopedLogs]);
+  }, [scopedLogs, isErrorLog]);
 
   // Contagem por Aplicativo para BI
   const appMetrics = useMemo(() => {
@@ -823,7 +854,8 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
       if (!counts[name]) counts[name] = { total: 0, errors: 0, quizzes: 0, users: new Set() };
       counts[name].total += 1;
       if (l.eventType === 'error') counts[name].errors += 1;
-      if (l.userAgent) counts[name].users.add(l.userAgent);
+      const userId = (l as any).clientId || l.userEmail || l.userAgent;
+      if (userId) counts[name].users.add(userId);
     });
 
     (quizzes || []).forEach(q => {
@@ -831,7 +863,8 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
       const name = q.appName?.trim() || 'Avalia Quiz';
       if (!counts[name]) counts[name] = { total: 0, errors: 0, quizzes: 0, users: new Set() };
       counts[name].quizzes += 1;
-      if (q.createdBy) counts[name].users.add(q.createdBy);
+      const userId = q.clientId || q.userEmail || q.createdBy || q.userId || q.userAgent;
+      if (userId) counts[name].users.add(userId);
     });
 
     return counts;
@@ -846,6 +879,55 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
     const modelStr = String(rawModel || rawProvider || '').trim();
     return modelStr || 'Desconhecido';
   };
+
+  const parseDeviceCategory = useCallback((ua?: string): string => {
+    if (!ua) return 'Outros';
+    const lower = ua.toLowerCase();
+    if (lower.includes('googletv') || lower.includes('google tv') || lower.includes('androidtv') || lower.includes('android tv') || lower.includes('tizen') || lower.includes('webos') || lower.includes('smart-tv') || lower.includes('smarttv')) {
+      return 'Smart TV';
+    }
+    if (lower.includes('ipad') || lower.includes('tablet') || (lower.includes('android') && !lower.includes('mobile'))) {
+      return 'Tablet';
+    }
+    if (lower.includes('mobile') || lower.includes('iphone') || lower.includes('ipod') || lower.includes('android') || lower.includes('windows phone')) {
+      return 'Smartphone';
+    }
+    if (lower.includes('windows') || lower.includes('macintosh') || lower.includes('linux') || lower.includes('cros') || lower.includes('x11')) {
+      return 'Desktop';
+    }
+    return 'Outros';
+  }, []);
+
+  const parseOS = useCallback((ua?: string): string => {
+    if (!ua) return 'Outros';
+    const lower = ua.toLowerCase();
+    if (lower.includes('googletv') || lower.includes('google tv') || lower.includes('androidtv') || lower.includes('android tv')) return 'Google TV';
+    if (lower.includes('tizen')) return 'Tizen OS';
+    if (lower.includes('webos') || lower.includes('web0s')) return 'webOS (LG)';
+    if (lower.includes('windows phone') || lower.includes('windowsphone')) return 'Windows Phone';
+    if (lower.includes('iphone') || lower.includes('ipad') || lower.includes('ipod')) return 'iOS / iPadOS';
+    if (lower.includes('android')) return 'Android';
+    if (lower.includes('windows')) return 'Windows';
+    if (lower.includes('ubuntu')) return 'Ubuntu Linux';
+    if (lower.includes('linux mint') || lower.includes('mint')) return 'Linux Mint';
+    if (lower.includes('fedora')) return 'Fedora Linux';
+    if (lower.includes('linux') || lower.includes('x11')) return 'Linux';
+    if (lower.includes('macintosh') || lower.includes('mac os x') || lower.includes('mac_powerpc')) return 'macOS';
+    return 'Outros';
+  }, []);
+
+  const parseBrowser = useCallback((ua?: string): string => {
+    if (!ua) return 'Outros';
+    const lower = ua.toLowerCase();
+    if (lower.includes('samsungbrowser')) return 'Samsung Internet';
+    if (lower.includes('brave')) return 'Brave';
+    if (lower.includes('edg') || lower.includes('edge')) return 'Microsoft Edge';
+    if (lower.includes('opr/') || lower.includes('opera')) return 'Opera';
+    if (lower.includes('firefox') || lower.includes('fxios')) return 'Mozilla Firefox';
+    if (lower.includes('chrome') || lower.includes('crios')) return 'Google Chrome';
+    if (lower.includes('safari') && !lower.includes('chrome')) return 'Apple Safari';
+    return 'Outros';
+  }, []);
 
   const getCanonicalProvider = useCallback((rawModel?: string, rawProvider?: string): string => {
     if (rawProvider && rawProvider.trim() && rawProvider.trim().toLowerCase() !== 'auto') {
@@ -1203,44 +1285,45 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
       ? Math.round(completionTokens / quizTokenCount)
       : (scopedQuizzes.length > 0 ? Math.round(completionTokens / scopedQuizzes.length) : 0);
 
-    const modelAverages = Object.entries(modelTokenMap)
-      .map(([model, data]) => {
-        const quizzes = data.quizCount > 0 ? data.quizCount : (modelMetrics[model]?.quizzes || 1);
-        return {
-          model,
-          color: getModelColor(model),
-          totalTokens: data.total,
-          promptTokens: data.prompt,
-          completionTokens: data.completion,
-          quizCount: quizzes,
-          avgTotal: Math.round(data.total / Math.max(1, quizzes)),
-          avgPrompt: Math.round(data.prompt / Math.max(1, quizzes)),
-          avgCompletion: Math.round(data.completion / Math.max(1, quizzes))
-        };
-      })
-      .sort((a, b) => b.totalTokens - a.totalTokens);
+    const modelMetricsList = Object.entries(modelTokenMap).map(([model, data]) => {
+      const quizzes = data.quizCount > 0 ? data.quizCount : (modelMetrics[model]?.quizzes || 1);
+      return {
+        model,
+        color: getModelColor(model),
+        totalTokens: data.total,
+        promptTokens: data.prompt,
+        completionTokens: data.completion,
+        quizCount: quizzes,
+        avgTotal: Math.round(data.total / Math.max(1, quizzes)),
+        avgPrompt: Math.round(data.prompt / Math.max(1, quizzes)),
+        avgCompletion: Math.round(data.completion / Math.max(1, quizzes))
+      };
+    });
 
-    const providerAverages = Object.entries(providerTokenMap)
-      .map(([provider, data]) => {
-        const quizzes = data.quizCount > 0 ? data.quizCount : 1;
-        return {
-          model: provider,
-          color: getProviderColor(provider),
-          totalTokens: data.total,
-          promptTokens: data.prompt,
-          completionTokens: data.completion,
-          quizCount: quizzes,
-          avgTotal: Math.round(data.total / Math.max(1, quizzes)),
-          avgPrompt: Math.round(data.prompt / Math.max(1, quizzes)),
-          avgCompletion: Math.round(data.completion / Math.max(1, quizzes))
-        };
-      })
-      .sort((a, b) => b.totalTokens - a.totalTokens);
+    const providerMetricsList = Object.entries(providerTokenMap).map(([provider, data]) => {
+      const quizzes = data.quizCount > 0 ? data.quizCount : 1;
+      return {
+        model: provider,
+        color: getProviderColor(provider),
+        totalTokens: data.total,
+        promptTokens: data.prompt,
+        completionTokens: data.completion,
+        quizCount: quizzes,
+        avgTotal: Math.round(data.total / Math.max(1, quizzes)),
+        avgPrompt: Math.round(data.prompt / Math.max(1, quizzes)),
+        avgCompletion: Math.round(data.completion / Math.max(1, quizzes))
+      };
+    });
+
+    const modelTotals = [...modelMetricsList].sort((a, b) => b.totalTokens - a.totalTokens);
+    const providerTotals = [...providerMetricsList].sort((a, b) => b.totalTokens - a.totalTokens);
+    const modelAverages = [...modelMetricsList].sort((a, b) => b.avgTotal - a.avgTotal);
+    const providerAverages = [...providerMetricsList].sort((a, b) => b.avgTotal - a.avgTotal);
 
     return { 
       promptTokens, completionTokens, totalTokens, 
       averagePerQuiz, averagePromptPerQuiz, averageCompletionPerQuiz, 
-      modelTokenMap, modelAverages, providerAverages 
+      modelTokenMap, modelTotals, providerTotals, modelAverages, providerAverages 
     };
   }, [scopedLogs, scopedQuizzes, modelMetrics, getModelColor, getCanonicalProvider, getProviderColor]);
 
@@ -1747,7 +1830,7 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
             {mainTab === 'overview' && (
               <div className="space-y-6">
                 {/* KPIS DA VISÃO GERAL */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                   <div className="bg-[#14151d] p-6 rounded-3xl border border-white/10 shadow-xl relative overflow-hidden">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-mono font-bold uppercase tracking-wider text-gray-400">Quizzes Gerados</span>
@@ -1765,7 +1848,7 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
 
                   <div className="bg-[#14151d] p-6 rounded-3xl border border-white/10 shadow-xl relative overflow-hidden">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-gray-400">Usuários / Dispositivos</span>
+                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-gray-400">Visitantes</span>
                       <span className="p-2 bg-blue-500/10 text-blue-400 rounded-xl">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
@@ -1774,13 +1857,28 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
                     </div>
                     <div className="mt-4 flex items-baseline justify-between">
                       <span className="text-3xl font-black text-blue-300 font-mono">{uniqueUsersCount}</span>
-                      <span className="text-xs font-bold text-blue-400 uppercase">Únicos</span>
+                      <span className="text-xs font-bold text-blue-400 uppercase">Acessos</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#14151d] p-6 rounded-3xl border border-purple-500/20 shadow-xl relative overflow-hidden">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-purple-300">Usuários Criadores</span>
+                      <span className="p-2 bg-purple-500/10 text-purple-400 rounded-xl">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.72m12 0a5.971 5.971 0 00-.941-3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                        </svg>
+                      </span>
+                    </div>
+                    <div className="mt-4 flex items-baseline justify-between">
+                      <span className="text-3xl font-black text-purple-300 font-mono">{quizCreatorsCount}</span>
+                      <span className="text-xs font-bold text-purple-400 uppercase">Criadores</span>
                     </div>
                   </div>
 
                   <div className="bg-[#14151d] p-6 rounded-3xl border border-white/10 shadow-xl relative overflow-hidden">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-gray-400">Quizzes / Usuário</span>
+                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-gray-400">Quizzes / Criador</span>
                       <span className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
@@ -2281,6 +2379,70 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
                       <h3 className="text-sm font-bold text-white border-b border-white/5 pb-3">Modelos de IA Utilizados (Distribuição)</h3>
                       <DonutPieChart items={modelPieData.items} total={modelPieData.total} />
                     </div>
+
+                    {/* CARD 1: CONSUMO TOTAL DE TOKENS POR MODELO / PROVEDOR */}
+                    <div className="bg-[#14151d] p-6 rounded-3xl border border-cyan-500/20 shadow-xl space-y-4">
+                      <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-3">
+                        <h3 className="text-sm font-bold text-white truncate">
+                          {tokenViewMode === 'provider' ? 'Consumo Total por Provedor' : 'Consumo Total por Modelo'}
+                        </h3>
+                        <div className="flex items-center bg-[#1c1d26] p-1 rounded-xl border border-white/5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setTokenViewMode('model')}
+                            className={`px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                              tokenViewMode === 'model'
+                                ? 'bg-cyan-400/20 text-cyan-300 border border-cyan-400/30'
+                                : 'text-gray-400 hover:text-white border border-transparent'
+                            }`}
+                          >
+                            Modelos
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTokenViewMode('provider')}
+                            className={`px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                              tokenViewMode === 'provider'
+                                ? 'bg-cyan-400/20 text-cyan-300 border border-cyan-400/30'
+                                : 'text-gray-400 hover:text-white border border-transparent'
+                            }`}
+                          >
+                            Provedores
+                          </button>
+                        </div>
+                      </div>
+                      {((tokenViewMode === 'provider' ? tokenMetrics.providerTotals : tokenMetrics.modelTotals) || []).length === 0 ? (
+                        <p className="text-xs text-gray-500 italic text-center py-4">Sem dados de tokens vinculados.</p>
+                      ) : (
+                        <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                          {(tokenViewMode === 'provider' ? tokenMetrics.providerTotals : tokenMetrics.modelTotals).map((item, idx) => {
+                            const maxTotal = Math.max(...(tokenViewMode === 'provider' ? tokenMetrics.providerTotals : tokenMetrics.modelTotals).map(m => m.totalTokens), 1);
+                            return (
+                              <div key={idx} className="bg-[#1c1d26] p-3 rounded-2xl border border-white/5 space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }}></span>
+                                    <span className="text-xs font-bold text-gray-100 truncate" title={item.model}>{item.model}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0 font-mono">
+                                    <span className="text-xs font-black text-cyan-300">{formatTokenNumber(item.totalTokens)} tk</span>
+                                    <span className="text-[10px] text-gray-500">({item.quizCount} qz)</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3 text-[10px] font-mono text-gray-400 pl-4">
+                                  <span>In: <strong className="text-emerald-400">{formatTokenNumber(item.promptTokens)}</strong></span>
+                                  <span>Out: <strong className="text-amber-400">{formatTokenNumber(item.completionTokens)}</strong></span>
+                                  <span className="ml-auto text-cyan-400/80 font-bold">Média: {item.avgTotal.toLocaleString('pt-BR')} tk/qz</span>
+                                </div>
+                                <div className="w-full bg-white/5 rounded-full h-1 overflow-hidden">
+                                  <div className="h-1 rounded-full transition-all duration-500" style={{ backgroundColor: item.color, width: `${Math.round((item.totalTokens / maxTotal) * 100)}%` }}/>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="lg:col-span-6 space-y-6">
@@ -2360,18 +2522,19 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
                       />
                     </div>
 
-                    <div className="bg-[#14151d] p-6 rounded-3xl border border-cyan-500/20 shadow-xl space-y-4">
+                    {/* CARD 2: MÉDIA DE TOKENS POR QUIZ POR MODELO / PROVEDOR */}
+                    <div className="bg-[#14151d] p-6 rounded-3xl border border-purple-500/20 shadow-xl space-y-4">
                       <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-3">
                         <h3 className="text-sm font-bold text-white truncate">
-                          {tokenViewMode === 'provider' ? 'Consumo de Tokens por Provedor' : 'Consumo de Tokens por Modelo'}
+                          {avgTokenViewMode === 'provider' ? 'Média de Tokens por Provedor' : 'Média de Tokens por Modelo'}
                         </h3>
                         <div className="flex items-center bg-[#1c1d26] p-1 rounded-xl border border-white/5 shrink-0">
                           <button
                             type="button"
-                            onClick={() => setTokenViewMode('model')}
+                            onClick={() => setAvgTokenViewMode('model')}
                             className={`px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                              tokenViewMode === 'model'
-                                ? 'bg-cyan-400/20 text-cyan-300 border border-cyan-400/30'
+                              avgTokenViewMode === 'model'
+                                ? 'bg-purple-400/20 text-purple-300 border border-purple-400/30'
                                 : 'text-gray-400 hover:text-white border border-transparent'
                             }`}
                           >
@@ -2379,10 +2542,10 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
                           </button>
                           <button
                             type="button"
-                            onClick={() => setTokenViewMode('provider')}
+                            onClick={() => setAvgTokenViewMode('provider')}
                             className={`px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                              tokenViewMode === 'provider'
-                                ? 'bg-cyan-400/20 text-cyan-300 border border-cyan-400/30'
+                              avgTokenViewMode === 'provider'
+                                ? 'bg-purple-400/20 text-purple-300 border border-purple-400/30'
                                 : 'text-gray-400 hover:text-white border border-transparent'
                             }`}
                           >
@@ -2390,38 +2553,35 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
                           </button>
                         </div>
                       </div>
-                      {((tokenViewMode === 'provider' ? tokenMetrics.providerAverages : tokenMetrics.modelAverages) || []).length === 0 ? (
+                      {((avgTokenViewMode === 'provider' ? tokenMetrics.providerAverages : tokenMetrics.modelAverages) || []).length === 0 ? (
                         <p className="text-xs text-gray-500 italic text-center py-4">Sem dados de tokens vinculados.</p>
                       ) : (
                         <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                          {(tokenViewMode === 'provider' ? tokenMetrics.providerAverages : tokenMetrics.modelAverages).map((item, idx) => (
-                            <div key={idx} className="bg-[#1c1d26] p-3.5 rounded-2xl border border-white/5 space-y-2">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }}></span>
-                                  <span className="text-xs font-bold text-gray-100 truncate" title={item.model}>{item.model}</span>
+                          {(avgTokenViewMode === 'provider' ? tokenMetrics.providerAverages : tokenMetrics.modelAverages).map((item, idx) => {
+                            const maxAvg = Math.max(...(avgTokenViewMode === 'provider' ? tokenMetrics.providerAverages : tokenMetrics.modelAverages).map(m => m.avgTotal), 1);
+                            return (
+                              <div key={idx} className="bg-[#1c1d26] p-3 rounded-2xl border border-white/5 space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }}></span>
+                                    <span className="text-xs font-bold text-gray-100 truncate" title={item.model}>{item.model}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0 font-mono">
+                                    <span className="text-xs font-black text-purple-300">{item.avgTotal.toLocaleString('pt-BR')} tk/qz</span>
+                                    <span className="text-[10px] text-gray-500">({item.quizCount} qz)</span>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0 font-mono">
-                                  <span className="text-xs font-black text-cyan-300">{formatTokenNumber(item.totalTokens)} tk</span>
-                                  <span className="text-[10px] text-gray-500 font-bold">({item.quizCount} qz)</span>
+                                <div className="flex items-center gap-3 text-[10px] font-mono text-gray-400 pl-4">
+                                  <span>Média In: <strong className="text-emerald-400">{item.avgPrompt.toLocaleString('pt-BR')}</strong></span>
+                                  <span>Média Out: <strong className="text-amber-400">{item.avgCompletion.toLocaleString('pt-BR')}</strong></span>
+                                  <span className="ml-auto text-purple-400/80 font-bold">Total: {formatTokenNumber(item.totalTokens)} tk</span>
+                                </div>
+                                <div className="w-full bg-white/5 rounded-full h-1 overflow-hidden">
+                                  <div className="h-1 rounded-full transition-all duration-500" style={{ backgroundColor: item.color, width: `${Math.round((item.avgTotal / maxAvg) * 100)}%` }}/>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-3 text-[10px] font-mono text-gray-400 pl-4">
-                                <span>Entrada: <strong className="text-emerald-400">{formatTokenNumber(item.promptTokens)}</strong></span>
-                                <span>Saída: <strong className="text-amber-400">{formatTokenNumber(item.completionTokens)}</strong></span>
-                                <span className="ml-auto text-cyan-400/90 font-bold">Média: {item.avgTotal.toLocaleString('pt-BR')} tk/qz</span>
-                              </div>
-                              <div className="w-full bg-white/5 rounded-full h-1 overflow-hidden">
-                                <div 
-                                  className="h-1 rounded-full transition-all duration-500" 
-                                  style={{ 
-                                    backgroundColor: item.color, 
-                                    width: `${Math.round((item.totalTokens / Math.max(...(tokenViewMode === 'provider' ? tokenMetrics.providerAverages : tokenMetrics.modelAverages).map(m => m.totalTokens), 1)) * 100)}%` 
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -2461,7 +2621,6 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
                       Quizzes ({quizzes.length})
                     </button>
                   </div>
-
                 </div>
 
                 {activeTab !== 'quizzes' && (
@@ -2469,26 +2628,87 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs">
                         <thead className="bg-[#1c1d26] text-gray-400 font-mono text-[10px] uppercase border-b border-white/5">
-                          <tr>
-                            <th className="py-3 px-4 w-28">Status</th>
-                            <th className="py-3 px-4 w-32">App</th>
-                            <th className="py-3 px-4 w-44">Modelo IA</th>
-                            <th className="py-3 px-4">Detalhes / Mensagem de Erro</th>
-                            <th className="py-3 px-4 w-20 text-center">Código</th>
-                            <th className="py-3 px-4 w-36 text-right">Data / Hora</th>
-                          </tr>
+                          {activeTab === 'access' ? (
+                            <tr>
+                              <th className="py-3 px-4 w-28">Status</th>
+                              <th className="py-3 px-4 w-32">App</th>
+                              <th className="py-3 px-4 w-32">Dispositivo</th>
+                              <th className="py-3 px-4 w-36">Navegador</th>
+                              <th className="py-3 px-4 w-36">Sistema Operacional</th>
+                              <th className="py-3 px-4">Detalhes do Acesso</th>
+                              <th className="py-3 px-4 w-20 text-center">Código</th>
+                              <th className="py-3 px-4 w-36 text-right">Data / Hora</th>
+                            </tr>
+                          ) : (
+                            <tr>
+                              <th className="py-3 px-4 w-28">Status</th>
+                              <th className="py-3 px-4 w-32">App</th>
+                              <th className="py-3 px-4 w-44">Modelo IA</th>
+                              <th className="py-3 px-4">
+                                {activeTab === 'errors' ? 'Mensagem de Erro / Detalhes' : 'Detalhes do Evento'}
+                              </th>
+                              <th className="py-3 px-4 w-20 text-center">Código</th>
+                              <th className="py-3 px-4 w-36 text-right">Data / Hora</th>
+                            </tr>
+                          )}
                         </thead>
                         <tbody className="divide-y divide-white/5">
                           {paginatedLogs.length === 0 ? (
                             <tr>
-                              <td colSpan={6} className="py-12 text-center text-gray-500 italic">
+                              <td colSpan={activeTab === 'access' ? 8 : 6} className="py-12 text-center text-gray-500 italic">
                                 Nenhum registro de log encontrado para a busca informada.
                               </td>
                             </tr>
                           ) : (
                             paginatedLogs.map((log) => {
-                              const modelStr = getCanonicalRawModel((log as any).aiModel, (log as any).aiProvider);
-                              const modelColor = getModelColor(modelStr);
+                              const hasAiModel = Boolean((log as any).aiModel || (log as any).aiProvider);
+                              const modelStr = hasAiModel ? getCanonicalRawModel((log as any).aiModel, (log as any).aiProvider) : null;
+                              const modelColor = modelStr ? getModelColor(modelStr) : '#6b7280';
+                              const deviceCat = parseDeviceCategory(log.userAgent);
+                              const osName = parseOS(log.userAgent);
+                              const browserName = parseBrowser(log.userAgent);
+                              const isSuccess = log.errorCode === '200' || log.eventType === 'quiz_generated' || log.eventType === 'app_accessed' || (!log.errorCode && log.eventType !== 'error');
+                              const displayCode = (log.errorCode && log.errorCode !== 'ERRO') ? log.errorCode : (isSuccess ? '200' : '500');
+
+                              if (activeTab === 'access') {
+                                return (
+                                  <tr
+                                    key={log.id}
+                                    onClick={() => setSelectedLogDetail(log)}
+                                    className="hover:bg-white/[0.03] cursor-pointer transition-colors"
+                                  >
+                                    <td className="py-3.5 px-4 align-top">
+                                      <span className="inline-block px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-blue-950/80 text-blue-300 border border-blue-800/60">
+                                        {log.eventType}
+                                      </span>
+                                    </td>
+                                    <td className="py-3.5 px-4 align-top text-gray-200 font-semibold">{log.appName}</td>
+                                    <td className="py-3.5 px-4 align-top font-mono text-[11px]">
+                                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-[10px] font-bold whitespace-nowrap">
+                                        {deviceCat}
+                                      </span>
+                                    </td>
+                                    <td className="py-3.5 px-4 align-top font-mono text-[11px]">
+                                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-[10px] font-bold whitespace-nowrap">
+                                        {browserName}
+                                      </span>
+                                    </td>
+                                    <td className="py-3.5 px-4 align-top font-mono text-[11px]">
+                                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-300 text-[10px] font-bold whitespace-nowrap">
+                                        {osName}
+                                      </span>
+                                    </td>
+                                    <td className="py-3.5 px-4 align-top min-w-[240px]">
+                                      <p className="text-gray-100 font-semibold leading-relaxed break-words text-wrap">{log.title || 'Acesso à Aplicação'}</p>
+                                    </td>
+                                    <td className="py-3.5 px-4 align-top font-mono text-center">
+                                      <span className="text-emerald-400 font-bold">{displayCode}</span>
+                                    </td>
+                                    <td className="py-3.5 px-4 align-top text-right text-gray-400 font-mono text-[11px] whitespace-nowrap">{log.timestamp || 'Recente'}</td>
+                                  </tr>
+                                );
+                              }
+
                               return (
                                 <tr
                                   key={log.id}
@@ -2505,20 +2725,24 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
                                   </td>
                                   <td className="py-3.5 px-4 align-top text-gray-200 font-semibold">{log.appName}</td>
                                   <td className="py-3.5 px-4 align-top font-mono text-[11px]">
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/10 text-[10px] font-bold" style={{ color: modelColor, backgroundColor: `${modelColor}15` }}>
-                                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: modelColor }}></span>
-                                      <span className="truncate max-w-[140px]" title={modelStr}>{modelStr}</span>
-                                    </span>
+                                    {modelStr ? (
+                                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/10 text-[10px] font-bold" style={{ color: modelColor, backgroundColor: `${modelColor}15` }}>
+                                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: modelColor }}></span>
+                                        <span className="truncate max-w-[140px]" title={modelStr}>{modelStr}</span>
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-500 font-mono text-[11px]">N/A</span>
+                                    )}
                                   </td>
                                   <td className="py-3.5 px-4 align-top min-w-[280px]">
                                     <p className="text-gray-100 font-semibold leading-relaxed break-words text-wrap">{log.title || log.errorMessage || '-'}</p>
-                                    {log.errorMessage && log.title && (
+                                    {log.errorMessage && log.title && log.eventType === 'error' && (
                                       <p className="text-gray-400 font-mono text-[11px] mt-1 leading-normal break-words text-wrap">{log.errorMessage}</p>
                                     )}
                                   </td>
                                   <td className="py-3.5 px-4 align-top font-mono text-center">
-                                    <span className={(log.errorCode === '200' || log.eventType === 'quiz_generated') ? 'text-emerald-400 font-bold' : log.eventType === 'error' ? 'text-amber-400 font-bold' : 'text-gray-400'}>
-                                      {(!log.errorCode || log.errorCode === 'ERRO') ? (log.eventType === 'quiz_generated' ? '200' : '500') : log.errorCode}
+                                    <span className={isSuccess ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                                      {displayCode}
                                     </span>
                                   </td>
                                   <td className="py-3.5 px-4 align-top text-right text-gray-400 font-mono text-[11px] whitespace-nowrap">{log.timestamp || 'Recente'}</td>
@@ -2830,25 +3054,89 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
       {/* MODAL DETALHE DO LOG SELECIONADO */}
       {selectedLogDetail && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#14151d] border border-white/10 max-w-lg w-full rounded-3xl p-6 space-y-4 shadow-2xl">
+          <div className="bg-[#14151d] border border-white/10 max-w-lg w-full max-h-[85vh] rounded-3xl p-6 overflow-y-auto space-y-4 shadow-2xl">
             <div className="flex justify-between items-center border-b border-white/10 pb-3">
               <h3 className="text-base font-bold text-white">Detalhes do Evento</h3>
               <button onClick={() => setSelectedLogDetail(null)} className="text-gray-400 hover:text-white text-sm font-bold">✕</button>
             </div>
 
             <div className="space-y-3 text-xs">
-              <div>
-                <span className="text-gray-500 font-mono text-[10px] uppercase block">Aplicativo</span>
-                <span className="font-bold text-gray-200">{selectedLogDetail.appName}</span>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className="text-gray-500 font-mono text-[10px] uppercase block">Aplicativo</span>
+                  <span className="font-bold text-gray-200">{selectedLogDetail.appName}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 font-mono text-[10px] uppercase block">Tipo de Evento</span>
+                  <span className="font-bold text-amber-400 font-mono">{selectedLogDetail.eventType}</span>
+                </div>
               </div>
-              <div>
-                <span className="text-gray-500 font-mono text-[10px] uppercase block">Tipo de Evento</span>
-                <span className="font-bold text-amber-400 font-mono">{selectedLogDetail.eventType}</span>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className="text-gray-500 font-mono text-[10px] uppercase block">Status / Código</span>
+                  <span className={(selectedLogDetail.errorCode === '200' || selectedLogDetail.eventType === 'quiz_generated' || selectedLogDetail.eventType === 'app_accessed') ? 'font-bold text-emerald-400 font-mono' : 'font-bold text-amber-400 font-mono'}>
+                    {(selectedLogDetail.errorCode && selectedLogDetail.errorCode !== 'ERRO') ? selectedLogDetail.errorCode : (selectedLogDetail.eventType === 'error' ? '500' : '200')}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-500 font-mono text-[10px] uppercase block">Dispositivo</span>
+                  <span className="font-bold text-cyan-300">{parseDeviceCategory(selectedLogDetail.userAgent)}</span>
+                </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-3 bg-[#1c1d26] p-3 rounded-2xl border border-white/5">
+                <div>
+                  <span className="text-gray-500 font-mono text-[10px] uppercase block">Sistema Operacional</span>
+                  <span className="font-bold text-blue-300 font-mono">{parseOS(selectedLogDetail.userAgent)}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 font-mono text-[10px] uppercase block">Navegador</span>
+                  <span className="font-bold text-emerald-300 font-mono">{parseBrowser(selectedLogDetail.userAgent)}</span>
+                </div>
+              </div>
+
+              {(selectedLogDetail.aiModel || selectedLogDetail.aiProvider) && (
+                <div className="grid grid-cols-2 gap-3 bg-[#1c1d26] p-3 rounded-2xl border border-white/5">
+                  <div>
+                    <span className="text-gray-500 font-mono text-[10px] uppercase block">Modelo IA</span>
+                    <span className="font-bold text-emerald-300 font-mono">{selectedLogDetail.aiModel || selectedLogDetail.aiProvider}</span>
+                  </div>
+                  {selectedLogDetail.totalTokens !== undefined && (
+                    <div>
+                      <span className="text-gray-500 font-mono text-[10px] uppercase block">Tokens Consumidos</span>
+                      <span className="font-bold text-purple-300 font-mono">{selectedLogDetail.totalTokens.toLocaleString('pt-BR')} tk</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selectedLogDetail.userEmail && (
+                <div>
+                  <span className="text-gray-500 font-mono text-[10px] uppercase block">Usuário Autenticado</span>
+                  <span className="font-bold text-blue-300">{selectedLogDetail.userEmail}</span>
+                </div>
+              )}
+
+              {(selectedLogDetail.anonymousUid || selectedLogDetail.clientId) && (
+                <div>
+                  <span className="text-gray-500 font-mono text-[10px] uppercase block">Identificador do Cliente (Anon ID)</span>
+                  <span className="font-mono text-gray-400 text-[11px] break-all">{selectedLogDetail.anonymousUid || selectedLogDetail.clientId}</span>
+                </div>
+              )}
+
+              {selectedLogDetail.userAgent && (
+                <div>
+                  <span className="text-gray-500 font-mono text-[10px] uppercase block">User Agent Completo (Navegador)</span>
+                  <span className="font-mono text-gray-400 text-[10px] break-words block bg-[#101117] p-2.5 rounded-xl border border-white/5">{selectedLogDetail.userAgent}</span>
+                </div>
+              )}
+
               <div>
                 <span className="text-gray-500 font-mono text-[10px] uppercase block">Título / Status</span>
-                <span className="text-gray-200">{selectedLogDetail.title || '-'}</span>
+                <span className="text-gray-200 font-medium">{selectedLogDetail.title || '-'}</span>
               </div>
+
               {selectedLogDetail.errorMessage && (
                 <div>
                   <span className="text-gray-500 font-mono text-[10px] uppercase block">Mensagem Detalhada</span>
@@ -2857,14 +3145,16 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
                   </div>
                 </div>
               )}
+
               {selectedLogDetail.solution && (
                 <div>
                   <span className="text-gray-500 font-mono text-[10px] uppercase block">Sugestão de Solução</span>
-                  <span className="text-emerald-400">{selectedLogDetail.solution}</span>
+                  <span className="text-emerald-400 font-medium">{selectedLogDetail.solution}</span>
                 </div>
               )}
+
               <div>
-                <span className="text-gray-500 font-mono text-[10px] uppercase block">Timestamp</span>
+                <span className="text-gray-500 font-mono text-[10px] uppercase block">Data / Hora (Timestamp)</span>
                 <span className="font-mono text-gray-400">{selectedLogDetail.timestamp}</span>
               </div>
             </div>

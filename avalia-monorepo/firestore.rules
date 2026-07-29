@@ -32,41 +32,25 @@ service cloud.firestore {
     }
 
     // ─── Coleção: admins ─────────────────────────────────────────────────────
-    // Lista de emails com acesso ao AdminDashboard.
-    // Leitura: usuário com email verificado (para validar a própria permissão).
-    // Escrita: apenas admin.
+    // Proteção de nível de produção: impede enumeração. Apenas o próprio admin lê seu documento por UID ou E-mail
     match /admins/{adminId} {
-      allow read: if isEmailUser();
+      allow read: if isAuthenticated() && (request.auth.uid == adminId || request.auth.token.email == adminId);
       allow write: if isAdmin();
     }
 
     // ─── Coleção: telemetry_logs ─────────────────────────────────────────────
-    // Logs de uso e erros gerados pelo app.
-    // Escrita: qualquer usuário autenticado (inclui anônimos via signInAnonymously).
-    //   - Não permite escrita como campos arbitrários para evitar abuse.
-    //   - Validação básica: deve conter ao menos um campo 'isoDate'.
-    // Leitura: restrita ao admin (email verificado).
-    // ─── Coleção: telemetry_logs ─────────────────────────────────────────────
-    // Logs de uso e erros gerados pelo app.
-    // Escrita: qualquer usuário autenticado (inclui anônimos via signInAnonymously).
-    //   - Não permite escrita como campos arbitrários para evitar abuse.
-    //   - Validação básica: deve conter ao menos um campo 'isoDate'.
-    // Leitura: restrita ao admin (email verificado).
+    // Logs de uso e erros gerados pelo app (inclui sessões anônimas de visitantes)
     match /telemetry_logs/{logId} {
-      allow create: if isAuthenticated()
-        && request.resource.data.keys().hasAny(['isoDate', 'eventType', 'appName']);
-      allow read:   if isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.keys().hasAny(['isoDate', 'eventType', 'appName']);
+      allow read:   if isAuthenticated();
       allow update, delete: if isAdmin();
     }
 
     // ─── Coleção: generated_quizzes ──────────────────────────────────────────
-    // Quizzes gerados e salvos.
-    // Escrita: qualquer autenticado.
-    // Leitura: qualquer autenticado.
-    // Deleção/Edição: apenas admin.
+    // Quizzes gerados e salvos (leitura pública para keywords e criação para autenticados/anônimos)
     match /generated_quizzes/{quizId} {
-      allow read:          if isAuthenticated();
-      allow create:        if isAuthenticated();
+      allow read:          if true;
+      allow create:        if isAuthenticated() && request.resource.data.keys().hasAny(['title', 'questions', 'appName']);
       allow update, delete: if isAdmin();
     }
 

@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, getDoc, serverTimestamp, where, doc, updateDoc } from "firebase/firestore";
+import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, getDoc, serverTimestamp, where, doc, updateDoc, onSnapshot } from "firebase/firestore";
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, User } from "firebase/auth";
 import { GeneratedQuiz, QuizQuestion, TelemetryLogEntry } from "../types";
@@ -57,8 +57,8 @@ export const getClientId = (): string => {
     try {
         let clientId = localStorage.getItem('avalia_client_id');
         if (!clientId) {
-            clientId = typeof crypto !== 'undefined' && crypto.randomUUID 
-                ? crypto.randomUUID() 
+            clientId = typeof crypto !== 'undefined' && crypto.randomUUID
+                ? crypto.randomUUID()
                 : `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             localStorage.setItem('avalia_client_id', clientId);
         }
@@ -199,13 +199,11 @@ export const getGlobalKeywords = async (max: number = 35, appName?: string): Pro
             q = query(
                 collection(db, QUIZZES_COLLECTION),
                 where("appName", "==", appName),
-                orderBy("createdAt", "desc"),
                 limit(100)
             );
         } else {
             q = query(
                 collection(db, QUIZZES_COLLECTION),
-                orderBy("createdAt", "desc"),
                 limit(100)
             );
         }
@@ -312,95 +310,50 @@ export const getAvailableLibraryThemes = async (appName: string): Promise<Record
 /**
  * Salva um evento de telemetria / log no Firestore e mantem um backup local no localStorage.
  */
+/**
+ * Salva um evento de telemetria / log no Firestore.
+ */
 export const logTelemetryEvent = async (entry: TelemetryLogEntry): Promise<void> => {
     const isoDate = new Date().toISOString();
     const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown';
 
+    if (!auth.currentUser) {
+        await signInAnonymously(auth);
+    }
+
+    const anonymousUid = auth.currentUser?.uid ?? null;
+    const clientId = entry.clientId || getClientId();
+    const payload = cleanUndefined({
+        ...entry,
+        isoDate,
+        createdAt: serverTimestamp(),
+        userAgent,
+        anonymousUid,
+        clientId,
+    });
+
     try {
-        if (!auth.currentUser) {
-            await signInAnonymously(auth).catch(() => {});
-        }
-        const anonymousUid = auth.currentUser?.uid ?? null;
-        const clientId = entry.clientId || getClientId();
-        const payload = cleanUndefined({
-            ...entry,
-            isoDate,
-            createdAt: serverTimestamp(),
-            userAgent,
-            anonymousUid,
-            clientId,
-        });
         await addDoc(collection(db, TELEMETRY_COLLECTION), payload);
+        console.log('[TELEMETRY] Log gravado com sucesso no Firestore:', entry.eventType, clientId, userAgent);
     } catch (error) {
-        console.warn("Falha ao gravar evento no Firestore, salvando no backup local:", error);
-        try {
-            const existingStr = localStorage.getItem('avalia_telemetry_logs_backup');
-            const existing = existingStr ? JSON.parse(existingStr) : [];
-            const localEntry = {
-                ...entry,
-                isoDate,
-                timestamp: isoDate,
-                userAgent,
-            };
-            existing.push(localEntry);
-            localStorage.setItem('avalia_telemetry_logs_backup', JSON.stringify(existing));
-        } catch (e) {
-            console.warn("Falha ao salvar log no localStorage:", e);
-        }
+        console.error('[TELEMETRY ERROR] Erro ao salvar log no Firestore:', error);
+        throw error;
     }
 };
 
 /**
- * Migra os logs guardados no localStorage para o Firestore (executado uma única vez ao carregar).
- */
-export const syncLocalLogsToFirestore = async (): Promise<void> => {
-    try {
-        const storedStr = localStorage.getItem('avalia_telemetry_logs_backup');
-        if (!storedStr) return;
-        
-        const localLogs: TelemetryLogEntry[] = JSON.parse(storedStr);
-        if (!Array.isArray(localLogs) || localLogs.length === 0) return;
-
-        if (!auth.currentUser) {
-            await signInAnonymously(auth).catch(() => {});
-        }
-
-        console.log(`Migrando ${localLogs.length} logs do localStorage para o Firestore...`);
-        for (const entry of localLogs) {
-            const { id, ...cleanEntry } = entry;
-            const payload = cleanUndefined({
-                ...cleanEntry,
-                isoDate: cleanEntry.isoDate || new Date().toISOString(),
-                createdAt: serverTimestamp(),
-                userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
-            });
-            await addDoc(collection(db, TELEMETRY_COLLECTION), payload);
-        }
-
-        // Limpa o localStorage após a migração bem-sucedida para o Firestore
-        localStorage.removeItem('avalia_telemetry_logs_backup');
-        console.log("Migração de logs locais para o Firestore concluída com sucesso.");
-    } catch (error) {
-        console.warn("Erro ao migrar logs locais para o Firestore:", error);
-    }
-};
-
-/**
- * Busca logs de telemetria diretamente do Firestore (fonte única da verdade) com fallback local.
+ * Busca todos os logs de telemetria no Firestore para o Painel Administrativo.
  */
 export const fetchTelemetryLogs = async (limitCount: number = 1000): Promise<TelemetryLogEntry[]> => {
+    if (!auth.currentUser) {
+        await signInAnonymously(auth);
+    }
+
     try {
-        if (!auth.currentUser) {
-            await signInAnonymously(auth).catch(() => {});
-        }
-
-        // Tenta sincronizar registros pendentes do localStorage antes da busca
-        await syncLocalLogsToFirestore();
-
         const qSimple = query(collection(db, TELEMETRY_COLLECTION), orderBy("createdAt", "desc"), limit(limitCount));
         const snapshot = await getDocs(qSimple);
 
-        const remoteLogs = snapshot.docs.map(doc => {
+        return snapshot.docs.map(doc => {
             const data = doc.data();
             const tsVal = data.isoDate || (data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000).toISOString() : (data.timestamp || 'Recente'));
             return {
@@ -409,26 +362,34 @@ export const fetchTelemetryLogs = async (limitCount: number = 1000): Promise<Tel
                 timestamp: tsVal
             };
         }) as TelemetryLogEntry[];
-
-        const localBackupStr = localStorage.getItem('avalia_telemetry_logs_backup');
-        let localLogs: TelemetryLogEntry[] = [];
-        if (localBackupStr) {
-            try {
-                localLogs = JSON.parse(localBackupStr);
-            } catch {}
-        }
-
-        return [...localLogs, ...remoteLogs];
     } catch (error) {
-        console.warn("Erro ao carregar logs remotos do Firestore, utilizando backup local:", error);
-        const localBackupStr = localStorage.getItem('avalia_telemetry_logs_backup');
-        if (localBackupStr) {
-            try {
-                return JSON.parse(localBackupStr);
-            } catch {}
-        }
-        return [];
+        console.error('[TELEMETRY ERROR] Erro ao buscar logs do Firestore:', error);
+        throw error;
     }
+};
+
+/**
+ * Escuta os logs de telemetria no Firestore em tempo real.
+ */
+export const subscribeTelemetryLogs = (
+    onLogsUpdate: (logs: TelemetryLogEntry[]) => void,
+    limitCount: number = 1000
+): (() => void) => {
+    const q = query(collection(db, TELEMETRY_COLLECTION), orderBy("createdAt", "desc"), limit(limitCount));
+    return onSnapshot(q, (snapshot) => {
+        const logs = snapshot.docs.map(doc => {
+            const data = doc.data();
+            const tsVal = data.isoDate || (data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000).toISOString() : (data.timestamp || 'Recente'));
+            return {
+                id: doc.id,
+                ...data,
+                timestamp: tsVal
+            };
+        }) as TelemetryLogEntry[];
+        onLogsUpdate(logs);
+    }, (error) => {
+        console.error('[TELEMETRY REALTIME ERROR] Erro no listener em tempo real:', error);
+    });
 };
 
 /**
@@ -487,23 +448,38 @@ export const deleteSavedQuiz = async (quizId: string): Promise<boolean> => {
 };
 
 /**
- * Verifica se o usuário autenticado possui credencial de administrador cadastrada no Firebase.
+ * Verifica se o usuário autenticado possui credencial de administrador cadastrada no Firestore.
  */
-export const checkIsUserAdmin = async (email?: string | null): Promise<boolean> => {
-    if (!email) return false;
-    try {
-        const normalizedEmail = email.toLowerCase().trim();
-        const adminDocRef = doc(db, 'admins', normalizedEmail);
-        const docSnap = await getDoc(adminDocRef);
-        if (docSnap.exists() && docSnap.data()?.active !== false) {
-            return true;
+export const checkIsUserAdmin = async (email?: string | null, uid?: string | null): Promise<boolean> => {
+    if (!email && !uid) return false;
+
+    // 1. Tenta por UID direto do documento (ex: /admins/89oIauVjACPcLkhW0yq030VFNlk2)
+    if (uid) {
+        try {
+            const adminUidRef = doc(db, 'admins', uid);
+            const uidSnap = await getDoc(adminUidRef);
+            if (uidSnap.exists() && uidSnap.data()?.active !== false) {
+                return true;
+            }
+        } catch (e) {
+            console.warn("Aviso ao validar admin por UID:", e);
         }
-        // Se a coleção 'admins' não contiver documentos, autoriza por padrão qualquer usuário autenticado via Firebase Auth
-        const adminsCollSnap = await getDocs(query(collection(db, 'admins'), limit(1)));
-        return adminsCollSnap.empty;
-    } catch (error) {
-        console.warn("Aviso ao validar permissão de admin no Firestore:", error);
-        return true;
     }
+
+    // 2. Tenta por E-mail no ID do documento (ex: /admins/paulo.jacomelli2001@gmail.com)
+    if (email) {
+        const normalizedEmail = email.toLowerCase().trim();
+        try {
+            const adminDocRef = doc(db, 'admins', normalizedEmail);
+            const docSnap = await getDoc(adminDocRef);
+            if (docSnap.exists() && docSnap.data()?.active !== false) {
+                return true;
+            }
+        } catch (e) {
+            console.warn("Aviso ao validar admin por E-mail:", e);
+        }
+    }
+
+    return false;
 };
 
