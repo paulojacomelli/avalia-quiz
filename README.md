@@ -1,49 +1,61 @@
-# Avalia Quiz - Ecossistema de Quizzes com IA (v1.7.6)
+# Avalia - Ecossistema Modular & Agnóstico de Quizzes com IA (v1.7.6)
 
-Bem-vindo ao repositório unificado do **Avalia Quiz**. Este projeto é um **Monorepo** moderno gerido via **Turborepo** e **NPM Workspaces**, centralizando múltiplas variantes do aplicativo (Avalia Quiz, Avalia JW Quiz e Avalia Kids) sob uma arquitetura agnóstica, escalável e de alto desempenho.
+O **Avalia** é uma plataforma e **Monorepo** agnóstico projetado para construção, execução e gerenciamento de aplicações de quiz interativas impulsionadas por Inteligência Artificial. Gerido via **Turborepo** e **NPM Workspaces**, o ecossistema separa estritamente a infraestrutura, o motor de jogo e o design system de qualquer contexto de domínio ou marca.
 
 ---
 
-## 🌟 Funcionalidades Principais
+## 🏗️ Arquitetura Agnóstica & Filosofia de Design
 
-- **Multi-Provider AI**: Suporte integrado e resiliente para os principais provedores de IA do mercado:
-  - **Google Gemini** (Nativo com Gemini 3.6 Flash / Pro e Gemini Live API)
+A arquitetura do projeto foi desenhada sob a diretriz de **Zero Contexto de Domínio nos Pacotes**:
+
+1. **Pacotes Base (`packages/`)**: Totalmente neutros e reutilizáveis. Não possuem regras de negócio específicas, termos hardcoded ou preferências visuais fixas.
+2. **Aplicativos Consumidores (`apps/`)**: Funcionam como **modelos e implementações de referência** (ex: *Avalia Quiz*, *Avalia JW Quiz*, *Avalia Kids*), injetando suas próprias configurações (`appConfig`), paletas, ícones e dicionários de temas (`themeLabelMap`) nos motores compartilhados.
+
+---
+
+## 🌟 Funcionalidades da Plataforma
+
+- **Motor de IA Multi-Provedor**: Suporte agnóstico e resiliente aos principais modelos do mercado:
+  - **Google Gemini** (Gemini 3.6 Flash / Pro e Gemini Live API)
   - **DeepSeek**
-  - **Groq** (Inferência Ultra-Rápida)
+  - **Groq** (Inferência de altíssima velocidade)
   - **OpenRouter** (Acesso a centenas de modelos)
-- **Chat Contínuo de IA no QuizCard**: Conversação e tirada de dúvidas persistente com a IA sobre a pergunta atual.
-- **Painel Administrativo Completo (`AdminDashboard`)**:
-  - **Gerenciamento Completo de Quizzes**: Visualização de perguntas e opção de exclusão definitiva de quizzes do banco Firestore.
-  - **Persistência de Abas**: O estado das abas navegadas e sub-abas é restaurado automaticamente ao recarregar a página (F5).
-  - **Telemetria e Logs Sanitizados**: Mapeamento rigoroso de exceções (`500`) e isolamento de erros reais sem ruídos.
-- **Segurança & Proteção (Rate Limiter)**: Proteção ativa contra tentativas de força bruta no Login com cooldowns expansivos e bloqueios IP/Client.
-- **Arquitetura 100% Agnóstica (/avalia)**: Zero acoplamento de domínio nos pacotes compartilhados (`@avalia/design-system`, `@avalia/game-engine`, `@avalia/services`). Rótulos e marcas são totalmente injetados via `appConfig` e `themeLabelMap`.
-- **Acessibilidade (VLibras)**: Integração nativa com o avatar do VLibras e dicionário de glosas em Libras.
-- **Modo Canary**: Alternância automatizada de identidade visual e assets para ambientes de desenvolvimento (`npm run apply-canary-assets`).
+- **Chat Contínuo de IA no QuizCard**: Módulo conversacional reutilizável para esclarecimentos sobre perguntas em tempo real.
+- **Painel Administrativo Agnóstico (`AdminDashboard`)**:
+  - **Gerenciamento de Quizzes**: Leitura e exclusão segura de conteúdos gerados.
+  - **Persistência de Estado**: Restauração automática de abas ao atualizar a página (F5).
+  - **Telemetria & Tratamento Sanitizado de Erros**: Mapeamento limpo de códigos HTTP (`500`) e logs operacionais.
+- **Segurança Integrada**: Proteção contra ataques de força bruta no login via Rate Limiter expansivo por cliente/IP.
+- **Acessibilidade Universal**: Integração nativa com o ecossistema VLibras (avatar e glosas).
+- **Gerenciamento de Marcas & Assets (Canary)**: Scripts automatizados para injeção de identidades visuais de desenvolvimento e produção.
 
 ---
 
-## 🚀 Estrutura do Projeto
+## 🚀 Estrutura do Monorepo
 
-O projeto está organizado no diretório `avalia-monorepo/`:
-- `apps/`: Aplicativos consumidores (`avalia-quiz`, `avalia-jw-quiz`, `avalia-kids`).
-- `packages/`: Lógica compartilhada, motores de jogo, design system e serviços de IA:
-  - `@avalia/core`: Tipagens, interfaces e utilitários agnósticos.
-  - `@avalia/services`: Firebase, integração com LLMs, telemetria e rate limiters.
-  - `@avalia/design-system`: Componentes reutilizáveis sem contexto de domínio (`QuizCard`, `AdminDashboard`, `ReadyCheck`).
-  - `@avalia/game-engine`: Engine principal do jogo, hooks de estado (`useGameLoop`) e controle de partidas.
-- `functions/`: Cloud Functions para rotinas backend de IA e Firebase.
-- `scripts/`: Automação de assets (Canary vs Oficial) e manutenção.
+O repositório é estruturado no diretório `avalia-monorepo/`:
+
+- `packages/` — **Infraestrutura e Motores Compartilhados**:
+  - `@avalia/core`: Tipagens, contratos e interfaces agnósticas.
+  - `@avalia/services`: Integrações com LLMs, Firebase, telemetria e rate limiters.
+  - `@avalia/design-system`: Componentes visuais desacoplados (`QuizCard`, `AdminDashboard`, `ReadyCheck`).
+  - `@avalia/game-engine`: Motor de regras do quiz e gerenciamento de estado (`useGameLoop`).
+- `apps/` — **Aplicações e Modelos de Referência**:
+  - `avalia-quiz`: Instância modelo genérica do aplicativo.
+  - `avalia-jw-quiz`: Instância modelo especializada via injeção de configuração.
+  - `avalia-kids`: Instância modelo voltada para o público infantil.
+- `functions/` — Backend serverless e funções de apoio em nuvem.
+- `scripts/` — Ferramental de automação de compilação e substituição de ativos.
 
 ---
 
-## 🛠️ Instalação e Desenvolvimento
+## 🛠️ Instalação e Execução
 
 ### 1. Pré-requisitos
 * [Node.js](https://nodejs.org/) (v22+ recomendada).
 * Conta no Firebase e chaves de API dos provedores desejados.
 
-### 2. Configuração
+### 2. Instalação
 
 ```bash
 # Clone o repositório
@@ -54,39 +66,38 @@ cd avalia-monorepo
 npm install
 ```
 
-### 3. Execução Local
+### 3. Executando as Aplicações Modelo
 
-Utilize os comandos na raiz de `avalia-monorepo/`:
-- `npm run dev:generic`: Inicia o **Avalia Quiz**.
-- `npm run dev:jw`: Inicia o **Avalia JW Quiz**.
-- `npm run dev:kids`: Inicia o **Avalia Kids**.
-- `npm run dev`: Executa todos os apps em paralelo com Turborepo.
+Na raiz do diretório `avalia-monorepo/`:
+- `npm run dev:generic`: Inicia a aplicação modelo **Avalia Quiz**.
+- `npm run dev:jw`: Inicia a aplicação modelo **Avalia JW Quiz**.
+- `npm run dev:kids`: Inicia a aplicação modelo **Avalia Kids**.
+- `npm run dev`: Executa todos os modelos simultaneamente via Turborepo.
 
-### 4. Build e Deploy
+### 4. Compilação e Deploy
 
-- `npm run build`: Executa o build de todos os aplicativos via Turborepo.
-- `npm run deploy:generic`: Build e deploy do **Avalia Quiz** no Firebase Hosting.
-- `npm run deploy:jw`: Build e deploy do **Avalia JW Quiz** no Firebase Hosting.
+- `npm run build`: Compila todos os pacotes e aplicativos.
+- `npm run deploy:generic`: Compila e realiza o deploy do target genérico no Firebase Hosting.
+- `npm run deploy:jw`: Compila e realiza o deploy do target específico no Firebase Hosting.
 
 ---
 
 ## ⚙️ Variáveis de Ambiente
 
-Cada app em `apps/` possui seu próprio arquivo `.env`. Configure-os seguindo os modelos fornecidos para habilitar os provedores de IA e a integração com Firebase.
+Cada aplicação em `apps/` define suas credenciais em seu respectivo `.env`. Consulte os arquivos `.env.example` para configurar os tokens de IA e conexões do Firebase.
 
 ---
 
 ## 📜 Licença
 
 Este projeto é distribuído sob a licença **GPLv3**.
-Você é livre para usar, estudar e modificar o software, mantendo-o open source.
+Você é livre para estudar, modificar e estender a plataforma mantendo a transparência open-source.
 
 ---
 
 ## 🔖 Release Atual: v1.7.6
+- Arquitetura agnóstica completa e modularização de pacotes.
 - Suporte a Gemini 3.6 Flash / Pro e Gemini Live API.
 - Chat contínuo com a IA por pergunta.
-- Exclusão completa de quizzes no Admin Dashboard.
-- Persistência no recarregamento de abas administrativas.
-- Rate Limiter de login contra força bruta.
-- Agnosticismo total do monorepo e sanitização dos códigos de erro (`500`).
+- Exclusão completa de quizzes e persistência de abas administrativas.
+- Rate Limiter contra força bruta.
