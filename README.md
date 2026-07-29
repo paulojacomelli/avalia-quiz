@@ -7,7 +7,7 @@ Bem-vindo ao repositório unificado do **Avalia Quiz**. Este projeto é um **Mon
 ## 🌟 Funcionalidades Principais
 
 - **Multi-Provider AI**: Suporte integrado e resiliente para os principais provedores de IA do mercado:
-  - **Google Gemini** (Nativo com Gemini 2.5 Flash / Pro e Gemini Live API)
+  - **Google Gemini** (Nativo com Gemini 3.6 Flash / Pro e Gemini Live API)
   - **DeepSeek**
   - **Groq** (Inferência Ultra-Rápida)
   - **OpenRouter** (Acesso a centenas de modelos)
