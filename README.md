@@ -88,6 +88,74 @@ Cada aplicação em `apps/` define suas credenciais em seu respectivo `.env`. Co
 
 ---
 
+## 🗄️ Estrutura do Banco de Dados (Firebase Firestore)
+
+O ecossistema utiliza o **Cloud Firestore** como banco de dados NoSQL. Para o funcionamento correto da autenticação, auditoria, telemetria e biblioteca de quizzes, o banco deve ser inicializado no console do Firebase com a seguinte estrutura de coleções:
+
+### 1. Coleções Principais
+
+- **`auth/access_control`** (ou subdocumentos da coleção `auth`):
+  - Guarda a chave de acesso do aplicativo (ex: `secret_code: "1914"`).
+  - Define provedores e modelos de IA padrão liberados para cada app.
+  - *Acesso*: Leitura pública / Escrita restrita aos administradores.
+
+- **`admins/`**:
+  - Documentos contendo IDs ou e-mails com privilégios administrativos.
+  - *Acesso*: Leitura para e-mails autenticados via Google / Escrita para administradores.
+
+- **`generated_quizzes/`**:
+  - Armazena o acervo de quizzes gerados (título, tema, perguntas, opções e áudios).
+  - *Campos obrigatórios*: `appName`, `topic`, `subTopic`, `title`, `questions`, `createdAt`, `clientId`, `aiModel`.
+  - *Acesso*: Leitura/Criação para usuários autenticados / Exclusão restrita a admins.
+
+- **`telemetry_logs/`**:
+  - Registra a telemetria em tempo real: conexões de IA, acessos, execuções do modo auto e logs de erros (`500`).
+  - *Campos obrigatórios*: `isoDate`, `eventType`, `appName`, `clientId`, `errorCode`, `errorMessage`.
+  - *Acesso*: Criação por clientes autenticados / Leitura e gerenciamento restrito a admins.
+
+---
+
+### 2. Regras de Segurança (`firestore.rules`)
+
+Suba as regras contidas no arquivo `avalia-monorepo/firestore.rules`:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() { return request.auth != null; }
+    function isEmailUser() { return isAuthenticated() && request.auth.token.email != null && request.auth.token.email_verified == true; }
+    function isAdmin() { return isEmailUser(); }
+
+    match /auth/{document=**} { allow read: if true; allow write: if isAdmin(); }
+    match /admins/{adminId} { allow read: if isEmailUser(); allow write: if isAdmin(); }
+    match /telemetry_logs/{logId} {
+      allow create: if isAuthenticated() && request.resource.data.keys().hasAny(['isoDate', 'eventType', 'appName']);
+      allow read, update, delete: if isAdmin();
+    }
+    match /generated_quizzes/{quizId} {
+      allow read, create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+  }
+}
+```
+
+---
+
+### 3. Índices Compostos Necessários
+
+Para consultas otimizadas no `AdminDashboard` e recuperação de quizzes por tema, crie os seguintes índices compostos no Firestore:
+
+| Coleção | Campos Indexados (Ordem) | Função |
+| :--- | :--- | :--- |
+| `generated_quizzes` | `appName` (Asc), `createdAt` (Desc) | Listagem cronológica de quizzes por app |
+| `generated_quizzes` | `appName` (Asc), `topic` (Asc), `createdAt` (Desc) | Filtro por temas no acervo de quizzes |
+| `telemetry_logs` | `appName` (Asc), `isoDate` (Desc) | Exibição de logs de telemetria no Admin |
+| `telemetry_logs` | `eventType` (Asc), `isoDate` (Desc) | Filtro da aba Erros & Falhas |
+
+---
+
 ## 📜 Licença
 
 Este projeto é distribuído sob a licença **GPLv3**.
