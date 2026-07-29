@@ -137,31 +137,21 @@ O ecossistema utiliza o **Cloud Firestore** como banco de dados NoSQL. Para o fu
   > | **OpenRouter** | `admin_model_openrouter` | `openrouter/auto:free`, `deepseek/deepseek-v4-flash` |
   > | **DeepSeek** | `admin_model_deepseek` | `deepseek-reasoner`, `deepseek-chat` |
   > | **OpenAI** | `admin_model_openai` | `gpt-5.6`, `gpt-4o-mini` |
-  > | **Claude** | `admin_model_claude` | `claude-fable-5`, `claude-3-5-haiku-20241022` |
-  > | **Multimodal / Live** | `admin_model_live` | `gemini-3.1-flash-live-preview`, `gemini-2.0-flash-exp` |
-  > | **Voz / TTS** | `admin_model_tts` / `admin_model_tts_openai` | `gemini-3.1-flash-tts-preview`, `gpt-4o-mini-tts`, `tts-1` |
-  
-  - *Acesso*: Leitura pública (necessário para o login de código de acesso) / Escrita restrita a administradores.
-
 - **`admins/`**:
-  - Documentos contendo IDs ou e-mails com privilégios administrativos.
-  - *Acesso*: Leitura para e-mails autenticados via Google / Escrita para administradores.
+  - IDs dos documentos contêm o **UID** ou o **E-mail** do Administrador.
+  - *Campos*: `active` (boolean), `email` (string).
 
 - **`generated_quizzes/`**:
   - Armazena o acervo de quizzes gerados (título, tema, perguntas, opções e áudios).
-  - *Campos obrigatórios*: `appName`, `topic`, `subTopic`, `title`, `questions`, `createdAt`, `clientId`, `aiModel`.
-  - *Acesso*: Leitura/Criação para usuários autenticados / Exclusão restrita a admins.
+  - *Campos*: `appName`, `topic`, `subTopic`, `title`, `questions`, `createdAt`, `clientId`, `aiModel`.
 
 - **`telemetry_logs/`**:
   - Registra a telemetria em tempo real: conexões de IA, acessos, execuções do modo auto e logs de erros (`500`).
-  - *Campos obrigatórios*: `isoDate`, `eventType`, `appName`, `clientId`, `errorCode`, `errorMessage`.
-  - *Acesso*: Criação por clientes autenticados / Leitura e gerenciamento restrito a admins.
+  - *Campos*: `isoDate`, `eventType`, `appName`, `clientId`, `errorCode`, `errorMessage`.
 
 ---
 
 ### 2. Regras de Segurança (`firestore.rules`)
-
-Suba as regras contidas no arquivo `avalia-monorepo/firestore.rules`:
 
 ```javascript
 rules_version = '2';
@@ -172,31 +162,24 @@ service cloud.firestore {
     function isAdmin() { return isEmailUser(); }
 
     match /auth/{document=**} { allow read: if true; allow write: if isAdmin(); }
-    match /admins/{adminId} { allow read: if isEmailUser(); allow write: if isAdmin(); }
+    match /admins/{adminId} {
+      allow read: if isAuthenticated() && (request.auth.uid == adminId || request.auth.token.email == adminId);
+      allow write: if isAdmin();
+    }
     match /telemetry_logs/{logId} {
       allow create: if isAuthenticated() && request.resource.data.keys().hasAny(['isoDate', 'eventType', 'appName']);
-      allow read, update, delete: if isAdmin();
-    }
-    match /generated_quizzes/{quizId} {
-      allow read, create: if isAuthenticated();
+      allow read:   if isAuthenticated();
       allow update, delete: if isAdmin();
     }
+    match /generated_quizzes/{quizId} {
+      allow read:          if true;
+      allow create:        if isAuthenticated() && request.resource.data.keys().hasAny(['title', 'questions', 'appName']);
+      allow update, delete: if isAdmin();
+    }
+    match /{document=**} { allow read, write: if false; }
   }
 }
 ```
-
----
-
-### 3. Índices Compostos Necessários
-
-Para consultas otimizadas no `AdminDashboard` e recuperação de quizzes por tema, crie os seguintes índices compostos no Firestore:
-
-| Coleção | Campos Indexados (Ordem) | Função |
-| :--- | :--- | :--- |
-| `generated_quizzes` | `appName` (Asc), `createdAt` (Desc) | Listagem cronológica de quizzes por app |
-| `generated_quizzes` | `appName` (Asc), `topic` (Asc), `createdAt` (Desc) | Filtro por temas no acervo de quizzes |
-| `telemetry_logs` | `appName` (Asc), `isoDate` (Desc) | Exibição de logs de telemetria no Admin |
-| `telemetry_logs` | `eventType` (Asc), `isoDate` (Desc) | Filtro da aba Erros & Falhas |
 
 ---
 
@@ -207,17 +190,11 @@ Você é livre para estudar, modificar e estender a plataforma mantendo a transp
 
 ---
 
-## 📐 Diretrizes Arquiteturais do Monorepo
-
-- **Zero Contexto de Domínio nos Pacotes (`packages/`)**:
-  Nenhum arquivo dentro de `packages/` tem permissão de conhecer a identidade do aplicativo consumidor. É proibido usar checagens diretas de marca (ex: `if (APP === 'JW_QUIZ')`). Variações visuais ou comportamentais devem ser injetadas via Props ou Context Providers a partir de `apps/*`.
-
----
-
----
-
-## 🔖 Release Atual: v1.9.48
-- Arquitetura agnóstica completa e modularização de pacotes.
+## 🔖 Release Atual: v1.4.74
+- Métrica de Usuários Criadores e Média de Quizzes por Criador no Bento Grid.
+- Proteção estrita contra enumeração de Administradores por UID/E-mail no Firestore.
+- Deduplicação de telemetria de acessos.
+- Workflow automático de publicação para GitHub Pages (`deploy-pages.yml`).
 - Suporte a Gemini 3.6 Flash / Pro e Gemini Live API.
 - Chat contínuo com a IA por pergunta.
 - Exclusão completa de quizzes e persistência de abas administrativas.
