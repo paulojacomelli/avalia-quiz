@@ -1,7 +1,7 @@
 {
   "name": "@avalia/quiz",
   "private": true,
-  "version": "1.9.9",
+  "version": "1.9.47",
   "type": "module",
   "scripts": {
     "dev": "vite",

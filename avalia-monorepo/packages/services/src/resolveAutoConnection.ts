@@ -49,7 +49,7 @@ export const discoverConfiguredProviders = (firestoreData: Record<string, any>):
   }
 
   // Fallback para mapa explícito dos provedores oficialmente suportados
-  const supportedProviders: AiProvider[] = ['google-ai', 'openrouter', 'groq', 'deepseek', 'openai'];
+  const supportedProviders: AiProvider[] = ['google-ai', 'openrouter', 'groq', 'claude', 'deepseek', 'openai'];
   const candidates: ProviderCandidate[] = [];
 
   for (const prov of supportedProviders) {

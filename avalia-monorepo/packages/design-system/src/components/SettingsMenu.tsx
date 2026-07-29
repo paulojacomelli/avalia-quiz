@@ -28,6 +28,7 @@ type SettingsMenuProps = {
     onToggleFullscreen: () => void;
 
     onOpenGuide: () => void;
+    onOpenPolicies?: () => void;
     onGoHome: () => void;
     onLogout: () => void;
     interfaceLanguage: 'pt' | 'libras';
@@ -42,7 +43,7 @@ export function SettingsMenu(props: SettingsMenuProps) {
         ttsMode, onTtsChange,
         zoomValue, onZoomIn, onZoomOut,
         isFullscreen, onToggleFullscreen,
-        onOpenGuide, onGoHome, onLogout,
+        onOpenGuide, onOpenPolicies, onGoHome, onLogout,
         interfaceLanguage, onLanguageChange,
         ttsDisabled = false,
         zoomLabel = "Zoom",
@@ -184,6 +185,20 @@ export function SettingsMenu(props: SettingsMenuProps) {
                             <div className="w-5 h-5 rounded-full border border-gray-500 group-hover:border-brand-blue flex items-center justify-center text-[10px] font-bold text-gray-500 group-hover:text-brand-blue transition-colors">?</div>
                             <span className="text-sm font-medium">Ajuda e Tutorial</span>
                         </button>
+
+                        {/* Políticas do App */}
+                        {onOpenPolicies && (
+                            <button
+                                role="menuitem"
+                                className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-brand-hover transition-colors group"
+                                onClick={() => handleAction(onOpenPolicies)}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-400 opacity-60 group-hover:opacity-100 group-hover:text-brand-blue transition-colors">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                                </svg>
+                                <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Políticas do App</span>
+                            </button>
+                        )}
 
                         {/* Início */}
                         <button

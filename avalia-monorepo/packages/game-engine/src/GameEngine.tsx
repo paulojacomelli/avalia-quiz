@@ -234,7 +234,7 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
           loadingMessage={game.loadingMessage}
           apiError={game.errorDetail}
           onClearError={() => game.setErrorDetail(null)}
-          onLoginWithCode={async (code, selectedProvider) => {
+          onLoginWithCode={async (code, selectedProvider, selectedModel) => {
             try {
               const docSnap = await getDoc(doc(db, "auth", "config"));
               if (docSnap.exists() && docSnap.data().secret_code === code) {
@@ -268,14 +268,16 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
                   if (!adminKey || typeof adminKey !== 'string' || !adminKey.trim()) {
                     throw new Error(`Chave de API do provedor '${selectedProvider}' (admin_key_${providerSlug}) não encontrada no Firestore.`);
                   }
-                  if (!adminModel || typeof adminModel !== 'string' || !adminModel.trim()) {
-                    throw new Error(`Modelo de IA do provedor '${selectedProvider}' (admin_model_${providerSlug}) não encontrado no Firestore.`);
+
+                  const targetModel = (selectedModel && selectedModel !== 'default') ? selectedModel : adminModel;
+                  if (!targetModel || typeof targetModel !== 'string' || !targetModel.trim()) {
+                    throw new Error(`Modelo de IA do provedor '${selectedProvider}' não especificado nem encontrado no Firestore.`);
                   }
 
-                  await validateApiKey(adminKey.trim(), selectedProvider, adminModel.trim());
+                  await validateApiKey(adminKey.trim(), selectedProvider, targetModel.trim());
                   activeKey = adminKey.trim();
                   activeProvider = selectedProvider;
-                  activeModel = adminModel.trim();
+                  activeModel = targetModel.trim();
                 }
 
                 login(activeKey, activeProvider, activeModel);
@@ -287,7 +289,7 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
               throw err;
             }
           }}
-          onLoginWithApiKey={login}
+          onLoginWithApiKey={async (key, prov, mod) => login(key, prov, mod)}
         />
         <CookieBanner onOpenPrivacy={() => setIsPrivacyPolicyOpen(true)} />
         <PrivacyPolicyModal isOpen={isPrivacyPolicyOpen} onClose={() => setIsPrivacyPolicyOpen(false)} appName={appName} />
@@ -509,6 +511,8 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
                   onZoomOut={() => settings.setZoomLevel(z => Math.max(0.75, z - 0.05))}
                   isFullscreen={settings.isFullscreen}
                   onToggleFullscreen={settings.toggleFullscreen}
+                  onOpenGuide={() => settings.setIsGuideOpen(true)}
+                  onOpenPolicies={() => setIsPrivacyPolicyOpen(true)}
                   onGoHome={game.executeReset}
                   onLogout={() => game.setPendingAction('LOGOUT')}
                   interfaceLanguage={game.interfaceLanguage}

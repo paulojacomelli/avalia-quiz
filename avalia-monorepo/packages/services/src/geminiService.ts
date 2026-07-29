@@ -3,15 +3,15 @@ import { QuizConfig, TopicMode, GeneratedQuiz, QuizQuestion, HintType, QuizForma
 import { getQuestionReadAloudText } from "./tts";
 import { PROMPTS } from "@avalia/core";
 import { buildQuizPrompt } from "@avalia/ai-prompts";
-import { logTelemetryEvent } from "./firebase";
+import { logTelemetryEvent, getClientId } from "./firebase";
 
 /**
  * Formata mensagens de erro HTTP cruas da API em texto amigável em Português.
  */
-const parseApiErrorMessage = (errorText: string, status: number): string => {
+const parseApiErrorMessage = (errorText: string, status: number | string): string => {
   let cleanMsg = errorText;
   try {
-    const parsed = JSON.parse(errorText);
+    const parsed = typeof errorText === 'string' ? JSON.parse(errorText) : errorText;
     cleanMsg = parsed?.error?.message || parsed?.message || parsed?.error || errorText;
     if (typeof cleanMsg === 'object') {
       cleanMsg = JSON.stringify(cleanMsg);
@@ -21,23 +21,26 @@ const parseApiErrorMessage = (errorText: string, status: number): string => {
   }
 
   const lowerMsg = String(cleanMsg).toLowerCase();
+  if (lowerMsg.includes('quota exceeded') || lowerMsg.includes('resource_exhausted') || lowerMsg.includes('rate_limit') || lowerMsg.includes('free_tier_requests')) {
+    return 'Cota ou limite de requisições excedido no provedor. Por favor, aguarde alguns segundos ou selecione outro modelo/provedor.';
+  }
   if (lowerMsg.includes('no :free endpoints') || lowerMsg.includes('no free endpoints') || lowerMsg.includes('no endpoints available')) {
     return 'Servidores gratuitos do OpenRouter temporariamente sem capacidade. Tente novamente em alguns segundos ou escolha outro provedor.';
   }
-  if (status === 402 || lowerMsg.includes('insufficient balance') || lowerMsg.includes('insufficient_balance')) {
-    return 'Saldo insuficiente na conta do provedor de IA.';
+  if (status === 402 || status === '402' || lowerMsg.includes('insufficient balance') || lowerMsg.includes('insufficient_balance') || lowerMsg.includes('credit balance is too low') || lowerMsg.includes('purchase credits')) {
+    return 'Saldo insuficiente na conta da API. Acesse o painel do seu provedor para adicionar créditos.';
   }
-  if (status === 429 || lowerMsg.includes('rate limit') || lowerMsg.includes('quota')) {
-    return 'Limite de requisições ou quota excedida no provedor de IA.';
+  if (status === 429 || status === '429') {
+    return 'Limite de requisições excedido no provedor de IA. Aguarde alguns instantes.';
   }
-  if (status === 403 || status === 401 || lowerMsg.includes('invalid api key') || lowerMsg.includes('api key not valid')) {
+  if (status === 403 || status === 401 || status === '403' || status === '401' || lowerMsg.includes('invalid api key') || lowerMsg.includes('api key not valid')) {
     return 'Chave de API inválida ou sem permissão de acesso.';
   }
-  if (status >= 500) {
+  if (typeof status === 'number' && status >= 500) {
     return 'Servidor do provedor de IA temporariamente indisponível.';
   }
 
-  return cleanMsg ? String(cleanMsg).slice(0, 300) : `Erro de requisição (HTTP ${status})`;
+  return cleanMsg ? String(cleanMsg).slice(0, 250) : `Erro na API (${status})`;
 };
 
 /**
@@ -65,6 +68,14 @@ const getSDKInstance = (apiKey: string) => {
 };
 
 const getFetchHeaders = (apiKey: string, provider: AiProvider, appName?: string) => {
+  if (provider === 'claude') {
+    return {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    };
+  }
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "Authorization": `Bearer ${apiKey}`
@@ -73,6 +84,194 @@ const getFetchHeaders = (apiKey: string, provider: AiProvider, appName?: string)
     headers["X-Title"] = appName;
   }
   return headers;
+};
+
+/**
+ * Busca dinamicamente os modelos disponíveis na API do Claude (GET /v1/models)
+ */
+export const fetchClaudeModels = async (apiKey: string): Promise<{ value: string; label: string; status?: string }[]> => {
+  if (!apiKey || !apiKey.trim()) return [];
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/models", {
+      method: "GET",
+      headers: {
+        "x-api-key": apiKey.trim(),
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      }
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (data && Array.isArray(data.data)) {
+      const models = data.data.map((m: any) => ({
+        value: m.id,
+        label: m.display_name || m.id
+      }));
+
+      return models.sort((a: any, b: any) => {
+        const extractVersion = (str: string): number => {
+          const match = str.match(/(\d+(?:\.\d+)?)/);
+          return match ? parseFloat(match[1]) : 0;
+        };
+
+        const verA = extractVersion(a.label || a.value);
+        const verB = extractVersion(b.label || b.value);
+
+        if (verB !== verA) {
+          return verB - verA;
+        }
+
+        const getFamilyRank = (str: string): number => {
+          const s = str.toLowerCase();
+          if (s.includes('fable')) return 4;
+          if (s.includes('sonnet')) return 3;
+          if (s.includes('opus')) return 2;
+          if (s.includes('haiku')) return 1;
+          return 0;
+        };
+
+        const rankA = getFamilyRank(a.label || a.value);
+        const rankB = getFamilyRank(b.label || b.value);
+
+        if (rankB !== rankA) {
+          return rankB - rankA;
+        }
+
+        return b.label.localeCompare(a.label, undefined, { numeric: true, sensitivity: 'base' });
+      });
+    }
+  } catch (e) {
+    console.warn("Erro ao buscar modelos dinâmicos do Claude:", e);
+  }
+  return [];
+};
+
+/**
+ * Busca dinamicamente os modelos disponíveis em tempo real para qualquer provedor suportado.
+ */
+export const fetchDynamicModels = async (
+  provider: AiProvider, 
+  apiKey: string, 
+  target: 'text' | 'tts' = 'text'
+): Promise<{ value: string; label: string; status?: string }[]> => {
+  if (!apiKey || !apiKey.trim()) return [];
+  const key = apiKey.trim();
+
+  try {
+    if (provider === 'claude') {
+      if (target === 'tts') return [];
+      return await fetchClaudeModels(key);
+    }
+
+    if (provider === 'google-ai' || provider === 'vertex') {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      if (data && Array.isArray(data.models)) {
+        const models = data.models
+          .filter((m: any) => {
+            if (!m.name) return false;
+            const nameLower = m.name.toLowerCase();
+            const isTts = nameLower.includes('tts') || nameLower.includes('audio') || nameLower.includes('speech');
+            if (target === 'tts') return isTts;
+            
+            const isNonText = isTts || 
+              nameLower.includes('image') || 
+              nameLower.includes('imagen') || 
+              nameLower.includes('embed') || 
+              nameLower.includes('bidi') || 
+              nameLower.includes('realtime') ||
+              nameLower.includes('robotics') ||
+              nameLower.includes('computer-use') ||
+              nameLower.includes('deep-research') ||
+              nameLower.includes('teacher');
+
+            if (isNonText) return false;
+            return m.name.includes('gemini') && m.supportedGenerationMethods?.includes('generateContent');
+          })
+          .map((m: any) => {
+            const cleanId = m.name.replace(/^models\//, '');
+            return {
+              value: cleanId,
+              label: m.displayName ? `${m.displayName} (${cleanId})` : cleanId
+            };
+          });
+
+        return models.sort((a: any, b: any) => b.label.localeCompare(a.label, undefined, { numeric: true, sensitivity: 'base' }));
+      }
+    }
+
+    if (provider === 'openai' || provider === 'deepseek' || provider === 'groq' || provider === 'openrouter') {
+      const url = provider === 'openai'
+        ? "https://api.openai.com/v1/models"
+        : provider === 'deepseek'
+          ? "https://api.deepseek.com/models"
+          : provider === 'groq'
+            ? "https://api.groq.com/openai/v1/models"
+            : "https://openrouter.ai/api/v1/models";
+
+      const headers = getFetchHeaders(key, provider);
+      const res = await fetch(url, { method: "GET", headers });
+      if (!res.ok) return [];
+      const data = await res.json();
+      if (data && Array.isArray(data.data)) {
+        const models = data.data
+          .filter((m: any) => {
+            if (!m.id) return false;
+            const idLower = m.id.toLowerCase();
+            const isTts = idLower.includes('tts') || idLower.includes('audio') || idLower.includes('realtime') || idLower.includes('whisper') || idLower.includes('speech');
+            if (target === 'tts') return isTts;
+            if (isTts) return false;
+
+            const isNonText = idLower.includes('dall-e') || 
+              idLower.includes('image') || 
+              idLower.includes('embed') || 
+              idLower.includes('moderation') || 
+              idLower.includes('transcription') || 
+              idLower.includes('rerank');
+
+            if (isNonText) return false;
+
+            if (provider === 'openai') {
+              return idLower.startsWith('gpt') || idLower.startsWith('o1') || idLower.startsWith('o3');
+            }
+            return true;
+          })
+          .map((m: any) => {
+            let label = m.name || m.id;
+            let status: string | undefined = undefined;
+            if (provider === 'openrouter') {
+              const promptVal = m.pricing ? parseFloat(m.pricing.prompt || '0') : 0;
+              const completionVal = m.pricing ? parseFloat(m.pricing.completion || '0') : 0;
+              const isFree = (m.id && m.id.endsWith(':free')) || (promptVal === 0 && completionVal === 0);
+              
+              if (isFree) {
+                status = 'Grátis';
+              } else if (promptVal > 0) {
+                const costPer1M = promptVal * 1000000;
+                if (costPer1M < 0.01) {
+                  status = '<$0.01/1M';
+                } else {
+                  status = `$${costPer1M.toFixed(2)}/1M`;
+                }
+              } else {
+                status = 'Pago';
+              }
+            }
+            return {
+              value: m.id,
+              label,
+              status
+            };
+          });
+
+        return models.sort((a: any, b: any) => b.label.localeCompare(a.label, undefined, { numeric: true, sensitivity: 'base' }));
+      }
+    }
+  } catch (e) {
+    console.warn(`Erro ao buscar modelos dinâmicos do ${provider} (${target}):`, e);
+  }
+  return [];
 };
 
 /**
@@ -199,6 +398,54 @@ export const validateApiKey = async (apiKey: string, provider: AiProvider, model
     }
   }
 
+  if (provider === 'claude') {
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: getFetchHeaders(apiKey, provider),
+        body: JSON.stringify({
+          model: model,
+          messages: [{ role: "user", content: "Reply 'OK'." }],
+          max_tokens: 5
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Claude validation failed:", response.status, errorText);
+        let apiMessage = "";
+        try {
+          const errObj = JSON.parse(errorText);
+          apiMessage = errObj.error?.message || errObj.message || "";
+        } catch (e) { }
+
+        const lowerMsg = apiMessage.toLowerCase();
+        if (response.status === 401 || lowerMsg.includes('invalid x-api-key') || lowerMsg.includes('invalid api key')) {
+          throw new Error("Chave de API do Claude incorreta ou inativa na Anthropic.");
+        }
+        if (response.status === 402 || lowerMsg.includes('credit balance is too low') || lowerMsg.includes('purchase credits') || lowerMsg.includes('insufficient balance')) {
+          throw new Error("Saldo insuficiente na Anthropic (Claude). Acesse Plans & Billing no console da Anthropic para adicionar créditos.");
+        }
+        if (response.status === 429) {
+          throw new Error("Limite de requisições excedido no Claude (Anthropic). Aguarde alguns instantes.");
+        }
+        if (apiMessage) {
+          throw new Error(`Erro na API do Claude: ${apiMessage}`);
+        }
+        throw new Error(`Validação da API do Claude falhou (${response.status}): ${errorText}`);
+      }
+
+      const data = await response.json();
+      return !!(data.content && data.content[0]?.text);
+    } catch (error: any) {
+      console.error("Claude Validation Error:", error);
+      if (error.message && (error.message.includes("Failed to fetch") || error.message.includes("fetch"))) {
+        throw new Error("Erro de conexão com o Claude (Anthropic). Pode ser devido a restrições de CORS no navegador ou falta de internet.");
+      }
+      throw error;
+    }
+  }
+
   if (provider === 'google-ai' || provider === 'vertex') {
     try {
       const genAI = getSDKInstance(apiKey);
@@ -209,7 +456,8 @@ export const validateApiKey = async (apiKey: string, provider: AiProvider, model
       return !!result.text;
     } catch (error: any) {
       console.error("Google AI Validation Error:", error);
-      throw new Error(error.message || "Chave incorreta ou inativa. O Google recusou a conexão.");
+      const friendlyMsg = parseApiErrorMessage(error.message || String(error), error.status || 429);
+      throw new Error(friendlyMsg);
     }
   }
 
@@ -270,8 +518,17 @@ const executeSingleQuizRequest = async (
     }
 
     const data = await resp.json();
+
+    const choiceError = data.choices?.[0]?.error?.message || data.error?.message;
+    if (choiceError) {
+      const friendlyMsg = parseApiErrorMessage(String(choiceError), resp.status);
+      throw new Error(`Erro na API do ${displayName} (${model}): ${friendlyMsg}`);
+    }
+
     const text = data.choices?.[0]?.message?.content;
-    if (!text) throw new Error(`Falha ao obter resposta da API do ${displayName}.`);
+    if (!text || !text.trim()) {
+      throw new Error(`O modelo '${model}' do ${displayName} não retornou conteúdo. Os servidores gratuitos desse modelo podem estar temporariamente sobrecarregados no OpenRouter. Tente outro modelo.`);
+    }
 
     const raw = cleanJson(text);
     const parsedPt = JSON.parse(raw);
@@ -311,6 +568,74 @@ const executeSingleQuizRequest = async (
       title: parsed.title,
       topic: config.mode,
       aiModel: actualAiModelLabel,
+      clientId: getClientId(),
+      promptTokens,
+      completionTokens,
+      totalTokens,
+      durationMs: Date.now() - startTime
+    });
+
+    return shuffleQuizOptions(parsed, config.quizFormat);
+  }
+
+  if (provider === 'claude') {
+    const payload: any = {
+      model: model,
+      max_tokens: 4096,
+      system: getSystemInstruction(config.librasEnabled, config.systemPrompt) + "\nResponda APENAS em JSON.",
+      messages: [
+        { role: "user", content: prompt }
+      ],
+      temperature: config.temperature
+    };
+
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: getFetchHeaders(apiKey, provider, appName),
+      body: JSON.stringify(payload)
+    });
+
+    if (!resp.ok) {
+      const errorText = await resp.text();
+      const friendlyMsg = parseApiErrorMessage(errorText, resp.status);
+      throw new Error(`Erro na API do Claude (${model}): ${resp.status} - ${friendlyMsg}`);
+    }
+
+    const data = await resp.json();
+    const text = data.content?.[0]?.text;
+    if (!text) throw new Error("Falha ao obter resposta da API do Claude.");
+
+    const raw = cleanJson(text);
+    const parsedPt = JSON.parse(raw);
+
+    const parsed: GeneratedQuiz = {
+      title: parsedPt.titulo || "Quiz",
+      keywords: parsedPt.palavrasChave || [],
+      focalTheme: parsedPt.palavrasChave?.[0] || "Dinâmico",
+      questions: (parsedPt.perguntas || []).map((p: any) => ({
+        id: p.id || `q-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        question: p.enunciado,
+        options: p.opcoes || [],
+        correctAnswerIndex: p.indiceRespostaCorreta ?? -1,
+        correctAnswerText: p.textoRespostaCorreta,
+        reference: p.referencia || "",
+        explanation: p.justificativa || "",
+        glosa: p.glosa || "",
+        hint: p.dica || ""
+      }))
+    };
+
+    const promptTokens = data.usage?.input_tokens;
+    const completionTokens = data.usage?.output_tokens;
+    const totalTokens = (promptTokens || 0) + (completionTokens || 0);
+
+    logTelemetryEvent({
+      eventType: 'quiz_generated',
+      errorCode: '200',
+      appName,
+      title: parsed.title,
+      topic: config.mode,
+      aiModel: `claude/${model}`,
       clientId: getClientId(),
       promptTokens,
       completionTokens,
@@ -425,7 +750,7 @@ export const generateQuizContent = async (apiKey: string, config: QuizConfig, gl
       errorCode: String(statusStr),
       errorMessage: friendlyMsg,
       title: `Erro no Provedor ${effectiveProvider}`,
-      solution: 'Verifique se a Chave de API está correta e ativa',
+      solution: 'Tente novamente em alguns instantes ou selecione outro modelo de IA.',
       aiModel: `${effectiveProvider}/${model}`,
       appName
     });
@@ -528,6 +853,72 @@ export const generateReplacementQuestion = async (apiKey: string, config: QuizCo
       return shuffleQuestionOptions(question);
     } catch (e) {
       throw new Error(`Erro ao processar substituição do ${displayName}.`);
+    }
+  }
+
+  if (effectiveProvider === 'claude') {
+    const topicPrompt = getTopicPrompt(config);
+    const formatInstruction = getFormatInstruction(config);
+    const prompt = `
+      Gere uma nova pergunta para o tema: ${topicPrompt}. 
+      Dificuldade: ${config.difficulty}. 
+      NÃO repita esta ideia: "${avoidQuestionText}". 
+      ${formatInstruction}
+      
+      A resposta deve ser um objeto JSON seguindo exatamente este formato:
+      {
+        "id": "Identificador único.",
+        "enunciado": "Texto da pergunta.",
+        "opcoes": ["Alternativa 1", "Alternativa 2", "Alternativa 3", "Alternativa 4"],
+        "indiceRespostaCorreta": 0,
+        "textoRespostaCorreta": "Texto da resposta correta.",
+        "referencia": "Fonte que embasa a pergunta.",
+        "justificativa": "A explicação.",
+        "glosa": "Tradução para Libras.",
+        "dica": "Dica curta."
+      }
+    `;
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: getFetchHeaders(apiKey, effectiveProvider, appName),
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 2048,
+        system: getSystemInstruction(config.librasEnabled, config.systemPrompt) + "\nResponda APENAS em JSON.",
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      const friendlyMsg = parseApiErrorMessage(errorText, response.status);
+      const fullErrorMsg = `Erro na API do Claude: ${response.status} - ${friendlyMsg}`;
+      logApiErrorToTelemetry("Claude", response.status, fullErrorMsg, appName);
+      console.error("Claude API Error:", response.status, errorText);
+      throw new Error(fullErrorMsg);
+    }
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text;
+    if (!text) throw new Error("Falha ao gerar pergunta de substituição com o Claude.");
+
+    try {
+      const p = JSON.parse(cleanJson(text));
+      const question: QuizQuestion = {
+        id: `sub-${Date.now()}`,
+        question: p.enunciado,
+        options: p.opcoes || [],
+        correctAnswerIndex: p.indiceRespostaCorreta ?? -1,
+        correctAnswerText: p.textoRespostaCorreta,
+        reference: p.referencia || "",
+        explanation: p.justificativa || "",
+        glosa: p.glosa || "",
+        hint: p.dica || ""
+      };
+      return shuffleQuestionOptions(question);
+    } catch (e) {
+      throw new Error("Erro ao processar substituição do Claude.");
     }
   }
 

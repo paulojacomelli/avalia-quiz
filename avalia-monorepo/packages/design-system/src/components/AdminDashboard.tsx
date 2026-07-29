@@ -445,6 +445,7 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
   const [timeRange, setTimeRange] = useState<TimeRangePreset>('7d');
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
+  const [latencyViewMode, setLatencyViewMode] = useState<'provider' | 'model'>('provider');
 
   const [logsPage, setLogsPage] = useState<number>(1);
   const [quizzesPage, setQuizzesPage] = useState<number>(1);
@@ -794,6 +795,40 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
     return modelStr || 'Desconhecido';
   };
 
+  const getCanonicalProvider = useCallback((rawModel?: string, rawProvider?: string): string => {
+    if (rawProvider && rawProvider.trim() && rawProvider.trim().toLowerCase() !== 'auto') {
+      const p = rawProvider.trim().toLowerCase();
+      if (p === 'google-ai' || p === 'google_ai' || p === 'googleai') return 'Google AI';
+      if (p === 'groq') return 'Groq';
+      if (p === 'openrouter') return 'OpenRouter';
+      if (p === 'deepseek') return 'DeepSeek';
+      if (p === 'openai') return 'OpenAI';
+      if (p === 'claude' || p === 'anthropic') return 'Claude';
+      return rawProvider.trim();
+    }
+    if (rawModel && rawModel.trim()) {
+      const m = rawModel.trim().toLowerCase();
+      if (m.startsWith('groq/')) return 'Groq';
+      if (m.startsWith('google-ai/') || m.startsWith('google/') || m.startsWith('gemini')) return 'Google AI';
+      if (m.startsWith('openrouter/')) return 'OpenRouter';
+      if (m.startsWith('deepseek/') || m.startsWith('deepseek')) return 'DeepSeek';
+      if (m.startsWith('openai/') || m.startsWith('gpt')) return 'OpenAI';
+      if (m.startsWith('claude/') || m.startsWith('claude') || m.startsWith('anthropic/')) return 'Claude';
+    }
+    return 'Desconhecido';
+  }, []);
+
+  const getProviderColor = useCallback((providerName: string): string => {
+    const p = providerName.toLowerCase();
+    if (p.includes('groq')) return '#f45036';
+    if (p.includes('google')) return '#3b82f6';
+    if (p.includes('openrouter')) return '#C8FF00';
+    if (p.includes('deepseek')) return '#4d6bfe';
+    if (p.includes('openai')) return '#10b981';
+    if (p.includes('claude') || p.includes('anthropic')) return '#d97454';
+    return '#ec4899';
+  }, []);
+
   const formatTokenNumber = (num: number): string => {
     if (num < 10000) return num.toLocaleString('pt-BR');
     if (num < 1000000) return `${(num / 1000).toFixed(num % 1000 === 0 ? 0 : 1)}k`;
@@ -825,6 +860,8 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
 
     scopedLogs.forEach(l => {
       if (!l) return;
+      const hasAi = Boolean((l as any).aiModel || (l as any).aiProvider || l.eventType === 'quiz_generated' || l.eventType === 'hint_used');
+      if (!hasAi) return;
       const model = getCanonicalRawModel((l as any).aiModel, (l as any).aiProvider);
       if (!counts[model]) counts[model] = { total: 0, errors: 0, quizzes: 0 };
       counts[model].total += 1;
@@ -1120,11 +1157,12 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
     return { promptTokens, completionTokens, totalTokens, averagePerQuiz, averagePromptPerQuiz, averageCompletionPerQuiz, modelTokenMap, modelAverages };
   }, [scopedLogs, scopedQuizzes, modelMetrics, getModelColor]);
 
-  // Tempo Médio de Geração de Quiz (Geral e Por Modelo)
+  // Tempo Médio de Geração de Quiz (Geral, Por Modelo e Por Provedor)
   const durationMetrics = useMemo(() => {
     let totalDurationMs = 0;
     let countWithDuration = 0;
     const modelDurationMap: Record<string, { totalMs: number; count: number }> = {};
+    const providerDurationMap: Record<string, { totalMs: number; count: number }> = {};
 
     scopedLogs.forEach(l => {
       if (!l) return;
@@ -1132,10 +1170,16 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
       if (dur && typeof dur === 'number' && dur > 0) {
         totalDurationMs += dur;
         countWithDuration += 1;
+
         const model = getCanonicalRawModel((l as any).aiModel, (l as any).aiProvider);
         if (!modelDurationMap[model]) modelDurationMap[model] = { totalMs: 0, count: 0 };
         modelDurationMap[model].totalMs += dur;
         modelDurationMap[model].count += 1;
+
+        const provider = getCanonicalProvider((l as any).aiModel, (l as any).aiProvider);
+        if (!providerDurationMap[provider]) providerDurationMap[provider] = { totalMs: 0, count: 0 };
+        providerDurationMap[provider].totalMs += dur;
+        providerDurationMap[provider].count += 1;
       }
     });
 
@@ -1156,8 +1200,20 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
       };
     }).sort((a, b) => (a.avgSec === 'N/A' ? 1 : b.avgSec === 'N/A' ? -1 : parseFloat(a.avgSec) - parseFloat(b.avgSec)));
 
-    return { averageDurationSec, modelAverages, countWithDuration };
-  }, [scopedLogs, modelMetrics, getModelColor]);
+    const providerAverages = Object.entries(providerDurationMap).map(([provider, durData]) => {
+      const avgSec = durData.count > 0
+        ? (durData.totalMs / durData.count / 1000).toFixed(1)
+        : 'N/A';
+      return {
+        model: provider,
+        color: getProviderColor(provider),
+        avgSec,
+        count: durData.count
+      };
+    }).sort((a, b) => (a.avgSec === 'N/A' ? 1 : b.avgSec === 'N/A' ? -1 : parseFloat(a.avgSec) - parseFloat(b.avgSec)));
+
+    return { averageDurationSec, modelAverages, providerAverages, countWithDuration };
+  }, [scopedLogs, modelMetrics, getModelColor, getCanonicalProvider, getProviderColor]);
 
   // Comparativo de Sucesso vs Falhas
   const successVsErrorData = useMemo(() => {
@@ -2153,15 +2209,40 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
 
                   <div className="lg:col-span-6 space-y-6">
                     <div className="bg-[#14151d] p-6 rounded-3xl border border-amber-500/20 shadow-xl space-y-4">
-                      <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                        <h3 className="text-sm font-bold text-white">Tempo Médio por Modelo (Latência)</h3>
-                        <span className="text-xs font-mono text-amber-400 font-bold">Mais Rápidos →</span>
+                      <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-3">
+                        <h3 className="text-sm font-bold text-white truncate">
+                          {latencyViewMode === 'provider' ? 'Tempo Médio por Provedor (Latência)' : 'Tempo Médio por Modelo (Latência)'}
+                        </h3>
+                        <div className="flex items-center bg-[#1c1d26] p-1 rounded-xl border border-white/5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setLatencyViewMode('provider')}
+                            className={`px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                              latencyViewMode === 'provider'
+                                ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                                : 'text-gray-400 hover:text-white border border-transparent'
+                            }`}
+                          >
+                            Provedores
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setLatencyViewMode('model')}
+                            className={`px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                              latencyViewMode === 'model'
+                                ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                                : 'text-gray-400 hover:text-white border border-transparent'
+                            }`}
+                          >
+                            Modelos
+                          </button>
+                        </div>
                       </div>
                       <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-                        {durationMetrics.modelAverages.length === 0 ? (
-                          <p className="text-xs text-gray-500 italic text-center py-4">Sem dados de latência por modelo.</p>
+                        {((latencyViewMode === 'provider' ? durationMetrics.providerAverages : durationMetrics.modelAverages) || []).length === 0 ? (
+                          <p className="text-xs text-gray-500 italic text-center py-4">Sem dados de latência registrados.</p>
                         ) : (
-                          durationMetrics.modelAverages.map((item, idx) => (
+                          (latencyViewMode === 'provider' ? durationMetrics.providerAverages : durationMetrics.modelAverages).map((item, idx) => (
                             <div key={idx} className="bg-[#1c1d26] p-3.5 rounded-2xl border border-white/5 flex items-center justify-between gap-3">
                               <div className="flex items-center gap-2.5 min-w-0">
                                 <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }}></span>

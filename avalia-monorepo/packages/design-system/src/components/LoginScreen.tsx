@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { validateApiKey, db } from '@avalia/services';
+import { validateApiKey, db, fetchClaudeModels, fetchDynamicModels } from '@avalia/services';
 import { doc, getDoc } from 'firebase/firestore';
 import { ApiErrorDetail, AiProvider } from '@avalia/core';
 import { AppLogo } from './AppLogo';
@@ -14,8 +14,8 @@ interface LoginScreenProps {
   appName?: string;
   title?: React.ReactNode;
   logo?: React.ReactNode;
-  onLoginWithCode: (code: string, provider: AiProvider) => Promise<void>;
-  onLoginWithApiKey: (key: string, provider: AiProvider) => Promise<void>;
+  onLoginWithCode: (code: string, provider: AiProvider, model?: string) => Promise<void>;
+  onLoginWithApiKey: (key: string, provider: AiProvider, model?: string) => Promise<void>;
 }
 
 interface ModelOption {
@@ -34,6 +34,8 @@ const TEXT_MODELS: ModelOption[] = [
   { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite", status: "Legado" },
   { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", status: "Legado" }
 ];
+
+
 
 
 
@@ -97,8 +99,12 @@ const CODE_TTS_MODELS: ModelOption[] = [
 
 
 const getStatusColor = (status: string) => {
-  if (status === 'Estável' || status === 'Grátis' || status.includes('0.00') || status.toLowerCase().includes('grátis')) {
+  const lower = status.toLowerCase();
+  if (status === 'Grátis' || lower === '$0.00/1m' || lower.includes('grátis')) {
     return 'bg-green-500/10 text-green-400 border-green-500/20';
+  }
+  if (status === 'Estável') {
+    return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
   }
   if (status === 'Pré-lançamento') {
     return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
@@ -106,7 +112,7 @@ const getStatusColor = (status: string) => {
   if (status === 'Legado') {
     return 'bg-red-500/10 text-red-400 border-red-500/20';
   }
-  if (status === 'Pago' || status.includes('$') || status.includes('/') || /\d/.test(status)) {
+  if (status.startsWith('$') || status === 'Pago' || status.includes('/') || /\d/.test(status)) {
     return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
   }
   return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
@@ -114,13 +120,26 @@ const getStatusColor = (status: string) => {
 
 const CustomSelect = ({ value, onChange, options, placeholder, disableCustom = false }: { value: string, onChange: (v: string) => void, options: ModelOption[], placeholder?: string, disableCustom?: boolean }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const selectedOption = options.find(o => o.value === value);
+
+  const filteredOptions = React.useMemo(() => {
+    if (!searchQuery.trim()) return options;
+    const q = searchQuery.toLowerCase().trim();
+    return options.filter(opt => 
+      opt.label.toLowerCase().includes(q) || 
+      opt.value.toLowerCase().includes(q)
+    );
+  }, [options, searchQuery]);
 
   return (
     <div className={`relative w-full ${isOpen ? 'z-50' : 'z-10'}`}>
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          setIsOpen(!isOpen);
+          if (!isOpen) setSearchQuery('');
+        }}
         className="w-full bg-[#262626] border border-white/5 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-brand-blue/40 transition-all text-sm font-medium flex justify-between items-center"
       >
         <span className="flex items-center gap-2 truncate">
@@ -144,29 +163,57 @@ const CustomSelect = ({ value, onChange, options, placeholder, disableCustom = f
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
-          <div className="absolute z-50 w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto custom-scrollbar">
-            {options.map(opt => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => { onChange(opt.value); setIsOpen(false); }}
-                className={`w-full text-left px-4 py-3 hover:bg-white/5 flex items-center justify-between transition-colors border-b border-white/5 last:border-0 ${value === opt.value ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-300'}`}
-              >
-                <span className="text-sm font-medium flex items-center gap-2">
-                  {opt.icon && <span className="shrink-0 flex items-center justify-center">{opt.icon}</span>}
-                  {opt.label}
-                </span>
-                {opt.status && opt.status !== 'Estável' && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${getStatusColor(opt.status)} uppercase tracking-wider font-bold`}>
-                    {opt.status}
-                  </span>
-                )}
-              </button>
-            ))}
+          <div className="absolute z-50 w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-72 flex flex-col">
+            {options.length > 5 && (
+              <div className="p-2 border-b border-white/10 bg-[#222]">
+                <div className="relative flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 absolute left-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Pesquisar modelo..."
+                    className="w-full bg-[#161616] border border-white/10 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-blue/50 font-medium"
+                    onClick={(e) => e.stopPropagation()}
+                    autoFocus
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="overflow-y-auto max-h-56 custom-scrollbar">
+              {filteredOptions.length > 0 ? (
+                filteredOptions.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => { onChange(opt.value); setIsOpen(false); setSearchQuery(''); }}
+                    className={`w-full text-left px-4 py-3 hover:bg-white/5 flex items-center justify-between transition-colors border-b border-white/5 last:border-0 ${value === opt.value ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-300'}`}
+                  >
+                    <span className="text-sm font-medium flex items-center gap-2 truncate">
+                      {opt.icon && <span className="shrink-0 flex items-center justify-center">{opt.icon}</span>}
+                      {opt.label}
+                    </span>
+                    {opt.status && opt.status !== 'Estável' && (
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border ${getStatusColor(opt.status)} shrink-0 uppercase tracking-wider font-bold`}>
+                        {opt.status}
+                      </span>
+                    )}
+                  </button>
+                ))
+              ) : (
+                <div className="px-4 py-4 text-xs text-gray-500 text-center italic">
+                  Nenhum modelo encontrado para "{searchQuery}"
+                </div>
+              )}
+            </div>
+
             {!disableCustom && (
               <button
                 type="button"
-                onClick={() => { onChange('custom'); setIsOpen(false); }}
+                onClick={() => { onChange('custom'); setIsOpen(false); setSearchQuery(''); }}
                 className={`w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-t border-white/10 flex items-center gap-2 ${value === 'custom' ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-400'}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
@@ -195,6 +242,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   onLoginWithApiKey
 }) => {
   const [provider, setProvider] = useState<AiProvider>('auto');
+  const [isProvidersExpanded, setIsProvidersExpanded] = useState(false);
   const [loginMode, setLoginMode] = useState<'code' | 'api'>('code');
   const [accessCode, setAccessCode] = useState('');
   const [inputKey, setInputKey] = useState('');
@@ -234,9 +282,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     if (modelToSave) localStorage.setItem('gemini_tts_model', modelToSave);
   }, [ttsModelOption, customTtsModel]);
 
-
-
-  // Modelos do modo código agora são definidos de forma flexível pelo usuário na tela
+  const [dynamicModels, setDynamicModels] = useState<ModelOption[]>([]);
+  const [dynamicTtsModels, setDynamicTtsModels] = useState<ModelOption[]>([]);
 
   // Auto-detecção de provedor baseada no prefixo da chave
   useEffect(() => {
@@ -250,25 +297,89 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         setProvider('openrouter');
       } else if (key.startsWith('sk-proj-')) {
         setProvider('openai');
+      } else if (key.startsWith('sk-ant-')) {
+        setProvider('claude');
       } else if (key.startsWith('sk-')) {
         setProvider('deepseek');
       }
     }
   }, [inputKey, loginMode]);
 
-  // Sincroniza o modelo padrão se o provedor mudar
+  // Busca dinâmica de modelos em tempo real para qualquer provedor (Texto e TTS)
   useEffect(() => {
-    let models = TEXT_MODELS;
-    if (provider === 'openai') models = OPENAI_MODELS;
-    else if (provider === 'deepseek') models = DEEPSEEK_MODELS;
-    else if (provider === 'groq') models = GROQ_MODELS;
-    else if (provider === 'openrouter') models = OPENROUTER_MODELS;
+    if (inputKey && inputKey.trim()) {
+      fetchDynamicModels(provider, inputKey.trim(), 'text').then(fetched => {
+        setDynamicModels(fetched && fetched.length > 0 ? fetched : []);
+      });
 
-    const isModelValid = models.some(m => m.value === textModelOption) || textModelOption === 'custom';
-    if (!isModelValid && models.length > 0) {
-      setTextModelOption(models[0].value);
+      fetchDynamicModels(provider, inputKey.trim(), 'tts').then(fetchedTts => {
+        if (fetchedTts && fetchedTts.length > 0) {
+          setDynamicTtsModels(fetchedTts);
+          setTtsModelOption(prev => {
+            const exists = fetchedTts.some(m => m.value === prev);
+            return exists ? prev : fetchedTts[0].value;
+          });
+        } else {
+          setDynamicTtsModels([]);
+        }
+      });
+    } else {
+      setDynamicModels([]);
+      setDynamicTtsModels([]);
     }
-  }, [provider, textModelOption]);
+  }, [provider, inputKey]);
+
+  // Obtém as opções consolidadas de modelos de texto para o CustomSelect
+  const textModelOptions = React.useMemo(() => {
+    if (loginMode === 'code') {
+      const defaultOption: ModelOption = { value: "default", label: "Padrão (Configuração do Sistema)", status: "Padrão" };
+      let providerModels: ModelOption[] = [];
+      if (provider === 'google-ai') providerModels = TEXT_MODELS;
+      else if (provider === 'openai') providerModels = OPENAI_MODELS;
+      else if (provider === 'deepseek') providerModels = DEEPSEEK_MODELS;
+      else if (provider === 'groq') providerModels = GROQ_MODELS;
+      else if (provider === 'openrouter') providerModels = OPENROUTER_MODELS;
+      else if (provider === 'claude') providerModels = [
+        { value: "claude-3-7-sonnet-latest", label: "Claude 3.7 Sonnet", status: "Estável" },
+        { value: "claude-3-5-haiku-latest", label: "Claude 3.5 Haiku", status: "Estável" }
+      ];
+      return [defaultOption, ...providerModels];
+    }
+
+    if (provider === 'openrouter') {
+      const pinned: ModelOption[] = [
+        { value: "openrouter/auto:free", label: "Modelos gratuitos", status: "Grátis" },
+        { value: "openrouter/auto", label: "Modo automático", status: "Estável" }
+      ];
+      const rest = dynamicModels.filter(m => m.value !== 'openrouter/auto:free' && m.value !== 'openrouter/auto');
+      return [...pinned, ...rest];
+    }
+    return dynamicModels;
+  }, [provider, loginMode, dynamicModels]);
+
+  // Sincroniza o modelo de texto quando os modelos dinâmicos são carregados
+  useEffect(() => {
+    if (textModelOptions.length > 0) {
+      setTextModelOption(prev => {
+        const exists = textModelOptions.some(m => m.value === prev);
+        return exists ? prev : textModelOptions[0].value;
+      });
+    } else {
+      setTextModelOption('');
+    }
+  }, [provider, textModelOptions]);
+
+  // Sincroniza o modelo TTS quando os modelos dinâmicos são carregados
+  useEffect(() => {
+    if (dynamicTtsModels.length > 0) {
+      setTtsModelOption(prev => {
+        const exists = dynamicTtsModels.some(m => m.value === prev);
+        return exists ? prev : dynamicTtsModels[0].value;
+      });
+    } else {
+      setTtsModelOption('');
+    }
+  }, [provider, dynamicTtsModels]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -283,7 +394,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
       setIsValidating(true);
       try {
-        await onLoginWithCode(cleanedCode, provider);
+        const customSelectedModel = textModelOption && textModelOption !== 'default' ? textModelOption : undefined;
+        await onLoginWithCode(cleanedCode, provider, customSelectedModel);
       } catch (err: any) {
         setError(err.message || 'Erro ao validar o código.');
       } finally {
@@ -296,10 +408,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         return;
       }
 
+      const selectedModel = textModelOption === 'custom' ? customTextModel : textModelOption;
+      if (!selectedModel || !selectedModel.trim()) {
+        setError('Por favor, selecione ou informe um modelo de IA.');
+        return;
+      }
 
       setIsValidating(true);
       try {
-        await onLoginWithApiKey(cleanedKey, provider);
+        await validateApiKey(cleanedKey, provider, selectedModel.trim());
+        await onLoginWithApiKey(cleanedKey, provider, selectedModel.trim());
       } catch (err: any) {
         setError(err.message || 'Erro ao validar a chave. Verifique sua conexão.');
       } finally {
@@ -346,7 +464,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             onClick={() => {
               setLoginMode('api');
               setError('');
-              if (provider === 'auto') setProvider('openrouter');
+              if (provider === 'auto') setProvider('google-ai');
             }}
             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all font-bold text-sm ${loginMode === 'api' ? 'bg-[#2a2a2a] text-white shadow-lg' : 'text-gray-600 hover:text-gray-400'}`}
           >
@@ -436,60 +554,82 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                           <path fill="#C8FF00" d="M251.94,306.13l-.79-28.35c-47.94,2.45-89.25-4.54-128.56-32.25l-24.23-17.07c-15.07-11.05-30.2-20.77-46.88-29.41-16.87-6.67-33.79-11.31-51.48-14.19v-63.31c33.64-4.42,59.4-14.46,86.77-33.83l42.63-29.84c36.07-25.25,80.45-31.84,124.15-29.23l.22-28.65,108.38,62.85-108,62.53-.67-32.05c-17.69-1.89-34.89-1.98-52.25,1.45-15.53,3.52-28.85,10.34-41.72,19.55-19.26,13.78-37.97,27.21-57.78,39.58,20.5,12.82,38.33,25.77,56.99,39.15,19.46,13.96,40.87,22,64.87,21.18l27.62-.94.64-32.4,108.42,62.74-108.34,62.48Z" />
                         </svg>
                       )
+                    },
+                    {
+                      value: "claude",
+                      label: "Claude",
+                      icon: (
+                        <svg viewBox="0 0 46.08 46.08" className="w-4 h-4 shrink-0 object-contain">
+                          <path fill="#d97454" d="M30.13,37.27c.66.17,1.06.16,1.58-.07.3-.14.43-.49.39-.84l-.15-1.25-3.91-5.87c-.04-.06,0-.19.02-.22.02-.02.13-.02.17.01l3.94,3.33,2.76,2.11c.2.15.51.36.77.22.5-.45.5-.76.23-1.41l-6.36-5.87c-.55-.5-1.08-.94-1.54-1.64l9.8,2.32,1.73-.84c.04-.22.18-.54.07-.73-.16-.29-.34-.64-.61-.83l-1.14-.78-4.41-.29c-1.78-.04-3.48.03-5.32-.34l5.12-1.22c1.96-.47,3.88-.77,5.82-1.32l.38-.9c.09-.22.11-.67-.12-.79l-1.06-.52c-2.94.45-5.81,1.01-8.71,1.68-.17.04-.3.04-.46-.09l1.09-1.87,4.53-5.97.48-1.63-1.06-1.57c-.45.04-.99-.12-1.41.04-.82.31-3.06,2.97-3.88,4.04l-2.91,3.74c-.16.2-.35.33-.58.28l1.26-6.71.52-3.33-.71-.94c-.18-.24-.52-.28-.83-.4l-.97.72c-.23.37-.51.88-.55,1.33l-.45,4.72c-.18,1.89-.43,3.74-.52,5.59-.19.05-.24-.05-.28-.16l-.44-1.38-2.75-5.43-2.33-5.13c-.34-.75-2.18-.91-2.57-.5s-.75.91-1.03,1.39c.05.67.16,1.42.49,2.01l4.81,8.4c.05.08.19.23.14.32-.04.06-.19.1-.26.1-.07,0-.13-.12-.2-.17l-3.62-2.68-4.14-3.15c-.44-.24-1.04-.08-1.53-.17l-.85,1.01c.02.75.13,1.64.67,2.03l2.89,2.07,7.09,4.77c.13.09.14.2.11.28-.05.11-.19.09-.3.08l-3.61-.34-8.71-.61c-.6.27-.94.73-.7,1.02.57.71.44,1.04,1.76,1.09l9.98.4,1.4.08c.16,0,.17.4,0,.5l-6.59,3.73-2.73,1.86c-.25.17-.32.43-.31.73.01.42-.29.57.67,1.26l1.57-.22,8.89-5.8c.14.1.07.24-.02.35l-1.21,1.42-4.67,6.02c-.7.9-1.53,1.7-1.3,2.63.55.44,1.16.69,1.56.26l2.34-2.53,5.05-6.82c.08-.11.29-.14.27-.07-.14.56-.28,1.08-.35,1.64-.15,1.26-.38,2.44-.64,3.67l-1.09,5.15c.16.37.2.84.49,1.07l.81.64.98-.39c.18-.07.38-.34.48-.54l.94-9.95c.02-.18.06-.34.23-.32,1.67,2.98,3.52,5.8,5.55,8.5Z" />
+                        </svg>
+                      )
                     }
                   ] as { value: string; label: string; icon: React.ReactNode }[]
-                ).filter(opt => loginMode !== 'api' || opt.value !== 'auto').map(opt => {
-                  const isSelected = provider === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => {
-                        const nextProvider = opt.value as AiProvider;
-                        setProvider(nextProvider);
-                        let models = TEXT_MODELS;
-                        if (nextProvider === 'openai') models = OPENAI_MODELS;
-                        else if (nextProvider === 'deepseek') models = DEEPSEEK_MODELS;
-                        else if (nextProvider === 'groq') models = GROQ_MODELS;
-                        else if (nextProvider === 'openrouter') models = OPENROUTER_MODELS;
-                        if (models.length > 0) setTextModelOption(models[0].value);
-                      }}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer text-left border-0 outline-none
-                        ${isSelected
-                          ? 'bg-brand-blue/10 ring-1 ring-brand-blue/30 text-white'
-                          : 'bg-[#1c1c1c] text-gray-400 hover:bg-white/4 hover:text-gray-200'
-                        }`}
-                    >
-                      <span className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-colors ${isSelected ? 'bg-brand-blue/15' : 'bg-white/5'}`}>
-                        {opt.icon}
-                      </span>
-                      <span className="flex-1">{opt.label}</span>
-                      {isSelected && (
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-brand-blue shrink-0">
-                          <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </button>
-                  );
-                })}
+                )
+                  .filter(opt => loginMode !== 'api' || opt.value !== 'auto')
+                  .filter(opt => isProvidersExpanded || opt.value === provider)
+                  .map(opt => {
+                    const isSelected = provider === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          if (!isProvidersExpanded) {
+                            setIsProvidersExpanded(true);
+                            return;
+                          }
+                          const nextProvider = opt.value as AiProvider;
+                          setProvider(nextProvider);
+                          setIsProvidersExpanded(false);
+                          let models = TEXT_MODELS;
+                          if (nextProvider === 'openai') models = OPENAI_MODELS;
+                          else if (nextProvider === 'deepseek') models = DEEPSEEK_MODELS;
+                          else if (nextProvider === 'groq') models = GROQ_MODELS;
+                          else if (nextProvider === 'openrouter') models = OPENROUTER_MODELS;
+                          else if (nextProvider === 'claude') models = claudeModels;
+                          if (models.length > 0) setTextModelOption(models[0].value);
+                        }}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer text-left border-0 outline-none
+                          ${isSelected
+                            ? 'bg-brand-blue/10 ring-1 ring-brand-blue/30 text-white'
+                            : 'bg-[#1c1c1c] text-gray-400 hover:bg-white/4 hover:text-gray-200'
+                          }`}
+                      >
+                        <span className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-colors ${isSelected ? 'bg-brand-blue/15' : 'bg-white/5'}`}>
+                          {opt.icon}
+                        </span>
+                        <span className="flex-1">{opt.label}</span>
+                        {!isProvidersExpanded ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 shrink-0">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                          </svg>
+                        ) : isSelected ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-brand-blue shrink-0">
+                            <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+                          </svg>
+                        ) : null}
+                      </button>
+                    );
+                  })}
               </div>
             </div>
 
             {loginMode === 'api' && (
               <div>
                 <label className="text-xs font-bold text-gray-500 mb-2 block tracking-wide text-left">
-                  {provider === 'openai' ? "Chave de API da OpenAI" : provider === 'deepseek' ? "Chave de API do DeepSeek" : provider === 'groq' ? "Chave de API do Groq" : provider === 'openrouter' ? "Chave de API do OpenRouter" : "Chave de API do Google"}
+                  {provider === 'openai' ? "Chave de API da OpenAI" : provider === 'deepseek' ? "Chave de API do DeepSeek" : provider === 'groq' ? "Chave de API do Groq" : provider === 'openrouter' ? "Chave de API do OpenRouter" : provider === 'claude' ? "Chave de API do Claude (Anthropic)" : "Chave de API do Google"}
                 </label>
                 <input
                   type="password"
                   value={inputKey}
                   onChange={(e) => { setInputKey(e.target.value); setError(''); }}
-                  placeholder={provider === 'openai' ? "sk-proj-..." : provider === 'deepseek' ? "sk-..." : provider === 'groq' ? "gsk_..." : provider === 'openrouter' ? "sk-or-..." : "AIzaSy..."}
+                  placeholder={provider === 'openai' ? "sk-proj-..." : provider === 'deepseek' ? "sk-..." : provider === 'groq' ? "gsk_..." : provider === 'openrouter' ? "sk-or-..." : provider === 'claude' ? "sk-ant-api03-..." : "AIzaSy..."}
                   className="w-full bg-[#262626] border border-white/5 rounded-xl px-4 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-blue/40 transition-all text-sm font-medium mb-3"
                 />
                 <div className="flex justify-end">
                   <a
-                    href={provider === 'openai' ? "https://platform.openai.com/api-keys" : provider === 'deepseek' ? "https://platform.deepseek.com/api_keys" : provider === 'groq' ? "https://console.groq.com/keys" : provider === 'openrouter' ? "https://openrouter.ai/keys" : "https://aistudio.google.com/app/api-keys"}
+                    href={provider === 'openai' ? "https://platform.openai.com/api-keys" : provider === 'deepseek' ? "https://platform.deepseek.com/api_keys" : provider === 'groq' ? "https://console.groq.com/keys" : provider === 'openrouter' ? "https://openrouter.ai/keys" : provider === 'claude' ? "https://console.anthropic.com/settings/keys" : "https://aistudio.google.com/app/api-keys"}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[11px] font-bold text-[#F7D33C] hover:opacity-80 flex items-center gap-1 transition-opacity"
@@ -504,8 +644,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             )}
           </div>
 
-          {/* Seletores de Modelos - Apenas na aba de Chave API */}
-          {loginMode !== 'code' && (
+          {/* Seletores de Modelos - Exibidos quando um provedor específico for selecionado */}
+          {provider !== 'auto' && (
             <div className="animate-fade-in flex flex-col relative z-20 mt-4 space-y-4">
               {/* Text Model Selection */}
               <div>
@@ -513,8 +653,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 <CustomSelect
                   value={textModelOption}
                   onChange={setTextModelOption}
-                  options={provider === 'openai' ? OPENAI_MODELS : provider === 'deepseek' ? DEEPSEEK_MODELS : provider === 'groq' ? GROQ_MODELS : provider === 'openrouter' ? OPENROUTER_MODELS : TEXT_MODELS}
-                  placeholder="Selecione um modelo..."
+                  options={textModelOptions}
+                  placeholder={
+                    loginMode === 'code'
+                      ? "Selecione um modelo..."
+                      : !inputKey.trim() && provider !== 'openrouter'
+                        ? "Insira sua Chave de API para ver os modelos disponíveis"
+                        : textModelOptions.length === 0
+                          ? "Carregando modelos do provedor..."
+                          : "Selecione um modelo..."
+                  }
+                  disableCustom={loginMode === 'code'}
                 />
                 {textModelOption === 'custom' && (
                   <input
@@ -541,8 +690,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     <CustomSelect
                       value={ttsModelOption}
                       onChange={setTtsModelOption}
-                      options={provider === 'openai' ? OPENAI_TTS_MODELS : GEMINI_TTS_MODELS}
-                      placeholder="Selecione um modelo TTS..."
+                      options={dynamicTtsModels}
+                      placeholder={
+                        !inputKey.trim()
+                          ? "Insira sua Chave de API para ver os modelos de voz..."
+                          : dynamicTtsModels.length === 0
+                            ? "Nenhum modelo de voz encontrado para esta chave"
+                            : "Selecione um modelo TTS..."
+                      }
+                      disableCustom={true}
                     />
                     {ttsModelOption === 'custom' && (
                       <input

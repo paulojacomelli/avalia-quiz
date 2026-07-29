@@ -32,6 +32,7 @@ export const FORMAT_OPTIONS = [
 ];
 
 export const TIME_OPTIONS = [
+  { value: 0, label: "Sem timer" },
   { value: 5, label: "5s" },
   { value: 30, label: "30s" },
   { value: 60, label: "1 min" },

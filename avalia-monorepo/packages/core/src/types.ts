@@ -112,7 +112,7 @@ export interface ApiErrorDetail {
   code: string;
 }
 
-export type AiProvider = 'auto' | 'google-ai' | 'vertex' | 'deepseek' | 'groq' | 'openrouter' | 'openai';
+export type AiProvider = 'auto' | 'google-ai' | 'vertex' | 'deepseek' | 'groq' | 'openrouter' | 'openai' | 'claude';
 
 export type TelemetryEventType = 
   | 'app_accessed'

@@ -63,7 +63,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
   // --- Wizard State ---
   const [internalStep, setInternalStep] = useState(1);
   const [librasStep, setLibrasStep] = useState(1); 
-  const TOTAL_STEPS = interfaceLanguage === 'libras' ? 8 : 3;
+  const TOTAL_STEPS = interfaceLanguage === 'libras' ? 8 : 4;
 
   useEffect(() => {
     if (forcedStep !== undefined) {
@@ -242,8 +242,9 @@ export const SetupForm: React.FC<SetupFormProps> = ({
       <div className="mb-8">
         <div className="flex justify-between text-xs font-bold uppercase tracking-widest mb-2 text-gray-500">
           <span className={currentStep >= 1 ? 'text-brand-blue' : ''}>{isPrebuiltQuiz ? '1. Iniciar' : '1. Conteúdo'}</span>
-          <span className={currentStep >= 2 ? 'text-brand-blue' : ''}>2. Configurações</span>
-          <span className={currentStep >= 3 ? 'text-brand-blue' : ''}>3. Ajudas</span>
+          <span className={currentStep >= 2 ? 'text-brand-blue' : ''}>2. IA & Formato</span>
+          <span className={currentStep >= 3 ? 'text-brand-blue' : ''}>3. Dinâmica</span>
+          <span className={currentStep >= 4 ? 'text-brand-blue' : ''}>4. Ajudas</span>
         </div>
         <div className="h-2 w-full bg-gray-300 dark:bg-gray-700 rounded-full overflow-hidden">
           <div
@@ -303,7 +304,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                 {(() => {
                   const selectedModeConfig = (appConfig?.topicModes || MODE_OPTIONS).find((m: any) => m.value === mode);
                   const isCustomInput = selectedModeConfig?.hasCustomInput || mode === TopicMode.OTHER;
-                  const themes = availableThemes[mode];
+                  const themes = mode ? availableThemes[mode] : undefined;
                   if (!isCustomInput && themes && themes.length > 0) {
                     return (
                       <div className="animate-fade-in">
@@ -451,8 +452,8 @@ export const SetupForm: React.FC<SetupFormProps> = ({
           </div>
         )}
 
-        {/* LIBRAS STEPS 4-8 OR PT STEP 2 */}
-        {((interfaceLanguage === 'libras' && currentStep >= 4) || (interfaceLanguage === 'pt' && currentStep === 2)) && (
+        {/* LIBRAS STEPS 4-6 OR PT STEP 2 (IA & FORMATO) */}
+        {((interfaceLanguage === 'libras' && (currentStep >= 4 && currentStep <= 6)) || (interfaceLanguage === 'pt' && currentStep === 2)) && (
           <div className="space-y-6 animate-fade-in">
             {(currentStep === 4 || (interfaceLanguage === 'pt' && currentStep === 2)) && (
               <div id="field-difficulty">
@@ -556,80 +557,112 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                 )}
               </div>
             )}
-
-            {(currentStep === 7 || (interfaceLanguage === 'pt' && currentStep === 2)) && (
-              <div className="space-y-4">
-                {/* Equipes */}
-                <div id="field-team-mode" className="flex items-center justify-between p-4 bg-brand-hover/30 rounded-lg">
-                  <span className="text-sm font-bold">Modo Competição (Equipes)</span>
-                  <button type="button" onClick={() => setIsTeamMode(!isTeamMode)} className={`w-11 h-6 rounded-full transition-colors ${isTeamMode ? 'bg-brand-blue' : 'bg-gray-500'}`}>
-                    <span className={`block w-4 h-4 bg-white rounded-full transition-transform ${isTeamMode ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </button>
-                </div>
-                {isTeamMode && (
-                  <div className="p-4 bg-brand-hover/20 rounded-lg space-y-3">
-                    <label className="block text-xs font-bold text-gray-500 uppercase">Nomes das Equipes</label>
-                    {teamNames.map((name, idx) => (
-                      <input 
-                        key={idx} type="text" value={name} 
-                        onChange={(e) => {
-                          const newNames = [...teamNames];
-                          newNames[idx] = e.target.value;
-                          setTeamNames(newNames);
-                        }}
-                        className="w-full p-2 text-sm rounded bg-brand-hover border border-gray-600 focus:border-brand-blue outline-none" 
-                      />
-                    ))}
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => teamNames.length < 4 && setTeamNames([...teamNames, `Time ${String.fromCharCode(65 + teamNames.length)}`])} className="text-xs bg-brand-blue/20 text-brand-blue px-3 py-1 rounded hover:bg-brand-blue/30 disabled:opacity-50" disabled={teamNames.length >= 4}>+ Adicionar</button>
-                      <button type="button" onClick={() => teamNames.length > 2 && setTeamNames(teamNames.slice(0, -1))} className="text-xs bg-red-500/20 text-red-400 px-3 py-1 rounded hover:bg-red-500/30 disabled:opacity-50" disabled={teamNames.length <= 2}>- Remover</button>
-                    </div>
-                    <div className="mt-4 pt-3 border-t border-gray-700/50">
-                      <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Perguntas por Rodada: {questionsPerRound}</label>
-                      <input type="range" min="1" max={count} value={questionsPerRound} onChange={(e) => setQuestionsPerRound(parseInt(e.target.value))} className="w-full h-2 rounded-lg appearance-none bg-gray-300 dark:bg-gray-700 accent-brand-blue" />
-                    </div>
-                  </div>
-                )}
-
-                {/* Timer */}
-                <div className="space-y-2">
-                  <div id="field-timer" className="flex items-center justify-between p-4 bg-brand-hover/30 rounded-lg">
-                    <span className="text-sm font-bold">Temporizador por Pergunta</span>
-                    <button type="button" onClick={() => setEnableTimer(!enableTimer)} className={`w-11 h-6 rounded-full transition-colors ${enableTimer ? 'bg-brand-blue' : 'bg-gray-500'}`}>
-                      <span className={`block w-4 h-4 bg-white rounded-full transition-transform ${enableTimer ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-                  {enableTimer && (
-                    <div className="p-4 bg-brand-hover/20 rounded-lg space-y-4">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Tempo Limite</label>
-                        <div className="flex gap-2">
-                          {TIME_OPTIONS.map((opt) => (
-                            <label key={opt.value} className="flex-1 cursor-pointer">
-                              <input type="radio" name="timeLimit" value={opt.value} checked={timeLimit === opt.value} onChange={() => setTimeLimit(opt.value)} className="sr-only" />
-                              <div className={`text-center py-1.5 rounded text-xs border transition-all ${timeLimit === opt.value ? 'bg-brand-blue text-white font-bold border-transparent' : 'border-gray-500 text-gray-500 hover:border-brand-blue/50'}`}>
-                                {opt.label}
-                              </div>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Count */}
-                <div id="field-count">
-                  <label className="block text-sm font-bold mb-2">Total de Perguntas: {count}</label>
-                  <input type="range" min="5" max="50" value={count} onChange={(e) => setCount(parseInt(e.target.value))} className="w-full h-2 rounded-lg appearance-none bg-gray-300 dark:bg-gray-700 accent-brand-blue" />
-                  {isPrebuiltQuiz && <span className="text-[10px] text-brand-blue block mt-1 font-medium">Na biblioteca, você pode reduzir o total de perguntas, mas não exceder o limite do arquivo original.</span>}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        {(currentStep === 8 || (interfaceLanguage === 'pt' && currentStep === 3)) && (
+        {/* LIBRAS STEP 7 OR PT STEP 3 (DINÂMICA DE JOGO) */}
+        {((interfaceLanguage === 'libras' && currentStep === 7) || (interfaceLanguage === 'pt' && currentStep === 3)) && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="space-y-4">
+              {/* Equipes */}
+              <div id="field-team-mode" className="flex items-center justify-between p-4 bg-brand-hover/30 rounded-lg">
+                <span className="text-sm font-bold">Modo Competição (Equipes)</span>
+                <button type="button" onClick={() => setIsTeamMode(!isTeamMode)} className={`w-11 h-6 rounded-full transition-colors ${isTeamMode ? 'bg-brand-blue' : 'bg-gray-500'}`}>
+                  <span className={`block w-4 h-4 bg-white rounded-full transition-transform ${isTeamMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              {isTeamMode && (
+                <div className="p-4 bg-brand-hover/20 rounded-lg space-y-3">
+                  <label className="block text-xs font-bold text-gray-500 uppercase">Nomes das Equipes</label>
+                  {teamNames.map((name, idx) => (
+                    <input 
+                      key={idx} type="text" value={name} 
+                      onChange={(e) => {
+                        const newNames = [...teamNames];
+                        newNames[idx] = e.target.value;
+                        setTeamNames(newNames);
+                      }}
+                      className="w-full p-2 text-sm rounded bg-brand-hover border border-gray-600 focus:border-brand-blue outline-none" 
+                    />
+                  ))}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => teamNames.length < 4 && setTeamNames([...teamNames, `Time ${String.fromCharCode(65 + teamNames.length)}`])} className="text-xs bg-brand-blue/20 text-brand-blue px-3 py-1 rounded hover:bg-brand-blue/30 disabled:opacity-50" disabled={teamNames.length >= 4}>+ Adicionar</button>
+                    <button type="button" onClick={() => teamNames.length > 2 && setTeamNames(teamNames.slice(0, -1))} className="text-xs bg-red-500/20 text-red-400 px-3 py-1 rounded hover:bg-red-500/30 disabled:opacity-50" disabled={teamNames.length <= 2}>- Remover</button>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-gray-700/50">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Perguntas por Rodada: {questionsPerRound}</label>
+                    <input type="range" min="1" max={count} value={questionsPerRound} onChange={(e) => setQuestionsPerRound(parseInt(e.target.value))} className="w-full h-2 rounded-lg appearance-none bg-gray-300 dark:bg-gray-700 accent-brand-blue" />
+                  </div>
+                </div>
+              )}
+
+              {/* Timer */}
+              <div className="space-y-2">
+                <div id="field-timer" className="flex items-center justify-between p-4 bg-brand-hover/30 rounded-lg">
+                  <span className="text-sm font-bold">Temporizador por Pergunta</span>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const next = !enableTimer;
+                      setEnableTimer(next);
+                      if (!next) {
+                        setTimeLimit(0);
+                      } else if (timeLimit === 0) {
+                        setTimeLimit(60);
+                      }
+                    }} 
+                    className={`w-11 h-6 rounded-full transition-colors ${enableTimer ? 'bg-brand-blue' : 'bg-gray-500'}`}
+                  >
+                    <span className={`block w-4 h-4 bg-white rounded-full transition-transform ${enableTimer ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                <div className="p-4 bg-brand-hover/20 rounded-lg space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Tempo Limite</label>
+                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                      {TIME_OPTIONS.map((opt) => {
+                        const isSelected = (enableTimer ? timeLimit : 0) === opt.value;
+                        return (
+                          <label key={opt.value} className="cursor-pointer">
+                            <input 
+                              type="radio" 
+                              name="timeLimit" 
+                              value={opt.value} 
+                              checked={isSelected} 
+                              onChange={() => {
+                                if (opt.value === 0) {
+                                  setEnableTimer(false);
+                                  setTimeLimit(0);
+                                } else {
+                                  setEnableTimer(true);
+                                  setTimeLimit(opt.value);
+                                }
+                              }} 
+                              className="sr-only" 
+                            />
+                            <div className={`text-center py-1.5 rounded text-xs border transition-all ${isSelected ? 'bg-brand-blue text-white font-bold border-transparent shadow-md' : 'border-gray-500 text-gray-500 hover:border-brand-blue/50'}`}>
+                              {opt.label}
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Count */}
+              <div id="field-count">
+                <label className="block text-sm font-bold mb-2">Total de Perguntas: {count}</label>
+                <input type="range" min="5" max="50" value={count} onChange={(e) => setCount(parseInt(e.target.value))} className="w-full h-2 rounded-lg appearance-none bg-gray-300 dark:bg-gray-700 accent-brand-blue" />
+                {isPrebuiltQuiz && <span className="text-[10px] text-brand-blue block mt-1 font-medium">Na biblioteca, você pode reduzir o total de perguntas, mas não exceder o limite do arquivo original.</span>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* LIBRAS STEP 8 OR PT STEP 4 (AJUDAS & DICAS) */}
+        {(currentStep === 8 || (interfaceLanguage === 'pt' && currentStep === 4)) && (
           <div className="space-y-6 animate-fade-in" id="field-hints">
             {/* Hints Config */}
             <div>
