@@ -679,8 +679,8 @@ export const QuizCard: React.FC<QuizCardProps> = ({
                   key={msg.id} 
                   className={`flex flex-col text-sm rounded-xl p-3 max-w-[90%] leading-relaxed ${
                     msg.role === 'user' 
-                      ? 'self-end bg-brand-blue/20 text-blue-100 border border-brand-blue/30 rounded-br-none' 
-                      : 'self-start bg-indigo-950/40 text-indigo-100 border border-indigo-700/40 rounded-bl-none shadow-sm'
+                      ? 'self-end bg-brand-blue/20 text-blue-100 border border-blue-500/20 rounded-br-none shadow-sm' 
+                      : 'self-start bg-indigo-950/40 text-indigo-100 border border-indigo-500/20 rounded-bl-none shadow-sm'
                   }`}
                 >
                   <span className="text-[10px] font-bold uppercase tracking-wider mb-1 opacity-70">

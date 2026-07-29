@@ -474,6 +474,7 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [latencyViewMode, setLatencyViewMode] = useState<'provider' | 'model'>('provider');
+  const [tokenViewMode, setTokenViewMode] = useState<'model' | 'provider'>('model');
 
   const [logsPage, setLogsPage] = useState<number>(1);
   const [quizzesPage, setQuizzesPage] = useState<number>(1);
@@ -1153,6 +1154,7 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
     let totalTokens = 0;
     let quizTokenCount = 0;
     const modelTokenMap: Record<string, { prompt: number; completion: number; total: number; quizCount: number }> = {};
+    const providerTokenMap: Record<string, { prompt: number; completion: number; total: number; quizCount: number }> = {};
 
     scopedLogs.forEach(l => {
       if (!l) return;
@@ -1169,11 +1171,22 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
         modelTokenMap[model] = { prompt: 0, completion: 0, total: 0, quizCount: 0 };
       }
 
+      const provider = getCanonicalProvider((l as any).aiModel, (l as any).aiProvider);
+      if (!providerTokenMap[provider]) {
+        providerTokenMap[provider] = { prompt: 0, completion: 0, total: 0, quizCount: 0 };
+      }
+
       if (t > 0) {
         modelTokenMap[model].prompt += p;
         modelTokenMap[model].completion += c;
         modelTokenMap[model].total += t;
         modelTokenMap[model].quizCount += 1;
+
+        providerTokenMap[provider].prompt += p;
+        providerTokenMap[provider].completion += c;
+        providerTokenMap[provider].total += t;
+        providerTokenMap[provider].quizCount += 1;
+
         quizTokenCount += 1;
       }
     });
@@ -1197,16 +1210,39 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
           model,
           color: getModelColor(model),
           totalTokens: data.total,
+          promptTokens: data.prompt,
+          completionTokens: data.completion,
           quizCount: quizzes,
           avgTotal: Math.round(data.total / Math.max(1, quizzes)),
           avgPrompt: Math.round(data.prompt / Math.max(1, quizzes)),
           avgCompletion: Math.round(data.completion / Math.max(1, quizzes))
         };
       })
-      .sort((a, b) => b.avgTotal - a.avgTotal);
+      .sort((a, b) => b.totalTokens - a.totalTokens);
 
-    return { promptTokens, completionTokens, totalTokens, averagePerQuiz, averagePromptPerQuiz, averageCompletionPerQuiz, modelTokenMap, modelAverages };
-  }, [scopedLogs, scopedQuizzes, modelMetrics, getModelColor]);
+    const providerAverages = Object.entries(providerTokenMap)
+      .map(([provider, data]) => {
+        const quizzes = data.quizCount > 0 ? data.quizCount : 1;
+        return {
+          model: provider,
+          color: getProviderColor(provider),
+          totalTokens: data.total,
+          promptTokens: data.prompt,
+          completionTokens: data.completion,
+          quizCount: quizzes,
+          avgTotal: Math.round(data.total / Math.max(1, quizzes)),
+          avgPrompt: Math.round(data.prompt / Math.max(1, quizzes)),
+          avgCompletion: Math.round(data.completion / Math.max(1, quizzes))
+        };
+      })
+      .sort((a, b) => b.totalTokens - a.totalTokens);
+
+    return { 
+      promptTokens, completionTokens, totalTokens, 
+      averagePerQuiz, averagePromptPerQuiz, averageCompletionPerQuiz, 
+      modelTokenMap, modelAverages, providerAverages 
+    };
+  }, [scopedLogs, scopedQuizzes, modelMetrics, getModelColor, getCanonicalProvider, getProviderColor]);
 
   // Tempo Médio de Geração de Quiz (Geral, Por Modelo e Por Provedor)
   const durationMetrics = useMemo(() => {
@@ -2325,30 +2361,64 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
                     </div>
 
                     <div className="bg-[#14151d] p-6 rounded-3xl border border-cyan-500/20 shadow-xl space-y-4">
-                      <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                        <h3 className="text-sm font-bold text-white">Média de Tokens por Modelo</h3>
-                        <span className="text-xs font-mono text-cyan-400 font-bold">por geração</span>
+                      <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-3">
+                        <h3 className="text-sm font-bold text-white truncate">
+                          {tokenViewMode === 'provider' ? 'Consumo de Tokens por Provedor' : 'Consumo de Tokens por Modelo'}
+                        </h3>
+                        <div className="flex items-center bg-[#1c1d26] p-1 rounded-xl border border-white/5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setTokenViewMode('model')}
+                            className={`px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                              tokenViewMode === 'model'
+                                ? 'bg-cyan-400/20 text-cyan-300 border border-cyan-400/30'
+                                : 'text-gray-400 hover:text-white border border-transparent'
+                            }`}
+                          >
+                            Modelos
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTokenViewMode('provider')}
+                            className={`px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                              tokenViewMode === 'provider'
+                                ? 'bg-cyan-400/20 text-cyan-300 border border-cyan-400/30'
+                                : 'text-gray-400 hover:text-white border border-transparent'
+                            }`}
+                          >
+                            Provedores
+                          </button>
+                        </div>
                       </div>
-                      {tokenMetrics.modelAverages.length === 0 ? (
-                        <p className="text-xs text-gray-500 italic text-center py-4">Sem dados de tokens por modelo.</p>
+                      {((tokenViewMode === 'provider' ? tokenMetrics.providerAverages : tokenMetrics.modelAverages) || []).length === 0 ? (
+                        <p className="text-xs text-gray-500 italic text-center py-4">Sem dados de tokens vinculados.</p>
                       ) : (
                         <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                          {tokenMetrics.modelAverages.map((item, idx) => (
-                            <div key={idx} className="bg-[#1c1d26] p-3 rounded-2xl border border-white/5 space-y-2">
+                          {(tokenViewMode === 'provider' ? tokenMetrics.providerAverages : tokenMetrics.modelAverages).map((item, idx) => (
+                            <div key={idx} className="bg-[#1c1d26] p-3.5 rounded-2xl border border-white/5 space-y-2">
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-2 min-w-0">
                                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }}></span>
                                   <span className="text-xs font-bold text-gray-100 truncate" title={item.model}>{item.model}</span>
                                 </div>
-                                <span className="text-xs font-black font-mono text-cyan-300 shrink-0">{item.avgTotal.toLocaleString('pt-BR')} tk</span>
+                                <div className="flex items-center gap-2 shrink-0 font-mono">
+                                  <span className="text-xs font-black text-cyan-300">{formatTokenNumber(item.totalTokens)} tk</span>
+                                  <span className="text-[10px] text-gray-500 font-bold">({item.quizCount} qz)</span>
+                                </div>
                               </div>
                               <div className="flex items-center gap-3 text-[10px] font-mono text-gray-400 pl-4">
-                                <span>In: <strong className="text-emerald-400">{item.avgPrompt.toLocaleString('pt-BR')}</strong></span>
-                                <span>Out: <strong className="text-amber-400">{item.avgCompletion.toLocaleString('pt-BR')}</strong></span>
-                                <span className="ml-auto text-gray-600">({item.quizCount} qz)</span>
+                                <span>Entrada: <strong className="text-emerald-400">{formatTokenNumber(item.promptTokens)}</strong></span>
+                                <span>Saída: <strong className="text-amber-400">{formatTokenNumber(item.completionTokens)}</strong></span>
+                                <span className="ml-auto text-cyan-400/90 font-bold">Média: {item.avgTotal.toLocaleString('pt-BR')} tk/qz</span>
                               </div>
                               <div className="w-full bg-white/5 rounded-full h-1 overflow-hidden">
-                                <div className="h-1 rounded-full transition-all duration-500" style={{ backgroundColor: item.color, width: `${Math.round((item.avgTotal / Math.max(...tokenMetrics.modelAverages.map(m => m.avgTotal), 1)) * 100)}%` }}/>
+                                <div 
+                                  className="h-1 rounded-full transition-all duration-500" 
+                                  style={{ 
+                                    backgroundColor: item.color, 
+                                    width: `${Math.round((item.totalTokens / Math.max(...(tokenViewMode === 'provider' ? tokenMetrics.providerAverages : tokenMetrics.modelAverages).map(m => m.totalTokens), 1)) * 100)}%` 
+                                  }}
+                                />
                               </div>
                             </div>
                           ))}
