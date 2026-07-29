@@ -1,6 +1,6 @@
 # Avalia Quiz - Ecossistema de Quizzes com IA (v1.7.6)
 
-Bem-vindo ao repositório unificado do **Avalia Quiz**. Este projeto é um **Monorepo** moderno que centraliza múltiplas variantes do aplicativo (Avalia Quiz e Avalia JW Quiz) sob uma arquitetura totalmente agnóstica, escalável e de alto desempenho.
+Bem-vindo ao repositório unificado do **Avalia Quiz**. Este projeto é um **Monorepo** moderno gerido via **Turborepo** e **NPM Workspaces**, centralizando múltiplas variantes do aplicativo (Avalia Quiz, Avalia JW Quiz e Avalia Kids) sob uma arquitetura agnóstica, escalável e de alto desempenho.
 
 ---
 
@@ -19,19 +19,21 @@ Bem-vindo ao repositório unificado do **Avalia Quiz**. Este projeto é um **Mon
 - **Segurança & Proteção (Rate Limiter)**: Proteção ativa contra tentativas de força bruta no Login com cooldowns expansivos e bloqueios IP/Client.
 - **Arquitetura 100% Agnóstica (/avalia)**: Zero acoplamento de domínio nos pacotes compartilhados (`@avalia/design-system`, `@avalia/game-engine`, `@avalia/services`). Rótulos e marcas são totalmente injetados via `appConfig` e `themeLabelMap`.
 - **Acessibilidade (VLibras)**: Integração nativa com o avatar do VLibras e dicionário de glosas em Libras.
+- **Modo Canary**: Alternância automatizada de identidade visual e assets para ambientes de desenvolvimento (`npm run apply-canary-assets`).
 
 ---
 
 ## 🚀 Estrutura do Projeto
 
 O projeto está organizado no diretório `avalia-monorepo/`:
-- `apps/`: Aplicativos consumidores (`avalia-quiz`, `avalia-jw-quiz`).
+- `apps/`: Aplicativos consumidores (`avalia-quiz`, `avalia-jw-quiz`, `avalia-kids`).
 - `packages/`: Lógica compartilhada, motores de jogo, design system e serviços de IA:
   - `@avalia/core`: Tipagens, interfaces e utilitários agnósticos.
   - `@avalia/services`: Firebase, integração com LLMs, telemetria e rate limiters.
   - `@avalia/design-system`: Componentes reutilizáveis sem contexto de domínio (`QuizCard`, `AdminDashboard`, `ReadyCheck`).
   - `@avalia/game-engine`: Engine principal do jogo, hooks de estado (`useGameLoop`) e controle de partidas.
-- `scripts/`: Automação de assets e manutenção.
+- `functions/`: Cloud Functions para rotinas backend de IA e Firebase.
+- `scripts/`: Automação de assets (Canary vs Oficial) e manutenção.
 
 ---
 
@@ -52,11 +54,19 @@ cd avalia-monorepo
 npm install
 ```
 
-### 3. Execução
+### 3. Execução Local
 
 Utilize os comandos na raiz de `avalia-monorepo/`:
 - `npm run dev:generic`: Inicia o **Avalia Quiz**.
 - `npm run dev:jw`: Inicia o **Avalia JW Quiz**.
+- `npm run dev:kids`: Inicia o **Avalia Kids**.
+- `npm run dev`: Executa todos os apps em paralelo com Turborepo.
+
+### 4. Build e Deploy
+
+- `npm run build`: Executa o build de todos os aplicativos via Turborepo.
+- `npm run deploy:generic`: Build e deploy do **Avalia Quiz** no Firebase Hosting.
+- `npm run deploy:jw`: Build e deploy do **Avalia JW Quiz** no Firebase Hosting.
 
 ---
 
@@ -74,6 +84,7 @@ Você é livre para usar, estudar e modificar o software, mantendo-o open source
 ---
 
 ## 🔖 Release Atual: v1.7.6
+- Suporte a Gemini 3.6 Flash / Pro e Gemini Live API.
 - Chat contínuo com a IA por pergunta.
 - Exclusão completa de quizzes no Admin Dashboard.
 - Persistência no recarregamento de abas administrativas.
