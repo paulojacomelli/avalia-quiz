@@ -99,6 +99,35 @@ O ecossistema utiliza o **Cloud Firestore** como banco de dados NoSQL. Para o fu
     - **Chave de Acesso**: `secret_code` (ex: `"1914"`).
     - **Chaves de API dos Provedores (Admin)**: `admin_key_google_ai`, `admin_key_groq`, `admin_key_deepseek`, `admin_key_openrouter`, `admin_key_openai`, `admin_key_claude`.
     - **Modelos Padrão Liberados (Admin)**: `admin_model_google_ai`, `admin_model_groq`, `admin_model_deepseek`, `admin_model_openrouter`, `admin_model_openai`, `admin_model_claude`, `admin_model_live`, `admin_model_tts`, `admin_model_tts_openai`.
+  
+  > **Exemplo Prático de Preenchimento do Documento `auth/access_control`:**
+  ```json
+  {
+    "secret_code": "1914",
+    
+    "admin_key_google_ai": "AIzaSy...",
+    "admin_model_google_ai": "gemini-3.6-flash",
+    
+    "admin_key_groq": "gsk_...",
+    "admin_model_groq": "groq/compound",
+    
+    "admin_key_openrouter": "sk-or-v1-...",
+    "admin_model_openrouter": "deepseek/deepseek-v4-flash",
+    
+    "admin_key_deepseek": "sk-...",
+    "admin_model_deepseek": "deepseek-chat",
+    
+    "admin_key_openai": "sk-proj-...",
+    "admin_model_openai": "gpt-4o-mini",
+    
+    "admin_key_claude": "sk-ant-...",
+    "admin_model_claude": "claude-3-5-haiku-20241022",
+    
+    "admin_model_live": "gemini-2.0-flash-exp",
+    "admin_model_tts": "gemini-2.5-flash",
+    "admin_model_tts_openai": "tts-1"
+  }
+  ```
   - *Acesso*: Leitura pública (necessário para o login de código de acesso) / Escrita restrita a administradores.
 
 - **`admins/`**:
