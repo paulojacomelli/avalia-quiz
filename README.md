@@ -94,10 +94,12 @@ O ecossistema utiliza o **Cloud Firestore** como banco de dados NoSQL. Para o fu
 
 ### 1. Coleções Principais
 
-- **`auth/access_control`** (ou subdocumentos da coleção `auth`):
-  - Guarda a chave de acesso do aplicativo (ex: `secret_code: "1914"`).
-  - Define provedores e modelos de IA padrão liberados para cada app.
-  - *Acesso*: Leitura pública / Escrita restrita aos administradores.
+- **`auth/access_control`** (ou subdocumento de configuração da coleção `auth`):
+  - Contém o código de acesso e as chaves/modelos globais gerenciados pelo painel administrativo:
+    - **Chave de Acesso**: `secret_code` (ex: `"1914"`).
+    - **Chaves de API dos Provedores (Admin)**: `admin_key_google_ai`, `admin_key_groq`, `admin_key_deepseek`, `admin_key_openrouter`, `admin_key_openai`, `admin_key_claude`.
+    - **Modelos Padrão Liberados (Admin)**: `admin_model_google_ai`, `admin_model_groq`, `admin_model_deepseek`, `admin_model_openrouter`, `admin_model_openai`, `admin_model_claude`, `admin_model_live`, `admin_model_tts`, `admin_model_tts_openai`.
+  - *Acesso*: Leitura pública (necessário para o login de código de acesso) / Escrita restrita a administradores.
 
 - **`admins/`**:
   - Documentos contendo IDs ou e-mails com privilégios administrativos.
