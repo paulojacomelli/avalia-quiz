@@ -1,0 +1,98 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Permissões necessárias para publicar via GitHub Actions no GitHub Pages
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# Permite apenas um deploy concorrente por vez
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy-pages:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: 'avalia-monorepo/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./avalia-monorepo
+        run: npm ci
+
+      - name: Setup environment variables for avalia-quiz
+        run: |
+          cat > ./avalia-monorepo/apps/avalia-quiz/.env << EOF
+          VITE_APP_NAME=Quiz
+          VITE_STORAGE_PREFIX=generic-quiz
+          VITE_APP_TITLE=Avalia Quiz
+          VITE_THEME=generic-theme
+          VITE_PROMPT_PROFILE=generic
+          VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          EOF
+
+      - name: Build avalia-quiz app
+        working-directory: ./avalia-monorepo
+        run: npm run build:generic
+
+      - name: Setup GitHub Pages redirect fallback
+        run: |
+          mkdir -p ./avalia-monorepo/apps/avalia-quiz/dist
+          cat > ./avalia-monorepo/apps/avalia-quiz/dist/404.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="pt-BR">
+          <head>
+            <meta charset="UTF-8">
+            <meta http-equiv="refresh" content="0; url=https://avalia-quiz.web.app/">
+            <script type="text/javascript">
+              window.location.href = "https://avalia-quiz.web.app/";
+            </script>
+            <title>Redirecionando para Avalia Quiz...</title>
+          </head>
+          <body>
+            <p>Redirecionando para o aplicativo em <a href="https://avalia-quiz.web.app/">https://avalia-quiz.web.app/</a>...</p>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload artifact for GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './avalia-monorepo/apps/avalia-quiz/dist'
+
+      - name: Deploy to GitHub Pages Native
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Deploy to gh-pages branch (Backup)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./avalia-monorepo/apps/avalia-quiz/dist
+          publish_branch: gh-pages
+          force_orphan: true
