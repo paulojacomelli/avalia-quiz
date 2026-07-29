@@ -1,10 +1,3 @@
-# ⚠️ [DEPRECATED] Base de Código Antiga ⚠️
-
-> **Aviso Crítico:** O código antigo que vivia nesta pasta raiz foi arquivado (`_archive_legacy_v1/`).
-> Todo novo desenvolvimento, build e deploy deve ocorrer EXCLUSIVAMENTE dentro da pasta `avalia-monorepo/`.
-
----
-
 # Avalia Quiz - Ecossistema de Quizzes com IA (v1.7.6)
 
 Bem-vindo ao repositório unificado do **Avalia Quiz**. Este projeto é um **Monorepo** moderno que centraliza múltiplas variantes do aplicativo (Avalia Quiz e Avalia JW Quiz) sob uma arquitetura totalmente agnóstica, escalável e de alto desempenho.
