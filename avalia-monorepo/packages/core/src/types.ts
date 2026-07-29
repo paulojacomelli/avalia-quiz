@@ -122,7 +122,8 @@ export type TelemetryEventType =
   | 'question_answered' 
   | 'question_skipped' 
   | 'question_voided' 
-  | 'hint_used';
+  | 'hint_used'
+  | 'ai_chat_response';
 
 export interface TelemetryLogEntry {
   id?: string;

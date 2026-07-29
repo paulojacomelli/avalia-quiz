@@ -5,7 +5,8 @@ import {
   TUTORIAL_CONFIG, TUTORIAL_DATA, GLOSAS_VALIDADAS, AiProvider
 } from '@avalia/core';
 import { 
-  playSound, speakText, stopSpeech, db, resolveAiModelLabel, validateApiKey, resolveAutoConnection, logTelemetryEvent, getClientId
+  playSound, speakText, stopSpeech, db, resolveAiModelLabel, validateApiKey, resolveAutoConnection, logTelemetryEvent, getClientId,
+  checkAccessCodeLock, registerFailedCodeAttempt, resetFailedCodeAttempts
 } from '@avalia/services';
 import { 
   Translate, HandsClapping, SpeakerHigh, SpeakerSlash, House, CornersOut
@@ -235,6 +236,11 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
           apiError={game.errorDetail}
           onClearError={() => game.setErrorDetail(null)}
           onLoginWithCode={async (code, selectedProvider, selectedModel) => {
+            const lockCheck = checkAccessCodeLock();
+            if (lockCheck.isBlocked) {
+              throw new Error(`Muitas tentativas incorretas. Aguarde ${lockCheck.remainingSeconds} segundo(s) antes de tentar novamente.`);
+            }
+
             try {
               const docSnap = await getDoc(doc(db, "auth", "config"));
               if (docSnap.exists() && docSnap.data().secret_code === code) {
@@ -253,9 +259,10 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
                   // Registra telemetria das tentativas do Modo Auto
                   connection.attempts.forEach(attempt => {
                     logTelemetryEvent({
-                      eventType: attempt.success ? 'info' : 'error',
+                      eventType: attempt.success ? 'auto_mode_connect' : 'error',
                       title: `Modo Auto: ${attempt.provider}`,
-                      errorMessage: attempt.success ? `Conectado com sucesso (${attempt.model})` : (attempt.error || 'Falha de conexão'),
+                      errorMessage: attempt.success ? undefined : (attempt.error || 'Falha de conexão'),
+                      solution: attempt.success ? `Conectado com sucesso (${attempt.model})` : undefined,
                       aiModel: `${attempt.provider}/${attempt.model}`,
                       appName
                     });
@@ -263,7 +270,7 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
                 } else {
                   const providerSlug = selectedProvider === 'google-ai' ? 'google_ai' : selectedProvider.replace('-', '_');
                   const adminKey = data[`admin_key_${providerSlug}`] || (selectedProvider === 'google-ai' ? data.admin_key : undefined);
-                  const adminModel = data[`admin_model_${providerSlug}`];
+                  const adminModel = data[`admin_model_${providerSlug}`] || (selectedProvider === 'google-ai' ? data.admin_model : undefined);
 
                   if (!adminKey || typeof adminKey !== 'string' || !adminKey.trim()) {
                     throw new Error(`Chave de API do provedor '${selectedProvider}' (admin_key_${providerSlug}) não encontrada no Firestore.`);
@@ -280,8 +287,15 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
                   activeModel = targetModel.trim();
                 }
 
+                resetFailedCodeAttempts();
                 login(activeKey, activeProvider, activeModel);
-              } else throw new Error("Código de acesso incorreto.");
+              } else {
+                const { remainingSeconds } = await registerFailedCodeAttempt();
+                if (remainingSeconds > 0) {
+                  throw new Error(`Código de acesso incorreto. Bloqueado por ${remainingSeconds} segundo(s) devido a falhas consecutivas.`);
+                }
+                throw new Error("Código de acesso incorreto.");
+              }
             } catch (err: any) {
               if (err.message && (err.message.includes('offline') || err.code === 'unavailable')) {
                 throw new Error("Não foi possível conectar ao servidor (cliente offline ou sem credenciais de Firebase configuradas). Utilize a aba 'Chave API' para entrar diretamente com sua chave.");
@@ -613,13 +627,22 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
               )}
 
               {game.gameState === 'COUNTDOWN' && (
-                <div className="fixed inset-0 z-50 flex flex-col items-center justify-center text-white" style={{ backgroundColor: getTeamColor(game.teams[game.currentTeamIndex]) }}>
+                <div className="fixed inset-0 z-50 flex flex-col items-center justify-center text-white" style={{ backgroundColor: getTeamColor(game.teams[game.currentTeamIndex] || game.teams[0]) }}>
                   <div className="text-[12rem] font-black animate-ping absolute opacity-20">{game.countdownValue > 0 ? game.countdownValue : 'JÁ!'}</div>
                   <div className="text-[10rem] font-black relative z-10">{game.countdownValue > 0 ? game.countdownValue : 'JÁ!'}</div>
                 </div>
               )}
 
-              {game.gameState === 'PLAYING' && game.quizData && (
+              {game.gameState === 'PLAYING' && (!game.quizData || !game.quizData.questions || game.quizData.questions.length === 0) && (
+                <div className="flex-1 flex items-center justify-center p-6 text-center">
+                  <div className="bg-[#1a1a1a] p-8 rounded-2xl border border-white/10 max-w-sm">
+                    <p className="text-gray-300 mb-4">Nenhum dado de pergunta encontrado para este quiz.</p>
+                    <button onClick={game.executeReset} className="px-6 py-2.5 bg-amber-500 text-black font-bold rounded-xl">Voltar ao Início</button>
+                  </div>
+                </div>
+              )}
+
+              {game.gameState === 'PLAYING' && game.quizData && game.quizData.questions && game.quizData.questions.length > 0 && (
                 <main className="flex-1 container mx-auto px-4 py-6 flex flex-col">
                   {/* Status Bar */}
                   <div className="flex justify-between items-center mb-6 bg-black/20 p-4 rounded-xl">
@@ -631,7 +654,7 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
                       ))}
                     </div>
                     <div className="flex items-center gap-4">
-                      <div className="font-mono text-sm opacity-80">Pergunta {game.currentQuestionIndex + 1}/{game.quizData.questions.length}</div>
+                      <div className="font-mono text-sm opacity-80">Pergunta {Math.min(game.currentQuestionIndex + 1, game.quizData.questions.length)}/{game.quizData.questions.length}</div>
                       {game.quizConfig?.enableTimer && (
                         <div className={`px-4 py-1.5 rounded-full font-bold text-sm shadow-md flex items-center gap-1.5 transition-all ${getTimerStyles()}`}>
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
@@ -643,13 +666,13 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
                     </div>
                   </div>
 
-
-                  <QuizCard question={game.quizData.questions[game.currentQuestionIndex]} index={game.currentQuestionIndex} total={game.quizData.questions.length}
+                  <QuizCard question={game.quizData.questions[game.currentQuestionIndex] || game.quizData.questions[0]} index={Math.min(game.currentQuestionIndex, game.quizData.questions.length - 1)} total={game.quizData.questions.length}
                     timeLeft={game.timeLeft} onAnswer={game.handleAnswer} isTimeUp={game.timeLeft === 0}
                     hintsRemaining={game.hintsRemaining} onRevealHint={game.handleUseHint}
                     activeTeamName={game.teams[game.currentTeamIndex]?.name} activeTeamColor={getTeamColor(game.teams[game.currentTeamIndex])}
                     onVoid={() => game.handleReplaceQuestion(game.currentQuestionIndex)}
                     ttsConfig={narration.ttsConfig} onSkip={game.handleSkipQuestion} isSkipping={game.isSkipping} apiKey={apiKey}
+                    provider={provider} model={model}
                     interfaceLanguage={game.interfaceLanguage} />
                 </main>
               )}

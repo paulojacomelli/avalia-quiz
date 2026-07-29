@@ -4,7 +4,7 @@ import { QuizQuestion, TTSConfig, EvaluationResult, AiProvider } from '@avalia/c
 import { playSound, startLoadingDrone, stopLoadingDrone } from '@avalia/services';
 import { speakText, stopSpeech, isSpeaking, getQuestionReadAloudText } from '@avalia/services';
 import { SettingsMenu, ThemeMode, VLibras, VLibrasTest, QuizOptions } from '@avalia/design-system';
-import { askAiAboutQuestion, evaluateFreeResponse, LiveApiSession, LiveSessionPhase } from '@avalia/services';
+import { askAiAboutQuestion, evaluateFreeResponse, LiveApiSession, LiveSessionPhase, logTelemetryEvent } from '@avalia/services';
 
 /**
  * Converte marcadores simples de Markdown (**negrito**, *itálico*) em elementos JSX seguros.
@@ -74,6 +74,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
   isVoided = false,
   apiKey,
   provider = 'google-ai',
+  model,
   interfaceLanguage = 'pt',
   openEndedMode = 'normal',
 }) => {
@@ -84,12 +85,14 @@ export const QuizCard: React.FC<QuizCardProps> = ({
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evaluationResult, setEvaluationResult] = useState<EvaluationResult | null>(null);
   const recognitionRef = useRef<any>(null);
-  const [showHintOptions, setShowHintOptions] = useState(false);
-  const [activeHint, setActiveHint] = useState<string | null>(null);
   const [showAskAi, setShowAskAi] = useState(false);
   const [askInput, setAskInput] = useState('');
-  const [askResponse, setAskResponse] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<{ id: string; role: 'user' | 'assistant'; content: string }[]>([]);
   const [isAskLoading, setIsAskLoading] = useState(false);
+  const [showSkipConfirmModal, setShowSkipConfirmModal] = useState(false);
+  const [showHintConfirmModal, setShowHintConfirmModal] = useState(false);
+  const [showHintOptions, setShowHintOptions] = useState(false);
+  const [activeHint, setActiveHint] = useState<string | null>(null);
   const [notificacao, setNotificacao] = useState<{ tipo: 'erro' | 'info'; mensagem: string } | null>(null);
   const notificacaoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -110,7 +113,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
     setActiveHint(null);
     setShowAskAi(false);
     setAskInput('');
-    setAskResponse(null);
+    setChatMessages([]);
     setTextAnswer('');
     setEvaluationResult(null);
     setIsEvaluating(false);
@@ -124,7 +127,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
       clearTimeout(notificacaoTimeoutRef.current);
       notificacaoTimeoutRef.current = null;
     }
-  }, [question.id]);
+  }, [question?.id]);
 
   useEffect(() => {
     return () => {
@@ -292,10 +295,15 @@ export const QuizCard: React.FC<QuizCardProps> = ({
 
   const activateStandardHint = () => {
     if (hintsRemaining === 0 && !activeHint) return;
+    setShowHintConfirmModal(true);
+  };
+
+  const confirmAndShowStandardHint = () => {
     playSound('click');
     setActiveHint(question.hint);
     setShowHintOptions(false);
     setShowAskAi(false);
+    setShowHintConfirmModal(false);
     if (onRevealHint) onRevealHint();
   };
 
@@ -310,14 +318,41 @@ export const QuizCard: React.FC<QuizCardProps> = ({
 
   const handleSubmitAskAi = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!askInput.trim() || !apiKey) return;
+    const query = askInput.trim();
+    if (!query || !apiKey) return;
+
+    const userMsgId = Date.now().toString();
+    const userMsg = { id: userMsgId, role: 'user' as const, content: query };
+    const currentHistory = [...chatMessages, userMsg];
+
+    setChatMessages(currentHistory);
+    setAskInput('');
     setIsAskLoading(true);
     playSound('click');
+
     try {
-      const response = await askAiAboutQuestion(apiKey, question, askInput, provider || 'google-ai', model || '');
-      setAskResponse(response);
-    } catch (error) {
-      setAskResponse("Desculpe, não consegui conectar ao chat agora.");
+      const response = await askAiAboutQuestion(
+        apiKey, 
+        question, 
+        query, 
+        provider || 'google-ai', 
+        model || '',
+        'Avalia Quiz',
+        chatMessages.map(m => ({ role: m.role, content: m.content }))
+      );
+      setChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', content: response }]);
+
+      logTelemetryEvent({
+        eventType: 'ai_chat_response',
+        appName: 'Avalia Quiz',
+        title: `Chat com IA: "${query.slice(0, 40)}${query.length > 40 ? '...' : ''}"`,
+        errorCode: '200',
+        questionId: question.id,
+        aiModel: `${provider || 'google-ai'}/${model || 'default'}`
+      }).catch(e => console.warn("Falha ao registrar telemetria do chat:", e));
+    } catch (error: any) {
+      const errorMsg = error?.message || "Desculpe, não consegui conectar ao chat agora. Verifique a cota ou chave de API.";
+      setChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', content: errorMsg }]);
     } finally {
       setIsAskLoading(false);
     }
@@ -582,7 +617,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
                </div>
             )}
             {onSkip && (
-               <button onClick={onSkip} onMouseEnter={() => !isSkipping && playSound('hover')} disabled={isSkipping || isEvaluating} className={`flex items-center text-sm py-2 px-4 rounded-full bg-brand-card border border-red-900/50 hover:border-red-500 text-red-300 transition-colors ${isSkipping ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 shadow-sm'}`}>
+               <button onClick={() => setShowSkipConfirmModal(true)} onMouseEnter={() => !isSkipping && playSound('hover')} disabled={isSkipping || isEvaluating} className={`flex items-center text-sm py-2 px-4 rounded-full bg-brand-card border border-red-900/50 hover:border-red-500 text-red-300 transition-colors ${isSkipping ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 shadow-sm'}`}>
                  {isSkipping ? <><div className="w-3 h-3 mr-2 border-2 border-red-300 border-t-transparent rounded-full animate-spin"></div> Pulando...</> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062A1.125 1.125 0 013 16.81V8.688zM12.75 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062a1.125 1.125 0 01-1.683-.977V8.688z" /></svg>Pular</>}
                </button>
             )}
@@ -600,30 +635,92 @@ export const QuizCard: React.FC<QuizCardProps> = ({
       )}
 
       {showAskAi && (
-        <div className="w-full mt-4 bg-brand-hover/50 p-4 rounded-lg border border-gray-700/50 animate-fade-in relative pl-0 md:pl-8 z-10">
-            <button onClick={() => { setShowAskAi(false); setAskResponse(null); }} className="absolute top-2 right-2 opacity-50 hover:opacity-100 p-1" title="Fechar Chat">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-            <div className="font-bold text-sm mb-2 text-brand-blue flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>
+        <div className="w-full mt-4 bg-brand-hover/50 p-4 rounded-xl border border-gray-700/50 animate-fade-in relative pl-0 md:pl-8 z-10 flex flex-col gap-3">
+          <div className="flex items-center justify-between border-b border-gray-700/50 pb-2.5">
+            <div className="font-bold text-sm text-brand-blue flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+              </svg>
               Chat com Mestre de Quiz
             </div>
-            {!askResponse ? (
-              <form onSubmit={handleSubmitAskAi} className="flex gap-2">
-                <input type="text" value={askInput} onChange={(e) => setAskInput(e.target.value)} placeholder={isAnsweredOrFinished ? "Ex: Por que a opção B está errada?" : "Ex: O que significa a palavra 'X'?"} className="flex-1 bg-brand-card border border-gray-600 rounded px-3 py-2 text-sm focus:ring-1 focus:ring-brand-blue outline-none placeholder-gray-500" disabled={isAskLoading} />
-                <button type="submit" disabled={isAskLoading || !askInput.trim()} className="bg-brand-blue text-white px-4 py-2 rounded text-sm hover:bg-opacity-90 disabled:opacity-50" onMouseEnter={() => playSound('hover')}>
-                  {isAskLoading ? '...' : 'Enviar'}
+            <div className="flex items-center gap-2">
+              {chatMessages.length > 0 && (
+                <button 
+                  type="button"
+                  onClick={() => setChatMessages([])} 
+                  className="text-[11px] text-gray-400 hover:text-red-400 transition-colors underline"
+                  title="Limpar histórico da conversa"
+                >
+                  Limpar Chat
                 </button>
-              </form>
+              )}
+              <button 
+                type="button"
+                onClick={() => setShowAskAi(false)} 
+                className="opacity-50 hover:opacity-100 p-1 text-gray-400 hover:text-white" 
+                title="Fechar Chat"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Histórico Rolável de Mensagens */}
+          <div className="max-h-64 overflow-y-auto space-y-3 pr-1 custom-scrollbar flex flex-col">
+            {chatMessages.length === 0 ? (
+              <div className="text-xs text-gray-400 italic py-2 text-center">
+                Tire suas dúvidas sobre a questão, opções ou explicações com o Mestre do Quiz!
+              </div>
             ) : (
-              <div className="text-sm">
-                <div className="mb-2 font-medium opacity-60">Sua pergunta: "{askInput}"</div>
-                <div className="text-indigo-900 dark:text-indigo-100 bg-indigo-50 dark:bg-indigo-900/40 p-4 rounded-lg border border-indigo-200 dark:border-indigo-700/50 shadow-inner leading-relaxed">
-                  <span className="font-bold mr-1 text-indigo-700 dark:text-indigo-300">🤖 Resposta:</span> {renderFormattedMarkdown(askResponse)}
+              chatMessages.map(msg => (
+                <div 
+                  key={msg.id} 
+                  className={`flex flex-col text-sm rounded-xl p-3 max-w-[90%] leading-relaxed ${
+                    msg.role === 'user' 
+                      ? 'self-end bg-brand-blue/20 text-blue-100 border border-brand-blue/30 rounded-br-none' 
+                      : 'self-start bg-indigo-950/40 text-indigo-100 border border-indigo-700/40 rounded-bl-none shadow-sm'
+                  }`}
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-wider mb-1 opacity-70">
+                    {msg.role === 'user' ? 'Você' : 'Mestre do Quiz'}
+                  </span>
+                  <div>{renderFormattedMarkdown(msg.content)}</div>
                 </div>
-                <button onClick={() => { setAskResponse(null); setAskInput(''); }} className="mt-2 text-xs opacity-50 hover:opacity-100 underline">Fazer outra pergunta</button>
+              ))
+            )}
+
+            {isAskLoading && (
+              <div className="self-start bg-indigo-950/40 text-indigo-200 border border-indigo-700/40 rounded-xl p-3 text-xs flex items-center gap-2 animate-pulse">
+                <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+                O Mestre do Quiz está digitando...
               </div>
             )}
+          </div>
+
+          {/* Form para envio contínuo */}
+          <form onSubmit={handleSubmitAskAi} className="flex gap-2 mt-1">
+            <input 
+              type="text" 
+              value={askInput} 
+              onChange={(e) => setAskInput(e.target.value)} 
+              placeholder={isAnsweredOrFinished ? "Faça uma nova pergunta sobre a questão..." : "Ex: Por que a opção A não é a correta?"} 
+              className="flex-1 bg-brand-card border border-gray-600 rounded-xl px-3.5 py-2.5 text-sm focus:ring-1 focus:ring-brand-blue outline-none placeholder-gray-500 text-white" 
+              disabled={isAskLoading} 
+            />
+            <button 
+              type="submit" 
+              disabled={isAskLoading || !askInput.trim()} 
+              className="bg-brand-blue text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-opacity-90 disabled:opacity-50 transition-all shadow-md shrink-0 flex items-center gap-1.5" 
+              onMouseEnter={() => playSound('hover')}
+            >
+              <span>Enviar</span>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+              </svg>
+            </button>
+          </form>
         </div>
       )}
 
@@ -636,6 +733,47 @@ export const QuizCard: React.FC<QuizCardProps> = ({
                Contestar / Substituir
             </button>
          </div>
+      )}
+
+      {/* Modal de Confirmação de Pulo com Aviso de Dificuldade */}
+      {showSkipConfirmModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#1c1c1c] border border-amber-500/30 rounded-2xl max-w-md w-full p-6 shadow-2xl relative text-left">
+            <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4 text-amber-400">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+
+            <h3 className="text-lg font-bold text-white mb-2">Pular esta Pergunta?</h3>
+            
+            <p className="text-sm text-gray-300 mb-4 leading-relaxed">
+              Ao pular, a resposta atual será revelada e a <strong className="text-amber-400 font-semibold">próxima pergunta será um nível mais difícil</strong> que a atual.
+            </p>
+
+            <p className="text-xs text-amber-400/90 font-medium mb-6 bg-amber-950/40 p-3 rounded-lg border border-amber-800/40">
+              Tem certeza que deseja pular e enfrentar o próximo nível?
+            </p>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowSkipConfirmModal(false)}
+                className="px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  setShowSkipConfirmModal(false);
+                  if (onSkip) onSkip();
+                }}
+                className="px-5 py-2.5 rounded-xl text-sm font-bold bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2"
+              >
+                Sim, Pular
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

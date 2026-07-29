@@ -3,7 +3,7 @@ import { User } from 'firebase/auth';
 import {
   loginWithGoogle, logoutGoogle, subscribeAuthState,
   fetchTelemetryLogs, fetchSavedQuizzes,
-  logTelemetryEvent, updateSavedQuizQuestions, checkIsUserAdmin
+  logTelemetryEvent, updateSavedQuizQuestions, deleteSavedQuiz, checkIsUserAdmin
 } from '@avalia/services';
 import { TelemetryLogEntry } from '@avalia/core';
 
@@ -434,10 +434,38 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const [mainTab, setMainTab] = useState<'overview' | 'ai_metrics' | 'tables'>('overview');
-  const [activeTab, setActiveTab] = useState<'logs' | 'quizzes'>('logs');
+  const [mainTab, setMainTab] = useState<'overview' | 'ai_metrics' | 'tables'>(() => {
+    try {
+      const saved = localStorage.getItem('avalia_admin_main_tab');
+      return (saved === 'overview' || saved === 'ai_metrics' || saved === 'tables') ? saved : 'overview';
+    } catch {
+      return 'overview';
+    }
+  });
+
+  const [activeTab, setActiveTab] = useState<'ai' | 'access' | 'errors' | 'quizzes'>(() => {
+    try {
+      const saved = localStorage.getItem('avalia_admin_active_tab');
+      return (saved === 'ai' || saved === 'access' || saved === 'errors' || saved === 'quizzes') ? saved : 'ai';
+    } catch {
+      return 'ai';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('avalia_admin_main_tab', mainTab);
+    } catch (e) { console.warn("Falha ao salvar mainTab:", e); }
+  }, [mainTab]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('avalia_admin_active_tab', activeTab);
+    } catch (e) { console.warn("Falha ao salvar activeTab:", e); }
+  }, [activeTab]);
+
   const [selectedAppFilter, setSelectedAppFilter] = useState<string>('all');
-  const [selectedEventFilter, setSelectedEventFilter] = useState<string>('all');
+  const [selectedEventFilter, setSelectedEventFilter] = useState<string>('ai_calls');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // --- FILTRO DE PERÍODO / TEMPO ---
@@ -538,6 +566,19 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
     }
   };
 
+  const handleDeleteQuiz = async (quizToDelete: any) => {
+    if (!quizToDelete || !quizToDelete.id) return;
+    const confirmDelete = window.confirm(`Tem certeza que deseja excluir o quiz "${quizToDelete.title}" por completo? Esta ação não pode ser desfeita.`);
+    if (!confirmDelete) return;
+
+    setQuizzes(prev => prev.filter(q => q.id !== quizToDelete.id));
+    if (selectedQuizDetail?.id === quizToDelete.id) {
+      setSelectedQuizDetail(null);
+    }
+
+    await deleteSavedQuiz(quizToDelete.id);
+  };
+
   // Verificação Dinâmica de Autorização via Firebase
   const [isAuthorized, setIsAuthorized] = useState<boolean>(true);
 
@@ -635,14 +676,18 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
     const type = String(l.eventType || '').toLowerCase();
     const code = String(l.errorCode || '').toLowerCase();
     const msg = String(l.errorMessage || '').toLowerCase();
-    const title = String(l.title || '').toLowerCase();
 
-    if (type.includes('error') || type.includes('err') || type.includes('fail')) return true;
+    // Registros explícitos de sucesso ou conexões sem falha não são erros
+    if (type === 'auto_mode_connect' || type === 'quiz_generated' || type === 'ai_chat_response' || type === 'question_answered' || type === 'app_accessed' || type === 'session_start' || type === 'info') {
+      if (!code || code === '200' || code === '0' || code === 'ok' || msg.includes('sucesso')) {
+        return false;
+      }
+    }
+
+    if (type.includes('error') || type.includes('fail')) return true;
     if (code && code !== '200' && code !== '0' && code !== 'ok' && code !== 'undefined') return true;
-    if (msg.includes('error') || msg.includes('erro') || msg.includes('fail') || msg.includes('falha') || msg.includes('exception') || msg.includes('invalid')) return true;
-    if (title.includes('erro') || title.includes('falha') || title.includes('incorreta')) return true;
 
-    return Boolean(l.errorCode) || Boolean(l.errorMessage);
+    return Boolean(l.errorCode && l.errorCode !== '200') || (Boolean(l.errorMessage) && !msg.includes('sucesso'));
   }, []);
 
   // --- CÁLCULOS E MÉTRICAS DE BI ---
@@ -657,19 +702,20 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
     return scopedLogs
       .filter(log => {
         if (!log) return false;
-        const eventMatch = selectedEventFilter === 'all'
-          ? true
-          : selectedEventFilter === 'error'
-            ? isErrorLog(log)
-            : log.eventType === selectedEventFilter;
-        const searchMatch = !searchQuery.trim() ||
-          (log.title && log.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (log.errorMessage && log.errorMessage.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (log.errorCode && log.errorCode.toLowerCase().includes(searchQuery.toLowerCase()));
-        return eventMatch && searchMatch;
+        
+        let tabMatch = true;
+        if (activeTab === 'ai') {
+          tabMatch = log.eventType === 'quiz_generated' || log.eventType === 'ai_chat_response' || (isErrorLog(log) && log.eventType !== 'app_accessed');
+        } else if (activeTab === 'access') {
+          tabMatch = log.eventType === 'app_accessed';
+        } else if (activeTab === 'errors') {
+          tabMatch = isErrorLog(log);
+        }
+
+        return tabMatch;
       })
       .sort((a, b) => toMs(b.timestamp) - toMs(a.timestamp));
-  }, [scopedLogs, selectedEventFilter, searchQuery, isErrorLog]);
+  }, [scopedLogs, activeTab, isErrorLog]);
 
   const filteredQuizzes = useMemo(() => {
     const toMs = (ts: any): number => {
@@ -740,12 +786,17 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
       if (fullText.includes('402')) code = '402';
       else if (fullText.includes('503')) code = '503';
       else if (fullText.includes('404')) code = '404';
-      else if (fullText.includes('429')) code = '429';
       else if (fullText.includes('403') || fullText.includes('401')) code = '403';
       else code = 'Outros';
     }
     return code;
   };
+
+  const formatThemeLabel = useCallback((rawTheme?: string): string => {
+    if (!rawTheme) return 'Geral';
+    const themeStr = rawTheme.trim();
+    return themeLabelMap[themeStr] || themeLabelMap[themeStr.toUpperCase()] || themeStr;
+  }, [themeLabelMap]);
 
   // Contagem por Código de Erro
   const errorCodeCounts = useMemo(() => {
@@ -1506,28 +1557,17 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
 
   const topThemes = useMemo(() => {
     const counts: Record<string, number> = {};
-    const FALLBACK_LABELS: Record<string, string> = {
-      'GENERAL': 'Acadêmico',
-      'ENTERTAINMENT': 'Entretenimento',
-      'ARTS_CULTURE': 'Arte & Cultura',
-      'GEOPOLITICS': 'Geopolítica',
-      'ANIMALS': 'Mundo Animal',
-      'OTHER': 'Outro Assunto',
-      'COLORS_SHAPES': 'Cores & Formas',
-      'BOOKS': 'Livros da Bíblia',
-      'HISTORY_JW': 'A História'
-    };
 
     scopedQuizzes.forEach(q => {
       if (!q) return;
       const rawTheme = q.theme || 'Geral';
-      const category = themeLabelMap[rawTheme] || FALLBACK_LABELS[rawTheme] || rawTheme;
+      const category = formatThemeLabel(rawTheme);
       const sub = (q.subTopic || '').trim();
       const key = sub ? `${category} › ${sub}` : category;
       counts[key] = (counts[key] || 0) + 1;
     });
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  }, [scopedQuizzes, themeLabelMap]);
+  }, [scopedQuizzes, formatThemeLabel]);
 
   return (
     <div className="w-full min-h-screen bg-[#0d0e12] text-gray-100 font-sans selection:bg-amber-500 selection:text-black">
@@ -2324,58 +2364,37 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
             {mainTab === 'tables' && (
               <div className="bg-[#14151d] p-4 md:p-6 rounded-3xl border border-white/10 shadow-xl space-y-4">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  <div className="flex gap-2 bg-[#1c1d26] p-1.5 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-1.5 bg-[#1c1d26] p-1.5 rounded-2xl border border-white/5 overflow-x-auto">
                     <button
-                      onClick={() => setActiveTab('logs')}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'logs' ? 'bg-amber-500 text-black shadow-md' : 'text-gray-400 hover:text-white'}`}
+                      onClick={() => { setActiveTab('ai'); setSelectedEventFilter('all'); }}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'ai' ? 'bg-amber-500 text-black shadow-md' : 'text-gray-400 hover:text-white'}`}
                     >
-                      Logs & Erros
-                      {totalErrors > 0 && <span className="px-1.5 py-0.2 bg-red-600 text-white rounded-full font-mono text-[9px]">{totalErrors}</span>}
+                      Conexões com IAs
                     </button>
                     <button
-                      onClick={() => setActiveTab('quizzes')}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'quizzes' ? 'bg-amber-500 text-black shadow-md' : 'text-gray-400 hover:text-white'}`}
+                      onClick={() => { setActiveTab('access'); setSelectedEventFilter('all'); }}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'access' ? 'bg-amber-500 text-black shadow-md' : 'text-gray-400 hover:text-white'}`}
+                    >
+                      Acessos App
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('errors'); setSelectedEventFilter('all'); }}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'errors' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:text-white'}`}
+                    >
+                      Erros & Falhas
+                      {totalErrors > 0 && <span className="px-1.5 py-0.2 bg-black/40 text-white rounded-full font-mono text-[9px]">{totalErrors}</span>}
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('quizzes'); setSelectedEventFilter('all'); }}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'quizzes' ? 'bg-amber-500 text-black shadow-md' : 'text-gray-400 hover:text-white'}`}
                     >
                       Quizzes ({quizzes.length})
                     </button>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      value={selectedEventFilter}
-                      onChange={(e) => setSelectedEventFilter(e.target.value)}
-                      className="bg-[#1c1d26] border border-white/10 text-gray-300 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500/50"
-                    >
-                      <option value="all">Todos os Eventos</option>
-                      <option value="error">Apenas Erros (error)</option>
-                      <option value="quiz_generated">Apenas Quizzes Gerados</option>
-                      <option value="quiz_error">Erros de Quiz</option>
-                      <option value="api_error">Erros de API</option>
-                    </select>
-                    <div className="relative flex-1 sm:w-64">
-                      <input
-                        type="text"
-                        placeholder="Pesquisar termo, código ou mensagem..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-[#1c1d26] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50"
-                      />
-                      {searchQuery && (
-                        <button onClick={() => setSearchQuery('')} className="absolute right-3 top-2.5 text-xs text-gray-400 hover:text-white">✕</button>
-                      )}
-                    </div>
-                    <button
-                      onClick={loadData}
-                      disabled={loadingData}
-                      className="p-2 bg-[#1c1d26] hover:bg-white/10 border border-white/10 text-gray-300 rounded-xl transition-all"
-                      title="Recarregar dados"
-                    >
-                      ↻
-                    </button>
-                  </div>
                 </div>
 
-                {activeTab === 'logs' && (
+                {activeTab !== 'quizzes' && (
                   <div className="rounded-2xl border border-white/5 overflow-hidden bg-[#101117] space-y-3">
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs">
@@ -2428,8 +2447,8 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
                                     )}
                                   </td>
                                   <td className="py-3.5 px-4 align-top font-mono text-center">
-                                    <span className={log.eventType === 'quiz_generated' ? 'text-emerald-400 font-bold' : log.eventType === 'error' ? 'text-amber-400 font-bold' : 'text-gray-400'}>
-                                      {log.errorCode || (log.eventType === 'quiz_generated' ? '200' : '-')}
+                                    <span className={(log.errorCode === '200' || log.eventType === 'quiz_generated') ? 'text-emerald-400 font-bold' : log.eventType === 'error' ? 'text-amber-400 font-bold' : 'text-gray-400'}>
+                                      {(!log.errorCode || log.errorCode === 'ERRO') ? (log.eventType === 'quiz_generated' ? '200' : '500') : log.errorCode}
                                     </span>
                                   </td>
                                   <td className="py-3.5 px-4 align-top text-right text-gray-400 font-mono text-[11px] whitespace-nowrap">{log.timestamp || 'Recente'}</td>
@@ -2503,15 +2522,24 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
                                       <span className="truncate max-w-[140px]" title={modelStr}>{modelStr}</span>
                                     </span>
                                   </td>
-                                  <td className="py-3.5 px-4 text-gray-300 font-medium">{quiz.theme} {quiz.subTopic ? `(${quiz.subTopic})` : ''}</td>
+                                  <td className="py-3.5 px-4 text-gray-300 font-medium">{formatThemeLabel(quiz.theme)} {quiz.subTopic ? `(${quiz.subTopic})` : ''}</td>
                                   <td className="py-3.5 px-4 font-mono text-amber-400 font-bold text-center">{quiz.questions?.length || 0}</td>
                                   <td className="py-3.5 px-4 text-right">
-                                    <button
-                                      onClick={() => setSelectedQuizDetail(quiz)}
-                                      className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                                    >
-                                      Ver Questões
-                                    </button>
+                                    <div className="flex items-center justify-end gap-2">
+                                      <button
+                                        onClick={() => setSelectedQuizDetail(quiz)}
+                                        className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                                      >
+                                        Ver Questões
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteQuiz(quiz)}
+                                        className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                                        title="Excluir este quiz por completo"
+                                      >
+                                        Excluir Quiz
+                                      </button>
+                                    </div>
                                   </td>
                                 </tr>
                               );
@@ -2560,9 +2588,17 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
             <div className="flex justify-between items-center border-b border-white/10 pb-3">
               <div>
                 <h3 className="text-base font-bold text-white">{selectedQuizDetail.title}</h3>
-                <p className="text-xs text-gray-400">{selectedQuizDetail.appName} • {selectedQuizDetail.theme} • {selectedQuizDetail.questions?.length || 0} questões</p>
+                <p className="text-xs text-gray-400">{selectedQuizDetail.appName} • {formatThemeLabel(selectedQuizDetail.theme)} • {selectedQuizDetail.questions?.length || 0} questões</p>
               </div>
-              <button onClick={() => { setSelectedQuizDetail(null); setEditingQuestionIndex(null); }} className="text-gray-400 hover:text-white text-sm font-bold">✕</button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleDeleteQuiz(selectedQuizDetail)}
+                  className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  Excluir Quiz
+                </button>
+                <button onClick={() => { setSelectedQuizDetail(null); setEditingQuestionIndex(null); }} className="text-gray-400 hover:text-white text-sm font-bold">✕</button>
+              </div>
             </div>
 
             <div className="space-y-4">

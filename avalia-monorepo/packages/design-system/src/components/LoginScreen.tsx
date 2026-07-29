@@ -25,76 +25,17 @@ interface ModelOption {
   icon?: React.ReactNode;
 }
 
-const TEXT_MODELS: ModelOption[] = [
-  { value: "gemini-3.6-flash", label: "Gemini 3.6 Flash", status: "Estável" },
-  { value: "gemini-3.5-flash", label: "Gemini 3.5 Flash", status: "Estável" },
-  { value: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash-Lite", status: "Estável" },
-  { value: "gemini-3.1-flash-lite", label: "Gemini 3.1 Flash-Lite", status: "Estável" },
-  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash", status: "Legado" },
-  { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite", status: "Legado" },
-  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", status: "Legado" }
-];
+interface ModelOption {
+  value: string;
+  label: string;
+  status?: string;
+  icon?: React.ReactNode;
+}
 
 
 
 
 
-const DEEPSEEK_MODELS: ModelOption[] = [
-  { value: "deepseek-v4-flash", label: "deepseek-v4-flash", status: "Estável" },
-  { value: "deepseek-v4-pro", label: "deepseek-v4-pro", status: "Estável" },
-  { value: "deepseek-chat", label: "deepseek-chat (V3)", status: "Estável" },
-  { value: "deepseek-reasoner", label: "deepseek-reasoner (R1)", status: "Estável" }
-];
-
-const GROQ_MODELS: ModelOption[] = [
-  { value: "groq/compound", label: "groq/compound", status: "Estável" },
-  { value: "openai/gpt-oss-120b", label: "openai/gpt-oss-120b", status: "Estável" },
-  { value: "llama-3.1-8b-instant", label: "llama-3.1-8b-instant", status: "Estável" },
-  { value: "llama-3.3-70b-versatile", label: "llama-3.3-70b-versatile", status: "Estável" },
-  { value: "custom", label: "Outro modelo (digitar ID)" }
-];
-
-
-const OPENROUTER_MODELS: ModelOption[] = [
-  { value: "openrouter/auto:free", label: "Modelos gratuitos", status: "Estável" },
-  { value: "openrouter/auto", label: "Modo automático", status: "Estável" },
-];
-
-const OPENAI_MODELS: ModelOption[] = [
-  { value: "gpt-5.6-sol", label: "gpt-5.6-sol", status: "Estável" },
-  { value: "gpt-5.6-terra", label: "gpt-5.6-terra", status: "Estável" },
-  { value: "gpt-5.6-luna", label: "gpt-5.6-luna", status: "Estável" },
-  { value: "gpt-5.5", label: "gpt-5.5", status: "Legado" },
-  { value: "gpt-5.4", label: "gpt-5.4", status: "Legado" },
-  { value: "gpt-5.4-mini", label: "gpt-5.4-mini", status: "Legado" },
-  { value: "gpt-5.4-nano", label: "gpt-5.4-nano", status: "Legado" }
-];
-
-
-
-const GEMINI_TTS_MODELS: ModelOption[] = [
-  { value: "gemini-3.1-flash-tts-preview", label: "gemini-3.1-flash-tts-preview", status: "Pré-lançamento" },
-  { value: "gemini-2.5-flash-preview-tts", label: "gemini-2.5-flash-preview-tts", status: "Estável" }
-];
-
-const OPENAI_TTS_MODELS: ModelOption[] = [
-  { value: "gpt-4o-mini-tts", label: "gpt-4o-mini-tts", status: "Estável" },
-  { value: "tts-1", label: "tts-1", status: "Estável" },
-  { value: "tts-1-hd", label: "tts-1-hd", status: "Estável" }
-];
-
-// Alias mantido para compatibilidade com CODE_TTS_MODELS
-const TTS_MODELS = GEMINI_TTS_MODELS;
-
-
-
-const CODE_TEXT_MODELS: ModelOption[] = [
-  { value: "gemini-3.1-flash-lite", label: "gemini-3.1-flash-lite" }
-];
-
-const CODE_TTS_MODELS: ModelOption[] = [
-  { value: "gemini-3.1-flash-tts-preview", label: "gemini-3.1-flash-tts-preview", status: "Pré-lançamento" }
-];
 
 
 
@@ -251,24 +192,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
 
   const [textModelOption, setTextModelOption] = useState(() => {
-    const saved = localStorage.getItem('gemini_text_model');
-    if (!saved) return TEXT_MODELS[0]?.value || '';
-    return TEXT_MODELS.some(m => m.value === saved) ? saved : 'custom';
+    return localStorage.getItem('gemini_text_model') || 'default';
   });
-  const [customTextModel, setCustomTextModel] = useState(() => {
-    const saved = localStorage.getItem('gemini_text_model');
-    return TEXT_MODELS.some(m => m.value === saved) || !saved ? '' : saved;
-  });
+  const [customTextModel, setCustomTextModel] = useState('');
 
   const [ttsModelOption, setTtsModelOption] = useState(() => {
-    const saved = localStorage.getItem('gemini_tts_model');
-    if (!saved) return TTS_MODELS[0]?.value || '';
-    return TTS_MODELS.some(m => m.value === saved) ? saved : 'custom';
+    return localStorage.getItem('gemini_tts_model') || 'default';
   });
-  const [customTtsModel, setCustomTtsModel] = useState(() => {
-    const saved = localStorage.getItem('gemini_tts_model');
-    return TTS_MODELS.some(m => m.value === saved) || !saved ? '' : saved;
-  });
+  const [customTtsModel, setCustomTtsModel] = useState('');
 
 
 
@@ -285,29 +216,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [dynamicModels, setDynamicModels] = useState<ModelOption[]>([]);
   const [dynamicTtsModels, setDynamicTtsModels] = useState<ModelOption[]>([]);
 
-  // Auto-detecção de provedor baseada no prefixo da chave
-  useEffect(() => {
-    if (loginMode === 'api' && inputKey.trim()) {
-      const key = inputKey.trim();
-      if (key.startsWith('AIzaSy')) {
-        setProvider('google-ai');
-      } else if (key.startsWith('gsk_')) {
-        setProvider('groq');
-      } else if (key.startsWith('sk-or-')) {
-        setProvider('openrouter');
-      } else if (key.startsWith('sk-proj-')) {
-        setProvider('openai');
-      } else if (key.startsWith('sk-ant-')) {
-        setProvider('claude');
-      } else if (key.startsWith('sk-')) {
-        setProvider('deepseek');
-      }
-    }
-  }, [inputKey, loginMode]);
+
+
+  const [adminDefaultModel, setAdminDefaultModel] = useState<string>('');
 
   // Busca dinâmica de modelos em tempo real para qualquer provedor (Texto e TTS)
   useEffect(() => {
-    if (inputKey && inputKey.trim()) {
+    if (loginMode === 'api' && inputKey && inputKey.trim()) {
       fetchDynamicModels(provider, inputKey.trim(), 'text').then(fetched => {
         setDynamicModels(fetched && fetched.length > 0 ? fetched : []);
       });
@@ -326,24 +241,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     } else {
       setDynamicModels([]);
       setDynamicTtsModels([]);
+      setAdminDefaultModel('');
     }
-  }, [provider, inputKey]);
+  }, [provider, inputKey, loginMode]);
 
   // Obtém as opções consolidadas de modelos de texto para o CustomSelect
   const textModelOptions = React.useMemo(() => {
     if (loginMode === 'code') {
       const defaultOption: ModelOption = { value: "default", label: "Padrão (Configuração do Sistema)", status: "Padrão" };
-      let providerModels: ModelOption[] = [];
-      if (provider === 'google-ai') providerModels = TEXT_MODELS;
-      else if (provider === 'openai') providerModels = OPENAI_MODELS;
-      else if (provider === 'deepseek') providerModels = DEEPSEEK_MODELS;
-      else if (provider === 'groq') providerModels = GROQ_MODELS;
-      else if (provider === 'openrouter') providerModels = OPENROUTER_MODELS;
-      else if (provider === 'claude') providerModels = [
-        { value: "claude-3-7-sonnet-latest", label: "Claude 3.7 Sonnet", status: "Estável" },
-        { value: "claude-3-5-haiku-latest", label: "Claude 3.5 Haiku", status: "Estável" }
-      ];
-      return [defaultOption, ...providerModels];
+      return [defaultOption];
     }
 
     if (provider === 'openrouter') {
@@ -582,13 +488,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                           const nextProvider = opt.value as AiProvider;
                           setProvider(nextProvider);
                           setIsProvidersExpanded(false);
-                          let models = TEXT_MODELS;
-                          if (nextProvider === 'openai') models = OPENAI_MODELS;
-                          else if (nextProvider === 'deepseek') models = DEEPSEEK_MODELS;
-                          else if (nextProvider === 'groq') models = GROQ_MODELS;
-                          else if (nextProvider === 'openrouter') models = OPENROUTER_MODELS;
-                          else if (nextProvider === 'claude') models = claudeModels;
-                          if (models.length > 0) setTextModelOption(models[0].value);
                         }}
                         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer text-left border-0 outline-none
                           ${isSelected
@@ -624,7 +523,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   type="password"
                   value={inputKey}
                   onChange={(e) => { setInputKey(e.target.value); setError(''); }}
-                  placeholder={provider === 'openai' ? "sk-proj-..." : provider === 'deepseek' ? "sk-..." : provider === 'groq' ? "gsk_..." : provider === 'openrouter' ? "sk-or-..." : provider === 'claude' ? "sk-ant-api03-..." : "AIzaSy..."}
+                  placeholder="Cole sua chave de API aqui..."
                   className="w-full bg-[#262626] border border-white/5 rounded-xl px-4 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-blue/40 transition-all text-sm font-medium mb-3"
                 />
                 <div className="flex justify-end">

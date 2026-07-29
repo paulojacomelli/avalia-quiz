@@ -1103,14 +1103,28 @@ export const evaluateFreeResponse = async (apiKey: string, question: string, mod
   }
 };
 
-export const askAiAboutQuestion = async (apiKey: string, question: QuizQuestion, userQuery: string, provider: AiProvider, model: string, appName: string): Promise<string> => {
+export const askAiAboutQuestion = async (
+  apiKey: string, 
+  question: QuizQuestion, 
+  userQuery: string, 
+  provider: AiProvider, 
+  model: string, 
+  appName: string = 'Avalia Quiz',
+  chatHistory: { role: 'user' | 'assistant' | 'model'; content: string }[] = []
+): Promise<string> => {
   if (!apiKey) throw new Error("Chave de API não fornecida.");
   if (!provider) throw new Error("Provedor de IA não informado.");
-  if (!model) throw new Error("Modelo de IA não informado.");
+  if (!model || !model.trim()) throw new Error("Modelo de IA não informado.");
+
+  const systemInstruction = `Você é o Mestre do Quiz. O jogador está tirando dúvidas sobre a seguinte questão:
+- Pergunta: "${question.question}"
+- Opções: ${question.options?.join(', ') || 'N/A'}
+- Resposta Correta: "${question.options?.[question.correctAnswerIndex] || question.correctAnswerText || 'N/A'}"
+- Explicação: "${question.explanation || 'N/A'}"
+
+Responda às perguntas do usuário mantendo o contexto da conversa anterior, de forma rápida, carismática e instrutiva.`;
 
   if (provider === 'openai' || provider === 'deepseek' || provider === 'groq' || provider === 'openrouter') {
-    const prompt = `Dúvida do jogador sobre a questão: ${question.question}. O usuário pergunta: "${userQuery}". Responda de forma rápida e instrutiva.`;
-
     const apiUrl = provider === 'openai'
       ? "https://api.openai.com/v1/chat/completions"
       : provider === 'deepseek'
@@ -1120,14 +1134,21 @@ export const askAiAboutQuestion = async (apiKey: string, question: QuizQuestion,
           : "https://openrouter.ai/api/v1/chat/completions";
     const displayName = provider === 'openai' ? "OpenAI" : provider === 'deepseek' ? "DeepSeek" : provider === 'groq' ? "Groq" : "OpenRouter";
 
+    const formattedMessages = [
+      { role: "system", content: systemInstruction },
+      ...chatHistory.map(msg => ({
+        role: msg.role === 'model' ? 'assistant' : msg.role,
+        content: msg.content
+      })),
+      { role: "user", content: userQuery }
+    ];
+
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: getFetchHeaders(apiKey, provider, appName),
       body: JSON.stringify({
         model: model,
-        messages: [
-          { role: "user", content: prompt }
-        ],
+        messages: formattedMessages,
         temperature: 0.7
       })
     });
@@ -1135,24 +1156,37 @@ export const askAiAboutQuestion = async (apiKey: string, question: QuizQuestion,
     if (!response.ok) {
       const errorText = await response.text();
       const friendlyMsg = parseApiErrorMessage(errorText, response.status);
-      const fullErrorMsg = `Erro na API do ${displayName}: ${response.status} - ${friendlyMsg}`;
+      const fullErrorMsg = `Erro na API do ${displayName}: ${friendlyMsg}`;
       logApiErrorToTelemetry(displayName, response.status, fullErrorMsg, appName);
       console.error(`${displayName} API Error:`, response.status, errorText);
-      throw new Error(fullErrorMsg);
+      throw new Error(friendlyMsg);
     }
 
     const data = await response.json();
     return data.choices?.[0]?.message?.content || "Sem resposta.";
   }
 
-  const genAI = getSDKInstance(apiKey);
-  const prompt = `Dúvida do jogador sobre a questão: ${question.question}. O usuário pergunta: "${userQuery}". Responda de forma rápida e instrutiva.`;
+  try {
+    const genAI = getSDKInstance(apiKey);
+    const formattedContents = [
+      { role: 'user', parts: [{ text: `[INSTRUÇÃO DO SISTEMA]\n${systemInstruction}` }] },
+      { role: 'model', parts: [{ text: 'Entendido! Como posso ajudar sobre esta questão?' }] },
+      ...chatHistory.map(msg => ({
+        role: msg.role === 'assistant' ? 'model' : msg.role,
+        parts: [{ text: msg.content }]
+      })),
+      { role: 'user', parts: [{ text: userQuery }] }
+    ];
 
-  const result = await genAI.models.generateContent({
-    model,
-    contents: [{ role: 'user', parts: [{ text: prompt }] }]
-  });
-  return result.text || "Sem resposta.";
+    const result = await genAI.models.generateContent({
+      model: model,
+      contents: formattedContents
+    });
+    return result.text || "Sem resposta.";
+  } catch (error: any) {
+    const friendlyMsg = parseApiErrorMessage(error?.message || String(error), error?.status || 429);
+    throw new Error(friendlyMsg);
+  }
 };
 
 export const generateSpeech = async (apiKey: string, text: string, config: TTSConfig, provider: AiProvider = 'google-ai'): Promise<string | null> => {

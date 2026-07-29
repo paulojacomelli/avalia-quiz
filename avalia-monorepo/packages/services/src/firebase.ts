@@ -471,6 +471,22 @@ export const updateSavedQuizQuestions = async (quizId: string, updatedQuestions:
 };
 
 /**
+ * Exclui um quiz por completo do Firestore.
+ */
+export const deleteSavedQuiz = async (quizId: string): Promise<boolean> => {
+    try {
+        if (quizId && !quizId.startsWith('local_')) {
+            const quizRef = doc(db, QUIZZES_COLLECTION, quizId);
+            await deleteDoc(quizRef);
+        }
+        return true;
+    } catch (error) {
+        console.error("Erro ao excluir quiz do Firestore:", error);
+        return false;
+    }
+};
+
+/**
  * Verifica se o usuário autenticado possui credencial de administrador cadastrada no Firebase.
  */
 export const checkIsUserAdmin = async (email?: string | null): Promise<boolean> => {

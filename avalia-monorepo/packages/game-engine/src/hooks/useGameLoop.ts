@@ -57,7 +57,9 @@ export function useGameLoop({
 
   const [gameState, setGameState] = useState<GameState>(() => {
     const saved = _session?.gameState as GameState | null;
-    if (saved === 'COUNTDOWN') return _session?.quizData ? 'READY_CHECK' : 'START_SCREEN';
+    if (saved === 'COUNTDOWN' || (saved === 'PLAYING' && (!_session?.quizData || !_session?.quizData?.questions?.length))) {
+      return _session?.quizData ? 'READY_CHECK' : 'START_SCREEN';
+    }
     return saved || 'START_SCREEN';
   });
 
@@ -134,6 +136,7 @@ export function useGameLoop({
   useEffect(() => {
     if (gameState !== 'COUNTDOWN') return;
 
+    setCountdownValue(3);
     const timer = setInterval(() => {
       setCountdownValue((prev) => {
         if (prev > 1) {
@@ -143,9 +146,9 @@ export function useGameLoop({
           playSound('click');
           return 0; // Exibe 'JÁ!'
         } else {
-          // Quando chega a 0, transiciona para PLAYING
+          clearInterval(timer);
           setGameState('PLAYING');
-          return 3;
+          return 0;
         }
       });
     }, 1000);
@@ -270,7 +273,7 @@ export function useGameLoop({
       };
     } else {
       parsed = { 
-        code: 'ERRO', 
+        code: '500', 
         title: 'Falha na Requisição', 
         message: rawMsg, 
         solution: 'Tente novamente em alguns instantes.' 

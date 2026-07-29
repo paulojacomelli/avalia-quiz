@@ -31,3 +31,14 @@
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
+
+/* Estilização da seleção de texto dinâmica conforme a cor do tema de cada app */
+::selection {
+  background-color: var(--accent-primary, #6366f1);
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background-color: var(--accent-primary, #6366f1);
+  color: #ffffff;
+}

@@ -46,13 +46,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, storageKey
     setClientId(storedClientId);
   }, [keyName, providerName, modelNameKey, clientKeyName]);
 
-  const login = (key: string, newProvider: AiProvider = 'google-ai', newModel?: string) => {
+  const login = (key: string, newProvider: AiProvider = 'google-ai', newModel: string = '') => {
     localStorage.setItem(keyName, key);
     localStorage.setItem(providerName, newProvider);
-    if (newModel) {
-      localStorage.setItem(modelNameKey, newModel);
-      setModel(newModel);
-    }
+    localStorage.setItem(modelNameKey, newModel);
+    setModel(newModel);
     setApiKey(key);
     setProvider(newProvider);
   };
