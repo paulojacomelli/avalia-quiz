@@ -1,4 +1,4 @@
-# Avalia - Ecossistema Modular & Agnóstico de Quizzes com IA (v1.7.6)
+# Avalia - Ecossistema Modular & Agnóstico de Quizzes com IA (v1.9.48)
 
 O **Avalia** é uma plataforma e **Monorepo** agnóstico projetado para construção, execução e gerenciamento de aplicações de quiz interativas impulsionadas por Inteligência Artificial. Gerido via **Turborepo** e **NPM Workspaces**, o ecossistema separa estritamente a infraestrutura, o motor de jogo e o design system de qualquer contexto de domínio ou marca.
 
@@ -95,7 +95,7 @@ Você é livre para estudar, modificar e estender a plataforma mantendo a transp
 
 ---
 
-## 🔖 Release Atual: v1.7.6
+## 🔖 Release Atual: v1.9.48
 - Arquitetura agnóstica completa e modularização de pacotes.
 - Suporte a Gemini 3.6 Flash / Pro e Gemini Live API.
 - Chat contínuo com a IA por pergunta.
