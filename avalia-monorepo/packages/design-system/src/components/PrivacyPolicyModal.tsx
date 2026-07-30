@@ -119,7 +119,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                                     <li>Preferências visuais (Tema Claro/Escuro, Zoom da tela).</li>
                                     <li>Configurações de som e narração/síntese de voz (TTS).</li>
                                     <li>Histórico de palavras-chave usadas localmente para evitar repetições.</li>
-                                    <li>Chaves de API da Google Gemini (armazenadas de forma encriptada no armazenamento local do navegador).</li>
+                                    <li>No modo por Código de Acesso, credenciais e chaves administrativas são mantidas 100% no servidor via GCP Secret Manager. No modo Chave API (BYOK), a chave pessoal é armazenada no armazenamento local do seu navegador.</li>
                                 </ul>
                             </section>
 
@@ -183,7 +183,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                                     Diretrizes de Uso de Inteligência Artificial
                                 </h3>
                                 <p>
-                                    O <strong>{appName}</strong> integra a tecnologia <strong>Google Gemini Developer API</strong> para criação automatizada de desafios, feedback instantâneo e suporte por chat.
+                                    O <strong>{appName}</strong> integra provedores de Inteligência Artificial de alta precisão (Google Gemini, OpenAI, Groq, DeepSeek, Anthropic Claude e OpenRouter) para criação automatizada de desafios, feedback instantâneo e suporte interativo.
                                 </p>
                             </section>
 
@@ -276,7 +276,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             </section>
 
                             <section>
-                                <h4 className="text-white font-bold mb-2">2. Bibliotecas e Licenças de Terceiros</h4>
+                                <h4 className="text-white font-bold mb-2">3. Bibliotecas e Licenças de Terceiros</h4>
                                 <p>
                                     Agradecemos e respeitamos a comunidade de software livre. Este projeto faz uso de bibliotecas de código aberto sob licenças permissivas (MIT, Apache 2.0 e BSD), incluindo:
                                 </p>
@@ -289,7 +289,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             </section>
 
                             <section>
-                                <h4 className="text-white font-bold mb-2">3. Diretrizes para Contribuição</h4>
+                                <h4 className="text-white font-bold mb-2">4. Diretrizes para Contribuição</h4>
                                 <p>
                                     Contribuições da comunidade para correção de falhas, melhorias de acessibilidade ou novas funcionalidades são bem-vindas através dos repositórios oficiais da organização no GitHub.
                                 </p>
@@ -298,7 +298,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                     )}
 
                     <div className="pt-4 border-t border-gray-700/30 text-[10px] text-gray-500 text-center">
-                        Avalia Quiz Ecosystem • Atualizado em Julho de 2026 • v1.4.17-beta
+                        Avalia Quiz Ecosystem • Atualizado em Julho de 2026 • v1.9.49
                     </div>
                 </div>
 
