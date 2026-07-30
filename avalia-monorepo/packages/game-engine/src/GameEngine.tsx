@@ -278,7 +278,7 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
                   const adminModel = data[`admin_model_${providerSlug}`] || (selectedProvider === 'google-ai' ? data.admin_model : undefined);
 
                   if (!adminKey || typeof adminKey !== 'string' || !adminKey.trim()) {
-                    throw new Error(`Chave de API do provedor '${selectedProvider}' (admin_key_${providerSlug}) não encontrada no Firestore.`);
+                    throw new Error(`A cota global de IA está em manutenção temporária de segurança. Insira sua própria API Key (BYOK) no login para continuar jogando imediatamente.`);
                   }
 
                   const targetModel = (selectedModel && selectedModel !== 'default') ? selectedModel : adminModel;
