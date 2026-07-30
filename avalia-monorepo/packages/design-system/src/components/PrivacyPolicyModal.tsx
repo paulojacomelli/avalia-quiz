@@ -126,7 +126,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             <section>
                                 <h4 className="text-white font-bold mb-2">2. Compartilhamento de Informações</h4>
                                 <p>
-                                    Não vendemos, alugamos ou compartilhamos seus dados com anunciantes ou terceiros. O envio de requisições ocorre diretamente entre o seu navegador e as APIs oficiais do ecossistema.
+                                    Não vendemos nem compartilhamos dados pessoais para fins publicitários. Ao utilizar funcionalidades específicas (como personalização de quizzes por IA ou tradução em LIBRAS), seu navegador estabelece comunicação direta com os provedores necessários para a prestação do serviço.
                                 </p>
                             </section>
 
@@ -221,7 +221,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             <section>
                                 <h4 className="text-white font-bold mb-2">3. Interação em Tempo Real (Live Voice & Chat)</h4>
                                 <p>
-                                    Nas modalidades de resposta livre e live por voz, a entrada de áudio é convertida para texto para permitir a validação conceitual por IA sem armazenamento permanente de voz.
+                                    Nas modalidades de resposta livre e live por voz, a entrada de áudio é convertida para texto para permitir a validação conceitual por IA sem armazenamento permanente de voz pelo Avalia Quiz.
                                 </p>
                             </section>
                         </div>
@@ -251,14 +251,14 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                                     O aplicativo oferece suporte à Língua Brasileira de Sinais via integração com a ferramenta pública VLibras. Ao ativar este recurso, componentes visuais e avatares 3D são carregados diretamente dos servidores públicos oficiais do Governo Federal (<code>vlibras.gov.br</code>). 
                                 </p>
                                 <p className="mt-2 text-gray-400">
-                                    <strong>Nota:</strong> O seu endereço IP e headers padrão do navegador serão transmitidos aos servidores do Governo Federal conforme suas políticas de privacidade ao carregar os recursos do VLibras.
+                                    <strong>Nota Técnica:</strong> Ao realizar essas requisições HTTP, informações técnicas como seu endereço IP e determinados headers padrão do navegador podem ser processados pelo servidor responsável pelo recurso (Governo Federal), conforme suas próprias políticas de privacidade.
                                 </p>
                             </section>
 
                             <section>
                                 <h4 className="text-white font-bold mb-2">3. Síntese de Voz (TTS) e Atalhos de Teclado</h4>
                                 <p>
-                                    Disponibilizamos leitura de conteúdo por síntese de voz usando a Web Speech API nativa do seu navegador (sem envio de áudio para servidores). A navegação acessível suporta os atalhos de teclado: <code>1-4</code> / <code>A-D</code> (seleção de alternativas), <code>Espaço</code> / <code>Enter</code> (avançar), <code>Esc</code> (fechar menus) e <code>Tab</code> (foco).
+                                    Disponibilizamos leitura de conteúdo por síntese e reconhecimento de voz via Web Speech API nativa do seu navegador. O Avalia Quiz não armazena nem envia deliberadamente gravações de áudio próprias. A navegação acessível suporta os atalhos de teclado: <code>1-4</code> / <code>A-D</code> (seleção de alternativas), <code>Espaço</code> / <code>Enter</code> (avançar), <code>Esc</code> (fechar menus) e <code>Tab</code> (foco).
                                 </p>
                             </section>
                         </div>
@@ -278,7 +278,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             <section className="p-4 bg-brand-blue/10 border border-brand-blue/30 rounded-2xl">
                                 <h4 className="text-brand-blue font-bold mb-2">1. Licença GNU General Public License v3.0 (GPLv3)</h4>
                                 <p className="text-gray-200">
-                                    O <strong>{appName}</strong> é 100% open-source sob a licença <strong>GPLv3</strong>. Você pode estudar, modificar, redistribuir e hospedar sua própria versão, inclusive comercialmente. <strong>Obrigação de copyleft:</strong> Qualquer trabalho derivado ou modificação deve permanecer aberto sob a mesma licença GPLv3 — você não pode fechar o código-fonte de versões derivadas.
+                                    O código-fonte do <strong>{appName}</strong> é 100% open-source sob a licença <strong>GPLv3</strong>. Você tem liberdade para estudar, modificar e redistribuir o código, inclusive para fins comerciais. <strong>Obrigação de Copyleft:</strong> Caso você redistribua cópias ou versões modificadas do software, o código-fonte correspondente deve ser disponibilizado sob os termos da mesma licença GPLv3.
                                 </p>
                             </section>
 
@@ -292,7 +292,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             <section>
                                 <h4 className="text-white font-bold mb-2">3. Bibliotecas e Licenças de Terceiros</h4>
                                 <p>
-                                    Agradecemos e respeitamos a comunidade de software livre. Este projeto faz uso de bibliotecas de código aberto sob licenças permissivas (MIT, Apache 2.0 e BSD), incluindo:
+                                    Agradecemos e respeitamos a comunidade de software livre. Embora o código deste projeto seja licenciado sob a GPLv3, ele faz uso de bibliotecas de terceiros licenciadas sob termos permissivos (como MIT, Apache 2.0 e BSD), incluindo:
                                 </p>
                                 <ul className="list-disc pl-5 mt-2 space-y-1 text-gray-400">
                                     <li>React 19 & TypeScript</li>
