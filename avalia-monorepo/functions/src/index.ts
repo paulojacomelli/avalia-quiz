@@ -144,8 +144,8 @@ export const generateQuizProxy = onRequest(
       }
 
       // 1. Leitura do PIN oficial diretamente do GCP Secret Manager (sem nenhum fallback)
-      const actualSecretCode = avaliaSecretCode.value();
-      const isPinValid = actualSecretCode === secretCode;
+      const actualSecretCode = (avaliaSecretCode.value() || "").trim();
+      const isPinValid = actualSecretCode === secretCode.trim();
 
       // 2. Transacao Atomica de Forca Bruta
       if (!isPinValid) {
@@ -237,8 +237,8 @@ export const getAvailableModelsProxy = onCall(
     const clientIp = getTrustedClientIp(request.rawRequest || {});
 
     // 1. Validação de PIN diretamente do GCP Secret Manager (sem nenhum fallback)
-    const actualSecretCode = avaliaSecretCode.value();
-    const isPinValid = actualSecretCode === secretCode;
+    const actualSecretCode = (avaliaSecretCode.value() || "").trim();
+    const isPinValid = actualSecretCode === secretCode.trim();
 
     // 2. Transação Atômica de Força Bruta por IP
     if (!isPinValid) {
