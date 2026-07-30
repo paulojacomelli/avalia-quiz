@@ -318,10 +318,10 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
                 <h1 className="text-base font-semibold truncate">
                   {renderFormattedAppTitle(appName)}
                 </h1>
-                {model && (
+                {provider && model && (
                   <span className="bg-white/10 text-gray-300 text-xs font-mono font-medium px-2.5 py-0.5 rounded-md border border-white/10 shadow-xs flex items-center gap-1.5 shrink-0 hidden md:flex">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    {resolveAiModelLabel(provider || 'google-ai', model)}
+                    {resolveAiModelLabel(provider, model)}
                   </span>
                 )}
                 {game.isTutorialMode && <span className="bg-emerald-500 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">Tutorial</span>}

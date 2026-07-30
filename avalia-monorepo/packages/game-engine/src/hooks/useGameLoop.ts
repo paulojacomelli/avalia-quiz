@@ -292,7 +292,7 @@ export function useGameLoop({
       errorMessage: parsed.message,
       solution: parsed.solution,
       clientId: activeClientId,
-      aiModel: resolveAiModelLabel(provider || 'google-ai', model)
+      aiModel: resolveAiModelLabel(provider, model)
     }).catch(e => console.warn("Falha ao registrar log de erro de telemetria:", e));
   }, [stopSpeech, appName, clientId, provider, model]);
 
@@ -370,7 +370,7 @@ export function useGameLoop({
           setLoadingMessage("Gerando narrações de IA...");
           data = await preGenerateQuizAudio(apiKey, data, finalConfig.tts, tempTeams.map(t => t.name));
         }
-        const aiModel = resolveAiModelLabel(provider || 'google-ai', model);
+        const aiModel = resolveAiModelLabel(provider, model);
         const themeLabel = resolveThemeLabel(finalConfig.mode, appName, finalConfig.topicModes);
         const activeClientId = clientId || getClientId();
         const docId = await saveGeneratedQuiz(
@@ -451,7 +451,7 @@ export function useGameLoop({
       isCorrect: result.isCorrect,
       score: result.score,
       clientId: activeClientId,
-      aiModel: resolveAiModelLabel(provider || 'google-ai', model)
+      aiModel: resolveAiModelLabel(provider, model)
     }).catch(e => console.warn("Falha ao registrar telemetria de resposta:", e));
   }, [isReviewing, reviewIndex, currentQuestionIndex, teams.length, currentTeamIndex, playSound, userAnswers, ttsEnabled, onAnswerLibrasEmotion, stopSpeech, speakText, ttsConfig, apiKey, provider, clientId, appName, quizData, model]);
 

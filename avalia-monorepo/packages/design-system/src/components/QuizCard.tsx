@@ -173,7 +173,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
             question.question,
             question.correctAnswerText || '',
             transcript,
-            provider || 'google-ai'
+            provider
           );
           setEvaluationResult(result);
           if (onAnswer) onAnswer({ score: result.score, isCorrect: result.isCorrect, textAnswer: transcript });
@@ -247,7 +247,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
     setIsEvaluating(true);
     playSound('click');
     try {
-      const result = await evaluateFreeResponse(apiKey, question.question, question.correctAnswerText || '', textAnswer, provider || 'google-ai', model || '');
+      const result = await evaluateFreeResponse(apiKey, question.question, question.correctAnswerText || '', textAnswer, provider, model || '');
       setEvaluationResult(result);
       if (onAnswer) onAnswer({ score: result.score, isCorrect: result.isCorrect, textAnswer: textAnswer });
     } catch (e: any) {
@@ -335,7 +335,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
         apiKey, 
         question, 
         query, 
-        provider || 'google-ai', 
+        provider, 
         model || '',
         'Avalia Quiz',
         chatMessages.map(m => ({ role: m.role, content: m.content }))
@@ -348,7 +348,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
         title: `Chat com IA: "${query.slice(0, 40)}${query.length > 40 ? '...' : ''}"`,
         errorCode: '200',
         questionId: question.id,
-        aiModel: `${provider || 'google-ai'}/${model || 'default'}`
+        aiModel: `${provider || 'desconhecido'}/${model || 'desconhecido'}`
       }).catch(e => console.warn("Falha ao registrar telemetria do chat:", e));
     } catch (error: any) {
       const errorMsg = error?.message || "Desculpe, não consegui conectar ao chat agora. Verifique a cota ou chave de API.";
@@ -364,7 +364,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
     if (isSpeaking()) stopSpeech();
     else {
       const textToRead = getQuestionReadAloudText(question, activeTeamName);
-      speakText(textToRead, ttsConfig, apiKey || undefined, question.audioBase64, provider || 'google-ai');
+      speakText(textToRead, ttsConfig, apiKey || undefined, question.audioBase64, provider);
     }
   };
 

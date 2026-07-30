@@ -192,12 +192,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
 
   const [textModelOption, setTextModelOption] = useState(() => {
-    return localStorage.getItem('gemini_text_model') || 'default';
+    const stored = localStorage.getItem('gemini_text_model');
+    // Nunca restaurar marcadores artificiais — estado vazio é correto enquanto lista real não chega
+    return stored && stored !== 'default' ? stored : '';
   });
   const [customTextModel, setCustomTextModel] = useState('');
 
   const [ttsModelOption, setTtsModelOption] = useState(() => {
-    return localStorage.getItem('gemini_tts_model') || 'default';
+    const stored = localStorage.getItem('gemini_tts_model');
+    return stored && stored !== 'default' ? stored : '';
   });
   const [customTtsModel, setCustomTtsModel] = useState('');
 
