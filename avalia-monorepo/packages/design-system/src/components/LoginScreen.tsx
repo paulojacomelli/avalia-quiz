@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { validateApiKey, db, fetchClaudeModels, fetchDynamicModels } from '@avalia/services';
+import { validateApiKey, db, fetchClaudeModels, fetchDynamicModels, functions, httpsCallable } from '@avalia/services';
 import { doc, getDoc } from 'firebase/firestore';
 import { ApiErrorDetail, AiProvider } from '@avalia/core';
 import { AppLogo } from './AppLogo';
@@ -67,8 +67,8 @@ const CustomSelect = ({ value, onChange, options, placeholder, disableCustom = f
   const filteredOptions = React.useMemo(() => {
     if (!searchQuery.trim()) return options;
     const q = searchQuery.toLowerCase().trim();
-    return options.filter(opt => 
-      opt.label.toLowerCase().includes(q) || 
+    return options.filter(opt =>
+      opt.label.toLowerCase().includes(q) ||
       opt.value.toLowerCase().includes(q)
     );
   }, [options, searchQuery]);
@@ -222,12 +222,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   // Busca dinâmica de modelos em tempo real para qualquer provedor (Texto e TTS)
   useEffect(() => {
-    if (loginMode === 'api' && inputKey && inputKey.trim()) {
-      fetchDynamicModels(provider, inputKey.trim(), 'text').then(fetched => {
+    const keyToUse = loginMode === 'api' ? (inputKey ? inputKey.trim() : '') : 'openrouter-free';
+
+    if (loginMode === 'api' && keyToUse) {
+      fetchDynamicModels(provider, keyToUse, 'text').then(fetched => {
         setDynamicModels(fetched && fetched.length > 0 ? fetched : []);
       });
 
-      fetchDynamicModels(provider, inputKey.trim(), 'tts').then(fetchedTts => {
+      fetchDynamicModels(provider, keyToUse, 'tts').then(fetchedTts => {
         if (fetchedTts && fetchedTts.length > 0) {
           setDynamicTtsModels(fetchedTts);
           setTtsModelOption(prev => {
@@ -238,6 +240,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           setDynamicTtsModels([]);
         }
       });
+    } else if (loginMode === 'code') {
+      // Invocacao 100% nativa do SDK do Firebase Cloud Functions (sem URLs hardcoded)
+      const getModelsCallable = httpsCallable<{ provider: string; target: string }, { models: ModelOption[] }>(functions, 'getAvailableModelsProxy');
+
+      getModelsCallable({ provider, target: 'text' })
+        .then(res => {
+          setDynamicModels(Array.isArray(res.data?.models) ? res.data.models : []);
+        })
+        .catch(() => {
+          setDynamicModels([]);
+        });
+
+      getModelsCallable({ provider, target: 'tts' })
+        .then(res => {
+          setDynamicTtsModels(Array.isArray(res.data?.models) ? res.data.models : []);
+        })
+        .catch(() => {
+          setDynamicTtsModels([]);
+        });
     } else {
       setDynamicModels([]);
       setDynamicTtsModels([]);
@@ -247,39 +268,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   // Obtém as opções consolidadas de modelos de texto para o CustomSelect
   const textModelOptions = React.useMemo(() => {
-    if (loginMode === 'code') {
-      const defaultOption: ModelOption = { value: "default", label: "Padrão (Configuração do Sistema)", status: "Padrão" };
-      let providerDefaults: ModelOption[] = [];
+    const defaultOption: ModelOption = { value: "default", label: "Padrão (Configuração do Sistema)", status: "Padrão" };
 
-      if (provider === 'google-ai') {
-        providerDefaults = [
-          { value: "gemini-3.6-flash", label: "Gemini 3.6 Flash (Recomendado)", status: "Estável" },
-          { value: "gemini-3.5-flash", label: "Gemini 3.5 Flash", status: "Estável" },
-          { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", status: "Avançado" }
-        ];
-      } else if (provider === 'groq') {
-        providerDefaults = [
-          { value: "groq/compound", label: "Groq Compound (Recomendado)", status: "Ultrarrápido" },
-          { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B", status: "Estável" }
-        ];
-      } else if (provider === 'deepseek') {
-        providerDefaults = [
-          { value: "deepseek-reasoner", label: "DeepSeek R1 (Reasoner)", status: "Raciocínio" },
-          { value: "deepseek-chat", label: "DeepSeek V3 (Chat)", status: "Estável" }
-        ];
-      } else if (provider === 'openrouter') {
-        providerDefaults = [
-          { value: "openrouter/auto:free", label: "OpenRouter Auto Free", status: "Grátis" },
-          { value: "deepseek/deepseek-v3", label: "DeepSeek V3", status: "Estável" }
-        ];
-      } else if (provider === 'openai') {
-        providerDefaults = [
-          { value: "gpt-4o-mini", label: "GPT-4o Mini", status: "Estável" },
-          { value: "gpt-4o", label: "GPT-4o", status: "Avançado" }
-        ];
-      }
-
-      return [defaultOption, ...providerDefaults];
+    if (dynamicModels.length > 0) {
+      return [defaultOption, ...dynamicModels];
     }
 
     if (provider === 'openrouter') {
@@ -288,20 +280,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         { value: "openrouter/auto", label: "Modo automático", status: "Estável" }
       ];
       const rest = dynamicModels.filter(m => m.value !== 'openrouter/auto:free' && m.value !== 'openrouter/auto');
-      return [...pinned, ...rest];
+      return [defaultOption, ...pinned, ...rest];
     }
-    return dynamicModels;
+    return [defaultOption, ...dynamicModels];
   }, [provider, loginMode, dynamicModels]);
 
   // Sincroniza o modelo de texto quando os modelos dinâmicos são carregados
   useEffect(() => {
     if (textModelOptions.length > 0) {
       setTextModelOption(prev => {
+        if (!prev) return textModelOptions[0].value;
         const exists = textModelOptions.some(m => m.value === prev);
-        return exists ? prev : textModelOptions[0].value;
+        return exists ? prev : prev;
       });
-    } else {
-      setTextModelOption('');
     }
   }, [provider, textModelOptions]);
 
@@ -316,6 +307,41 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       setTtsModelOption('');
     }
   }, [provider, dynamicTtsModels]);
+
+  const [codeStep, setCodeStep] = useState<'code_input' | 'provider_select'>('code_input');
+
+  const handleValidateCodeOnly = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    const cleanedCode = accessCode.trim();
+    if (!cleanedCode) {
+      setError('Por favor, insira o código de acesso.');
+      return;
+    }
+
+    setIsValidating(true);
+
+    try {
+      // 1. Valida o PIN via Cloud Function de forma serverless isolada
+      const getModelsCallable = httpsCallable<{ secretCode: string; provider: string; target: string }, { models: ModelOption[]; valid?: boolean }>(functions, 'getAvailableModelsProxy');
+      
+      await getModelsCallable({ secretCode: cleanedCode, provider: 'google-ai', target: 'text' });
+      
+      // Se validou com sucesso sem erro, avança exclusivamente a UI para a Etapa 2
+      setCodeStep('provider_select');
+      setError('');
+    } catch (err: any) {
+      if (err.message && (err.message.includes('offline') || err.code === 'unavailable')) {
+        setError("Não foi possível conectar ao servidor. Utilize a aba 'Chave API' para entrar com sua chave.");
+      } else {
+        const cleanMsg = err.message ? err.message.replace(/^internal\s*/i, '').trim() : '';
+        setError(cleanMsg || 'Código de acesso incorreto ou falha na conexão.');
+      }
+    } finally {
+      setIsValidating(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -407,9 +433,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         </div>
 
 
-        <form onSubmit={handleSubmit} className="w-full space-y-8">
+        <form onSubmit={loginMode === 'code' && codeStep === 'code_input' ? handleValidateCodeOnly : handleSubmit} className="w-full space-y-8">
           <div className="animate-fade-in flex flex-col text-left space-y-6">
-            {loginMode === 'code' && (
+            {loginMode === 'code' && codeStep === 'code_input' && (
               <div>
                 <label className="text-xs font-bold text-gray-500 mb-2 block tracking-wide text-left">Código de Acesso</label>
                 <input
@@ -423,7 +449,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               </div>
             )}
 
-            <div>
+            {(loginMode === 'api' || (loginMode === 'code' && codeStep === 'provider_select')) && (
+              <div>
               <label className="text-xs font-bold text-gray-500 mb-3 block tracking-wide text-left">Provedor de API</label>
               <div className="flex flex-col gap-1.5">
                 {(
@@ -538,6 +565,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   })}
               </div>
             </div>
+            )}
 
             {loginMode === 'api' && (
               <div>
@@ -587,7 +615,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                           ? "Carregando modelos do provedor..."
                           : "Selecione um modelo..."
                   }
-                  disableCustom={false}
+                  disableCustom={loginMode === 'code'}
                 />
                 {textModelOption === 'custom' && (
                   <input
@@ -614,10 +642,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     <CustomSelect
                       value={ttsModelOption}
                       onChange={setTtsModelOption}
-                      options={dynamicTtsModels.length > 0 ? dynamicTtsModels : [
-                        { value: "default", label: "Padrão (Configuração do Sistema)", status: "Padrão" },
-                        { value: "gemini-3.1-flash-tts-preview", label: "Gemini 3.1 Flash TTS", status: "Estável" }
-                      ]}
+                      options={dynamicTtsModels}
                       placeholder={
                         loginMode === 'code'
                           ? "Selecione um modelo de voz..."
@@ -625,7 +650,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                             ? "Insira sua Chave de API para ver os modelos de voz..."
                             : "Selecione um modelo TTS..."
                       }
-                      disableCustom={true}
+                      disableCustom={false}
                     />
                     {ttsModelOption === 'custom' && (
                       <input
@@ -674,7 +699,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           >
             {isValidating ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-            ) : "Entrar"}
+            ) : (
+              loginMode === 'code' && codeStep === 'code_input' ? "Validar Código" : "Entrar"
+            )}
           </button>
         </form>
 

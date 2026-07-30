@@ -3,6 +3,7 @@ import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, getDo
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, User } from "firebase/auth";
 import { GeneratedQuiz, QuizQuestion, TelemetryLogEntry } from "../types";
+import { resolveThemeLabel } from "./themeUtils";
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -14,10 +15,14 @@ const firebaseConfig = {
     measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
+import { getFunctions, httpsCallable, connectFunctionsEmulator } from "firebase/functions";
+
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const auth = getAuth(app);
+export const functions = getFunctions(app);
+export { httpsCallable };
 
 const QUIZZES_COLLECTION = "generated_quizzes";
 const TELEMETRY_COLLECTION = "telemetry_logs";
@@ -160,7 +165,7 @@ export const saveGeneratedQuiz = async (
             keywords: quiz.keywords,
             keywordList: quiz.keywords || [],
             appName,
-            theme: theme || "Geral",
+            theme: resolveThemeLabel(theme, appName),
             subTopic: subTopic || "",
             createdAt: serverTimestamp(),
             clientId: metadata?.clientId || getClientId(),
@@ -325,6 +330,7 @@ export const logTelemetryEvent = async (entry: TelemetryLogEntry): Promise<void>
     const clientId = entry.clientId || getClientId();
     const payload = cleanUndefined({
         ...entry,
+        topic: entry.topic ? resolveThemeLabel(entry.topic, entry.appName) : undefined,
         isoDate,
         createdAt: serverTimestamp(),
         userAgent,

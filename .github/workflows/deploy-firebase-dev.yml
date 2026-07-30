@@ -33,6 +33,7 @@ jobs:
           OPENROUTER_KEY=${{ secrets.OPENROUTER_KEY }}
           OPENAI_KEY=${{ secrets.OPENAI_KEY }}
           CLAUDE_KEY=${{ secrets.CLAUDE_KEY }}
+          AVALIA_SECRET_CODE=${{ secrets.AVALIA_SECRET_CODE }}
           EOF
 
       - name: Apply canary assets (dev icons)
@@ -85,6 +86,6 @@ jobs:
             echo "ERROR: FIREBASE_TOKEN is not set"
             exit 1
           fi
-          firebase deploy --only hosting:avaliaquizdev,hosting:avaliajwquizdev --non-interactive
+          firebase deploy --only hosting:avaliaquizdev,hosting:avaliajwquizdev,functions --non-interactive
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

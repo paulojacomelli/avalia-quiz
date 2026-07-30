@@ -6,7 +6,7 @@ import {
   generateQuizContent, generateReplacementQuestion, preGenerateQuizAudio,
   playSound, playTimerTick, playCountdownTick, playGoSound, startLoadingDrone, stopLoadingDrone, resumeAudioContext,
   getGlobalKeywords, saveGeneratedQuiz, getRandomPrebuiltQuiz, getAvailableLibraryThemes, uploadQuizAudiosToStorage,
-  logTelemetryEvent, resolveAiModelLabel, getClientId
+  logTelemetryEvent, resolveAiModelLabel, getClientId, resolveThemeLabel
 } from '@avalia/services';
 
 type GameState = 'START_SCREEN' | 'SETUP' | 'READY_CHECK' | 'COUNTDOWN' | 'PLAYING' | 'ROUND_SUMMARY' | 'FINISHED';
@@ -360,7 +360,7 @@ export function useGameLoop({
           eventType: 'quiz_generated',
           appName,
           title: data.title,
-          topic: finalConfig.mode,
+          topic: resolveThemeLabel(finalConfig.mode, appName),
           clientId: activeClientId,
           aiModel: 'Biblioteca Pré-Construída'
         }).catch(e => console.warn("Falha ao registrar evento de quiz pré-construído:", e));
@@ -371,8 +371,7 @@ export function useGameLoop({
           data = await preGenerateQuizAudio(apiKey, data, finalConfig.tts, tempTeams.map(t => t.name));
         }
         const aiModel = resolveAiModelLabel(provider || 'google-ai', model);
-        const matchedTopicMode = finalConfig.topicModes?.find((tm: any) => tm.value === finalConfig.mode);
-        const themeLabel = matchedTopicMode?.label || (typeof finalConfig.mode === 'string' ? finalConfig.mode : 'Geral');
+        const themeLabel = resolveThemeLabel(finalConfig.mode, appName, finalConfig.topicModes);
         const activeClientId = clientId || getClientId();
         const docId = await saveGeneratedQuiz(
           data, 

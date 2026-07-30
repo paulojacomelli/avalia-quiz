@@ -3,7 +3,8 @@ import { User } from 'firebase/auth';
 import {
   loginWithGoogle, logoutGoogle, subscribeAuthState,
   fetchTelemetryLogs, fetchSavedQuizzes, subscribeTelemetryLogs,
-  logTelemetryEvent, updateSavedQuizQuestions, deleteSavedQuiz, checkIsUserAdmin
+  logTelemetryEvent, updateSavedQuizQuestions, deleteSavedQuiz, checkIsUserAdmin,
+  resolveThemeLabel
 } from '@avalia/services';
 import { TelemetryLogEntry } from '@avalia/core';
 
@@ -825,9 +826,8 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
     return code;
   };
 
-  const formatThemeLabel = useCallback((rawTheme?: string): string => {
-    if (!rawTheme) return 'Geral';
-    return rawTheme.trim();
+  const formatThemeLabel = useCallback((rawTheme?: string, itemAppName?: string): string => {
+    return resolveThemeLabel(rawTheme, itemAppName);
   }, []);
 
   // Contagem por Código de Erro
@@ -1680,7 +1680,7 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
     scopedQuizzes.forEach(q => {
       if (!q) return;
       const rawTheme = q.theme || 'Geral';
-      const category = formatThemeLabel(rawTheme);
+      const category = formatThemeLabel(rawTheme, q.appName);
       const sub = (q.subTopic || '').trim();
       const key = sub ? `${category} › ${sub}` : category;
       counts[key] = (counts[key] || 0) + 1;
@@ -2816,7 +2816,7 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
                                       <span className="truncate max-w-[140px]" title={modelStr}>{modelStr}</span>
                                     </span>
                                   </td>
-                                  <td className="py-3.5 px-4 text-gray-300 font-medium">{formatThemeLabel(quiz.theme)} {quiz.subTopic ? `(${quiz.subTopic})` : ''}</td>
+                                  <td className="py-3.5 px-4 text-gray-300 font-medium">{formatThemeLabel(quiz.theme, quiz.appName)} {quiz.subTopic ? `(${quiz.subTopic})` : ''}</td>
                                   <td className="py-3.5 px-4 font-mono text-amber-400 font-bold text-center">{quiz.questions?.length || 0}</td>
                                   <td className="py-3.5 px-4 text-right">
                                     <div className="flex items-center justify-end gap-2">
@@ -2882,7 +2882,7 @@ const AdminDashboardContent: React.FC<AdminDashboardProps> = ({ appName = 'Siste
             <div className="flex justify-between items-center border-b border-white/10 pb-3">
               <div>
                 <h3 className="text-base font-bold text-white">{selectedQuizDetail.title}</h3>
-                <p className="text-xs text-gray-400">{selectedQuizDetail.appName} • {formatThemeLabel(selectedQuizDetail.theme)} • {selectedQuizDetail.questions?.length || 0} questões</p>
+                <p className="text-xs text-gray-400">{selectedQuizDetail.appName} • {formatThemeLabel(selectedQuizDetail.theme, selectedQuizDetail.appName)} • {selectedQuizDetail.questions?.length || 0} questões</p>
               </div>
               <div className="flex items-center gap-3">
                 <button

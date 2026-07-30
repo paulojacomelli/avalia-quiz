@@ -1,3 +1,255 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getAvailableModelsProxy = exports.generateQuizProxy = void 0;
+const https_1 = require("firebase-functions/v2/https");
+const admin = __importStar(require("firebase-admin"));
+if (!admin.apps.length) {
+    admin.initializeApp();
+}
+const db = admin.firestore();
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_TIME_MS = 15 * 60 * 1000; // 15 minutos de bloqueio
+const FAILURE_WINDOW_MS = 60 * 60 * 1000; // 1 hora de janela para contagem de falhas
+/**
+ * Extrai o IP real do cliente conforme a especificação oficial das Cloud Functions v2 / GCP Cloud Run.
+ *
+ * ⚠️ PREMISSA DE INFRAESTRUTURA:
+ * Esta implementação pressupõe que a Function é acessada DIRETA e EXCLUSIVAMENTE pelo seu endpoint padrão
+ * da GCP (https://us-central1-<project-id>.cloudfunctions.net/...), sem proxies intermediários ou CDNs.
+ * Se futuramente for adicionada uma camada de Cloudflare, Fastly, Nginx ou Load Balancer customizado,
+ * este método DEVE ser reavaliado para ler o cabeçalho correspondente desse proxy intermediário.
+ */
+function getTrustedClientIp(req) {
+    // 1. req.ip nativo configurado pela runtime do Firebase v2 / Express
+    if (typeof req.ip === "string" && req.ip.trim() && req.ip !== "::1" && req.ip !== "127.0.0.1") {
+        return req.ip.trim();
+    }
+    // 2. Primeiro IP da cadeia X-Forwarded-For (padrao oficial da GCP para Cloud Functions v2)
+    const forwarded = req.headers["x-forwarded-for"];
+    if (typeof forwarded === "string" && forwarded.trim()) {
+        const ips = forwarded.split(",").map(ip => ip.trim()).filter(Boolean);
+        if (ips.length > 0) {
+            return ips[0]; // Primeiro IP da lista = cliente de origem no padrao GCP Functions v2
+        }
+    }
+    return req.socket?.remoteAddress || "unknown_ip";
+}
+/**
+ * Registra e valida tentativas incorretas de PIN no servidor por IP em uma transacao atomica.
+ */
+async function verifyAndTrackBruteForce(clientIp, isCorrectPin) {
+    const sanitizeIpKey = clientIp.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const docRef = db.collection("telemetry_brute_force_locks").doc(sanitizeIpKey);
+    const now = Date.now();
+    await db.runTransaction(async (transaction) => {
+        const snap = await transaction.get(docRef);
+        const data = snap.data();
+        // 1. Checagem de Lockout Ativo
+        if (data?.isBlocked && data?.blockedUntil) {
+            if (now < data.blockedUntil) {
+                throw new https_1.HttpsError("resource-exhausted", "Muitas tentativas incorretas. Tente novamente mais tarde.");
+            }
+            // Se o tempo de lockout expirou, reseta o estado do bloqueio na transacao
+            transaction.set(docRef, { failedCount: 0, isBlocked: false, windowStart: now });
+        }
+        // 2. Se o PIN estiver correto, limpa o historico de falhas desse IP
+        if (isCorrectPin) {
+            if (snap.exists && (data?.failedCount > 0 || data?.isBlocked)) {
+                transaction.set(docRef, { failedCount: 0, isBlocked: false, lastSuccess: now });
+            }
+            return;
+        }
+        // 3. Se o PIN estiver incorreto, calcula o incremento com base na janela de tempo de 1 hora
+        const windowStart = data?.windowStart || now;
+        let currentFailures = data?.failedCount || 0;
+        // Se a janela de 1 hora expirou desde o primeiro erro, reseta a contagem
+        if (now - windowStart > FAILURE_WINDOW_MS) {
+            currentFailures = 1;
+        }
+        else {
+            currentFailures += 1;
+        }
+        const isBlockedNow = currentFailures >= MAX_FAILED_ATTEMPTS;
+        const blockedUntilTime = isBlockedNow ? now + LOCKOUT_TIME_MS : null;
+        transaction.set(docRef, {
+            failedCount: currentFailures,
+            isBlocked: isBlockedNow,
+            blockedUntil: blockedUntilTime,
+            windowStart: currentFailures === 1 ? now : windowStart,
+            lastFailed: now,
+        }, { merge: true });
+    });
+}
+exports.generateQuizProxy = (0, https_1.onRequest)({
+    cors: true
+}, async (req, res) => {
+    if (req.method !== "POST") {
+        res.status(405).json({ error: "Método não permitido. Use POST." });
+        return;
+    }
+    const clientIp = getTrustedClientIp(req);
+    const { secretCode, provider, model, theme, subTopic } = req.body || {};
+    try {
+        if (!secretCode || typeof secretCode !== "string") {
+            res.status(400).json({ error: "Código de acesso (secretCode) é obrigatório." });
+            return;
+        }
+        // 1. Leitura do PIN oficial (Lê do .env AVALIA_SECRET_CODE ou fallback ao Firestore)
+        let actualSecretCode = process.env.AVALIA_SECRET_CODE;
+        if (!actualSecretCode) {
+            const configSnap = await db.doc("auth/config").get();
+            actualSecretCode = configSnap.exists ? configSnap.data()?.secret_code : null;
+        }
+        const isPinValid = actualSecretCode === secretCode;
+        // 2. Transacao Atomica de Forca Bruta
+        if (!isPinValid) {
+            await verifyAndTrackBruteForce(clientIp, false);
+            res.status(401).json({ error: "Código de acesso incorreto." });
+            return;
+        }
+        // 3. Se o PIN estiver correto, valida o estado de bloqueio e limpa o contador
+        await verifyAndTrackBruteForce(clientIp, true);
+        // 4. Resgate seguro da chave de API do Secret Manager
+        const targetProvider = provider || "google-ai";
+        let apiKey;
+        switch (targetProvider) {
+            case "google-ai":
+                apiKey = process.env.GOOGLE_AI_KEY;
+                break;
+            case "groq":
+                apiKey = process.env.GROQ_KEY;
+                break;
+            case "deepseek":
+                apiKey = process.env.DEEPSEEK_KEY;
+                break;
+            case "openrouter":
+                apiKey = process.env.OPENROUTER_KEY;
+                break;
+            case "openai":
+                apiKey = process.env.OPENAI_KEY;
+                break;
+            case "claude":
+                apiKey = process.env.CLAUDE_KEY;
+                break;
+        }
+        if (!apiKey) {
+            res.status(500).json({ error: `Chave secreta do provedor '${targetProvider}' não configurada no servidor.` });
+            return;
+        }
+        // TODO INTEGRACAO REAL: Chamada SDK / REST com a apiKey no servidor
+        res.status(200).json({
+            success: true,
+            quiz: {
+                title: `Quiz sobre ${theme || "Geral"}`,
+                questions: [
+                    {
+                        id: "q1",
+                        question: `[SERVIDOR] Pergunta gerada para ${theme || "o tema"}?`,
+                        options: ["Resposta A", "Resposta B", "Resposta C", "Resposta D"],
+                        correctAnswerIndex: 0,
+                        correctAnswerText: "Resposta A"
+                    }
+                ]
+            },
+            provider: targetProvider,
+            model: model || "default"
+        });
+    }
+    catch (err) {
+        console.error("Erro na generateQuizProxy:", err);
+        res.status(500).json({ error: err?.message || "Erro interno no servidor proxy de IA." });
+    }
+});
+/**
+ * Cloud Function Serverless Callable para consultar a lista oficial de modelos dos provedores usando as chaves de servidor.
+ */
+exports.getAvailableModelsProxy = (0, https_1.onCall)({ cors: true }, async (request) => {
+    const data = request.data || {};
+    const secretCode = String(data.secretCode || "");
+    const provider = String(data.provider || "google-ai");
+    const target = String(data.target || "text");
+    // 1. Validação de PIN (Lê primeiro do .env do servidor AVALIA_SECRET_CODE ou fallback ao Firestore)
+    let actualSecretCode = process.env.AVALIA_SECRET_CODE;
+    if (!actualSecretCode) {
+        const configSnap = await db.doc("auth/config").get();
+        actualSecretCode = configSnap.exists ? configSnap.data()?.secret_code : null;
+    }
+    if (secretCode && actualSecretCode !== secretCode) {
+        throw new https_1.HttpsError("unauthenticated", "Código de acesso incorreto.");
+    }
+    try {
+        if (provider === "google-ai" || provider === "vertex" || provider === "auto") {
+            const apiKey = process.env.GOOGLE_AI_KEY;
+            if (!apiKey)
+                return { models: [], valid: true };
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+            if (!response.ok)
+                return { models: [], valid: true };
+            const apiData = await response.json();
+            if (apiData && Array.isArray(apiData.models)) {
+                const result = apiData.models
+                    .filter((m) => {
+                    if (!m.name)
+                        return false;
+                    const cleanId = m.name.replace(/^models\//, '');
+                    const idLower = cleanId.toLowerCase();
+                    const isTts = idLower.includes('tts') || idLower.includes('audio') || idLower.includes('speech');
+                    if (target === 'tts')
+                        return isTts;
+                    const isNonText = isTts || idLower.includes('image') || idLower.includes('embed') || idLower.includes('bidi') || idLower.includes('realtime');
+                    if (isNonText)
+                        return false;
+                    return cleanId.includes('gemini') && m.supportedGenerationMethods?.includes('generateContent');
+                })
+                    .map((m) => {
+                    const cleanId = m.name.replace(/^models\//, '');
+                    return {
+                        value: cleanId,
+                        label: m.displayName ? `${m.displayName} (${cleanId})` : cleanId,
+                        status: target === 'tts' ? 'Voz' : 'Estável'
+                    };
+                });
+                return { models: result, valid: true };
+            }
+        }
+        return { models: [], valid: true };
+    }
+    catch (err) {
+        console.error("Erro na getAvailableModelsProxy:", err);
+        return { models: [], valid: true };
+    }
+});
 //# sourceMappingURL=index.js.map

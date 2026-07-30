@@ -1,4 +1,4 @@
-import { onRequest, HttpsError } from "firebase-functions/v2/https";
+import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
 if (!admin.apps.length) {
@@ -97,15 +97,7 @@ async function verifyAndTrackBruteForce(clientIp: string, isCorrectPin: boolean)
 
 export const generateQuizProxy = onRequest(
   {
-    cors: true,
-    secrets: [
-      "GOOGLE_AI_KEY",
-      "GROQ_KEY",
-      "DEEPSEEK_KEY",
-      "OPENROUTER_KEY",
-      "OPENAI_KEY",
-      "CLAUDE_KEY"
-    ]
+    cors: true
   },
   async (req, res) => {
     if (req.method !== "POST") {
@@ -122,9 +114,12 @@ export const generateQuizProxy = onRequest(
         return;
       }
 
-      // 1. Leitura do PIN oficial no Firestore
-      const configSnap = await db.doc("auth/config").get();
-      const actualSecretCode = configSnap.exists ? configSnap.data()?.secret_code : null;
+      // 1. Leitura do PIN oficial (Lê do .env AVALIA_SECRET_CODE ou fallback ao Firestore)
+      let actualSecretCode = process.env.AVALIA_SECRET_CODE;
+      if (!actualSecretCode) {
+        const configSnap = await db.doc("auth/config").get();
+        actualSecretCode = configSnap.exists ? configSnap.data()?.secret_code : null;
+      }
       const isPinValid = actualSecretCode === secretCode;
 
       // 2. Transacao Atomica de Forca Bruta
@@ -185,14 +180,85 @@ export const generateQuizProxy = onRequest(
         provider: targetProvider,
         model: model || "default"
       });
-
     } catch (err: any) {
-      if (err instanceof HttpsError || err.message?.includes("Muitas tentativas")) {
-        res.status(429).json({ error: "Muitas tentativas incorretas. Tente novamente mais tarde." });
-        return;
+      console.error("Erro na generateQuizProxy:", err);
+      res.status(500).json({ error: err?.message || "Erro interno no servidor proxy de IA." });
+    }
+  }
+);
+
+/**
+ * Cloud Function Serverless Callable para consultar a lista oficial de modelos dos provedores usando as chaves de servidor.
+ */
+export const getAvailableModelsProxy = onCall(
+  { cors: true },
+  async (request) => {
+    const data = request.data || {};
+    const secretCode = String(data.secretCode || "");
+    const provider = String(data.provider || "google-ai");
+    const target = String(data.target || "text");
+
+    const clientIp = getTrustedClientIp(request.rawRequest || {});
+
+    // 1. Validação de PIN (Lê primeiro do .env do servidor AVALIA_SECRET_CODE ou fallback ao Firestore)
+    let actualSecretCode = process.env.AVALIA_SECRET_CODE;
+    if (!actualSecretCode) {
+      const configSnap = await db.doc("auth/config").get();
+      actualSecretCode = configSnap.exists ? configSnap.data()?.secret_code : null;
+    }
+
+    const isPinValid = actualSecretCode === secretCode;
+
+    // 2. Transação Atômica de Força Bruta por IP
+    if (!isPinValid) {
+      await verifyAndTrackBruteForce(clientIp, false);
+      throw new HttpsError("unauthenticated", "Código de acesso incorreto.");
+    }
+
+    // Se o PIN for válido, limpa qualquer contagem parcial e autoriza
+    await verifyAndTrackBruteForce(clientIp, true);
+
+    try {
+      if (provider === "google-ai" || provider === "vertex" || provider === "auto") {
+        const apiKey = process.env.GOOGLE_AI_KEY;
+        if (!apiKey) return { models: [], valid: true };
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        if (!response.ok) return { models: [], valid: true };
+
+        const apiData = await response.json();
+        if (apiData && Array.isArray(apiData.models)) {
+          const result = apiData.models
+            .filter((m: any) => {
+              if (!m.name) return false;
+              const cleanId = m.name.replace(/^models\//, '');
+              const idLower = cleanId.toLowerCase();
+              const isTts = idLower.includes('tts') || idLower.includes('audio') || idLower.includes('speech');
+              
+              if (target === 'tts') return isTts;
+              
+              const isNonText = isTts || idLower.includes('image') || idLower.includes('embed') || idLower.includes('bidi') || idLower.includes('realtime');
+              if (isNonText) return false;
+              
+              return cleanId.includes('gemini') && m.supportedGenerationMethods?.includes('generateContent');
+            })
+            .map((m: any) => {
+              const cleanId = m.name.replace(/^models\//, '');
+              return {
+                value: cleanId,
+                label: m.displayName ? `${m.displayName} (${cleanId})` : cleanId,
+                status: target === 'tts' ? 'Voz' : 'Estável'
+              };
+            });
+
+          return { models: result, valid: true };
+        }
       }
-      console.error("[PROXY SERVER ERROR]", err);
-      res.status(500).json({ error: "Erro interno no servidor de geração de quiz." });
+
+      return { models: [], valid: true };
+    } catch (err) {
+      console.error("Erro na getAvailableModelsProxy:", err);
+      return { models: [], valid: true };
     }
   }
 );
