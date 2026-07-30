@@ -188,9 +188,12 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             </section>
 
                             <section>
-                                <h4 className="text-white font-bold mb-2">1. Como os Prompts São Processados</h4>
+                                <h4 className="text-white font-bold mb-2">1. Processamento de Conteúdo pelos Provedores de IA</h4>
                                 <p>
-                                    Ao solicitar a geração de um quiz, os tópicos escolhidos são enviados de forma anônima para a API da Google AI. Nenhuma informação pessoal ou credencial de conta é incluída no prompt enviado.
+                                    Nenhum dado pessoal, histórico de navegação ou informação do seu dispositivo é enviado automaticamente para os servidores dos provedores de Inteligência Artificial.
+                                </p>
+                                <p className="mt-2 text-gray-400">
+                                    Os únicos dados transmitidos para a IA são os temas, assuntos, trechos de texto ou links públicos digitados ou colados explicitamente por você nas seções de criação de quiz personalizado.
                                 </p>
                             </section>
 
