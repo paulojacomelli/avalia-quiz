@@ -40,17 +40,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, storageKey
       localStorage.setItem(clientKeyName, storedClientId);
     }
     
-    if (storedKey) setApiKey(storedKey);
-    if (storedProvider) setProvider(storedProvider);
-    if (storedModel) setModel(storedModel);
     setClientId(storedClientId);
+
+    // Só restaura a sessão se todos os campos forem válidos.
+    // Um storedModel vazio ou marcador artificial ('default') invalida a sessão persistida.
+    const isModelValid = storedModel && storedModel.trim() && storedModel !== 'default';
+    if (storedKey && storedProvider && isModelValid) {
+      setApiKey(storedKey);
+      setProvider(storedProvider);
+      setModel(storedModel!.trim());
+    } else {
+      // Sessão inválida ou incompleta: limpa o localStorage para evitar reutilização futura
+      localStorage.removeItem(keyName);
+      localStorage.removeItem(providerName);
+      localStorage.removeItem(modelNameKey);
+    }
   }, [keyName, providerName, modelNameKey, clientKeyName]);
 
-  const login = (key: string, newProvider: AiProvider = 'google-ai', newModel: string = '') => {
+  const login = (key: string, newProvider: AiProvider, newModel: string) => {
+    if (!newModel || !newModel.trim() || newModel === 'default') {
+      throw new Error('Modelo de IA inválido. Informe um identificador real de modelo.');
+    }
     localStorage.setItem(keyName, key);
     localStorage.setItem(providerName, newProvider);
-    localStorage.setItem(modelNameKey, newModel);
-    setModel(newModel);
+    localStorage.setItem(modelNameKey, newModel.trim());
+    setModel(newModel.trim());
     setApiKey(key);
     setProvider(newProvider);
   };
