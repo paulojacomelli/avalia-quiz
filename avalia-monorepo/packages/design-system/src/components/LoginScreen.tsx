@@ -339,13 +339,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         {/* Borda superior decorativa com brilho */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-[var(--accent-primary)] shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
 
-        {/* Logo oficial padronizado do ecossistema */}
-        <div className="mb-8">
-          <AppLogo className="w-28 h-28" />
-        </div>
-
         {title || (
-          <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight">
+          <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight mt-2">
             {renderFormattedAppTitle(appName)}
           </h1>
         )}
