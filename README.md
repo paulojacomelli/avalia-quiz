@@ -125,7 +125,7 @@ O ecossistema usa o Firestore como banco NoSQL para autenticação, telemetria e
 - `admin_model_*`: identificadores de configuração dos modelos padrão liberados
 - `admin_key_*`: ⛔ **NÃO EXISTE NO FIRESTORE** (gerenciadas exclusivamente pelo backend via Google Secret Manager)
 
-> 🛡️ **Segurança de Credenciais**: As chaves de API privadas dos provedores de IA (`admin_key_*`) são gerenciadas exclusivamente pelo **Google Secret Manager** na Cloud Function serverless (`generateQuizProxy`), **não ficando expostas nem armazenadas no banco NoSQL**.
+> 🛡️ **Segurança de Credenciais**: O PIN oficial (`secret_code`) e as chaves de API privadas dos provedores (`admin_key_*`) são mantidos 100% privados no servidor. O código de acesso digitado pelo usuário é enviado exclusivamente à Cloud Function serverless (`generateQuizProxy`) via HTTPS para validação server-side e inferência protegida contra força bruta.
 
 <details>
 <summary><b>📄 Exemplo completo do documento <code>auth/config</code></b></summary>
