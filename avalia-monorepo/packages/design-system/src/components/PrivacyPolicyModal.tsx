@@ -231,7 +231,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                         <div className="space-y-6 animate-fade-in">
                             <section>
                                 <h3 className="text-base font-bold text-white mb-2">
-                                    Cookies, Armazenamento & Acessibilidade
+                                    LocalStorage, Acessibilidade & LIBRAS
                                 </h3>
                                 <p>
                                     Transparência sobre os recursos técnicos que garantem uma experiência fluida e inclusiva para todos os usuários.
@@ -239,23 +239,26 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             </section>
 
                             <section>
-                                <h4 className="text-white font-bold mb-2">1. Uso de Cookies e LocalStorage</h4>
+                                <h4 className="text-white font-bold mb-2">1. Uso de LocalStorage (Sem Cookies)</h4>
                                 <p>
-                                    Utilizamos exclusivamente cookies técnicos e `localStorage` estritamente necessários para manter suas sessões de jogo ativas e salvar suas preferências sem necessidade de logins invasivos.
+                                    O aplicativo utiliza exclusivamente o <code>localStorage</code> do seu navegador para manter suas sessões ativas e salvar suas preferências de jogo. Não gravamos cookies de rastreamento nem arquivos de cookies em seu computador.
                                 </p>
                             </section>
 
                             <section>
-                                <h4 className="text-white font-bold mb-2">2. Acessibilidade Inclusiva & LIBRAS</h4>
+                                <h4 className="text-white font-bold mb-2">2. Acessibilidade em LIBRAS</h4>
                                 <p>
-                                    O aplicativo possui suporte nativo à Língua Brasileira de Sinais através da integração com o <strong>VLibras Widget / Unity Motor</strong>, permitindo tradução e animação de glosas em tempo real para pessoas surdas ou com deficiência auditiva.
+                                    O aplicativo oferece suporte à Língua Brasileira de Sinais via integração com a ferramenta pública VLibras. Ao ativar este recurso, componentes visuais e avatares 3D são carregados diretamente dos servidores públicos oficiais do Governo Federal (<code>vlibras.gov.br</code>). 
+                                </p>
+                                <p className="mt-2 text-gray-400">
+                                    <strong>Nota:</strong> O seu endereço IP e headers padrão do navegador serão transmitidos aos servidores do Governo Federal conforme suas políticas de privacidade ao carregar os recursos do VLibras.
                                 </p>
                             </section>
 
                             <section>
                                 <h4 className="text-white font-bold mb-2">3. Síntese de Voz (TTS) e Atalhos de Teclado</h4>
                                 <p>
-                                    Disponibilizamos suporte à leitura de perguntas por voz sintetizada e navegação acessível via teclado (`Tab`, `Espaço`, `Enter` e `Esc`).
+                                    Disponibilizamos leitura de conteúdo por síntese de voz usando a Web Speech API nativa do seu navegador (sem envio de áudio para servidores). A navegação acessível suporta os atalhos de teclado: <code>1-4</code> / <code>A-D</code> (seleção de alternativas), <code>Espaço</code> / <code>Enter</code> (avançar), <code>Esc</code> (fechar menus) e <code>Tab</code> (foco).
                                 </p>
                             </section>
                         </div>
