@@ -374,14 +374,23 @@ export const getAvailableModelsProxy = onCall(
         let isOpenAiFormat = false;
 
         switch (provider) {
+          case "auto":
           case "google-ai":
           case "vertex":
             keyToTest = googleAiKey.value();
             if (!keyToTest) throw new HttpsError("internal", "Chave do Google AI não configurada no servidor.");
-            const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${testModel}?key=${keyToTest}`);
+            
+            // No modo auto, lê o modelo exato preconfigurado no Firestore auth/config
+            const configDoc = await db.collection("auth").doc("config").get();
+            const firestoreConfig = configDoc.exists ? configDoc.data() || {} : {};
+            const modelToUse = provider === "auto" 
+              ? (firestoreConfig.admin_model_google_ai || testModel || "gemini-1.5-flash").trim()
+              : testModel;
+
+            const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}?key=${keyToTest}`);
             if (!gRes.ok) {
               const errTxt = await gRes.text().catch(() => "");
-              throw new HttpsError("internal", `Falha ao conectar ao modelo '${testModel}' do Google AI: HTTP ${gRes.status}. ${errTxt.slice(0, 150)}`);
+              throw new HttpsError("internal", `Falha ao conectar ao modelo '${modelToUse}' no modo auto/Google AI: HTTP ${gRes.status}. ${errTxt.slice(0, 150)}`);
             }
             return { valid: true, tested: true };
 
