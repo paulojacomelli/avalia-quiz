@@ -199,15 +199,12 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             </section>
 
                             <section>
-                                <h4 className="text-white font-bold mb-2">1. Processamento de Conteúdo e Responsabilidade sobre URLs</h4>
+                                <h4 className="text-white font-bold mb-2">1. Processamento de Conteúdo e Envio de Dados para a IA</h4>
                                 <p>
                                     Nenhum dado pessoal, histórico de navegação ou informação do seu dispositivo é enviado automaticamente para os servidores dos provedores de Inteligência Artificial.
                                 </p>
                                 <p className="mt-2 text-gray-400">
-                                    Os únicos dados transmitidos para a IA são os temas, assuntos, trechos de texto ou links públicos digitados ou colados explicitamente por você nas seções de criação de quiz personalizado.
-                                </p>
-                                <p className="mt-2 text-gray-400 font-bold">
-                                    <strong>URLs e Dados Fornecidos:</strong> Você é integralmente responsável por qualquer informação pessoal, tokens de acesso ou dados sensíveis que cole nos campos de personalização de quiz. O Avalia não sanitiza automaticamente URLs ou parâmetros — a string completa é enviada ao provedor de IA. Evite compartilhar credenciais ou tokens de acesso.
+                                    <strong>Dados Enviados para Provedores de IA:</strong> No modo Chave API (BYOK), você fornece sua credencial de acesso — isso é esperado e necessário para autorizar suas requisições diretamente do seu navegador. Porém, ao personalizar quizzes com temas, links ou trechos de texto, você é responsável por não incluir tokens de acesso privados, senhas ou dados sensíveis nesses campos, pois a string completa será enviada como contexto para a IA gerar o seu desafio.
                                 </p>
                             </section>
 
