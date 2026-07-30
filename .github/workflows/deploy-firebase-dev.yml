@@ -82,13 +82,13 @@ jobs:
         working-directory: ./avalia-monorepo
         run: |
           npm install -g firebase-tools
-          echo "${{ secrets.GOOGLE_AI_KEY }}" | npx firebase-tools functions:secrets:set GOOGLE_AI_KEY --force || true
-          echo "${{ secrets.OPENAI_KEY }}" | npx firebase-tools functions:secrets:set OPENAI_KEY --force || true
-          echo "${{ secrets.GROQ_KEY }}" | npx firebase-tools functions:secrets:set GROQ_KEY --force || true
-          echo "${{ secrets.DEEPSEEK_KEY }}" | npx firebase-tools functions:secrets:set DEEPSEEK_KEY --force || true
-          echo "${{ secrets.CLAUDE_KEY }}" | npx firebase-tools functions:secrets:set CLAUDE_KEY --force || true
-          echo "${{ secrets.OPENROUTER_KEY }}" | npx firebase-tools functions:secrets:set OPENROUTER_KEY --force || true
-          echo "${{ secrets.AVALIA_SECRET_CODE }}" | npx firebase-tools functions:secrets:set AVALIA_SECRET_CODE --force || true
+          echo "${{ secrets.GOOGLE_AI_KEY }}" | npx firebase-tools functions:secrets:set GOOGLE_AI_KEY --force
+          echo "${{ secrets.OPENAI_KEY }}" | npx firebase-tools functions:secrets:set OPENAI_KEY --force
+          echo "${{ secrets.GROQ_KEY }}" | npx firebase-tools functions:secrets:set GROQ_KEY --force
+          echo "${{ secrets.DEEPSEEK_KEY }}" | npx firebase-tools functions:secrets:set DEEPSEEK_KEY --force
+          echo "${{ secrets.CLAUDE_KEY }}" | npx firebase-tools functions:secrets:set CLAUDE_KEY --force
+          echo "${{ secrets.OPENROUTER_KEY }}" | npx firebase-tools functions:secrets:set OPENROUTER_KEY --force
+          echo "${{ secrets.AVALIA_SECRET_CODE }}" | npx firebase-tools functions:secrets:set AVALIA_SECRET_CODE --force
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 
