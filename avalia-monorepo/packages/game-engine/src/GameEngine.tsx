@@ -254,7 +254,7 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
               if (!selectedModel || !selectedModel.trim()) {
                 throw new Error("Selecione um modelo de IA antes de entrar.");
               }
-              const resolvedProvider = selectedProvider === 'auto' ? 'google-ai' : selectedProvider;
+              const resolvedProvider = selectedProvider;
               if (!resolvedProvider || !resolvedProvider.trim()) {
                 throw new Error("Selecione um provedor de IA antes de entrar.");
               }

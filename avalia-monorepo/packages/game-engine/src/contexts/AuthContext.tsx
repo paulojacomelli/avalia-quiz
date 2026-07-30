@@ -20,7 +20,7 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children, storageKeyPrefix = 'avalia_quiz' }) => {
   const [apiKey, setApiKey] = useState<string | null>(null);
-  const [provider, setProvider] = useState<AiProvider>('google-ai');
+  const [provider, setProvider] = useState<AiProvider>('' as AiProvider);
   const [model, setModel] = useState<string>('');
   const [clientId, setClientId] = useState<string | null>(null);
 
@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, storageKey
     localStorage.removeItem(providerName);
     localStorage.removeItem(modelNameKey);
     setApiKey(null);
-    setProvider('google-ai');
+    setProvider('' as AiProvider);
     setModel('');
   };
 
