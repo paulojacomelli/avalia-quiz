@@ -188,21 +188,109 @@ export const generateQuizProxy = onRequest(
         return;
       }
 
-      // TODO INTEGRACAO REAL: Chamada SDK / REST com a apiKey no servidor
+      // 5. Integração REAL de IA Serverless: Chamada à API oficial utilizando a apiKey do GCP Secret Manager
+      const prompt = `Gere um quiz com 5 perguntas sobre o tema '${theme || "Geral"}' (Subtópico: '${subTopic || "Geral"}').
+IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
+{
+  "titulo": "Título do Quiz",
+  "palavrasChave": ["Tema1", "Tema2"],
+  "perguntas": [
+    {
+      "id": "q1",
+      "enunciado": "Pergunta aqui...",
+      "opcoes": ["Opção A", "Opção B", "Opção C", "Opção D"],
+      "indiceRespostaCorreta": 0,
+      "textoRespostaCorreta": "Opção A",
+      "justificativa": "Explicação curta",
+      "dica": "Dica útil"
+    }
+  ]
+}`;
+
+      let aiRawResponseText = "";
+
+      if (targetProvider === "google-ai" || targetProvider === "vertex") {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || "gemini-1.5-flash"}:generateContent?key=${apiKey}`;
+        const aiResp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+          })
+        });
+
+        if (!aiResp.ok) {
+          const errText = await aiResp.text();
+          console.error("[generateQuizProxy] Erro na API do Google AI:", errText);
+          res.status(500).json({ error: `Falha no provedor Google AI: ${aiResp.status}` });
+          return;
+        }
+
+        const aiJson = await aiResp.json();
+        aiRawResponseText = aiJson.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      } else {
+        const apiUrl = targetProvider === 'openai'
+          ? "https://api.openai.com/v1/chat/completions"
+          : targetProvider === 'deepseek'
+            ? "https://api.deepseek.com/chat/completions"
+            : targetProvider === 'groq'
+              ? "https://api.groq.com/openai/v1/chat/completions"
+              : "https://openrouter.ai/api/v1/chat/completions";
+
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        };
+
+        const aiResp = await fetch(apiUrl, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            model: model || "gpt-4o-mini",
+            messages: [{ role: "user", content: prompt }],
+            response_format: { type: "json_object" }
+          })
+        });
+
+        if (!aiResp.ok) {
+          const errText = await aiResp.text();
+          console.error(`[generateQuizProxy] Erro na API do ${targetProvider}:`, errText);
+          res.status(500).json({ error: `Falha no provedor ${targetProvider}: ${aiResp.status}` });
+          return;
+        }
+
+        const aiJson = await aiResp.json();
+        aiRawResponseText = aiJson.choices?.[0]?.message?.content || "";
+      }
+
+      if (!aiRawResponseText) {
+        res.status(500).json({ error: "O provedor de IA não retornou conteúdo." });
+        return;
+      }
+
+      // Limpeza de blocos de markdown e parse JSON
+      const cleanJsonStr = aiRawResponseText.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
+      const parsed = JSON.parse(cleanJsonStr);
+
+      const generatedQuiz = {
+        title: parsed.titulo || `Quiz sobre ${theme || "Geral"}`,
+        keywords: parsed.palavrasChave || [theme || "Geral"],
+        focalTheme: parsed.palavrasChave?.[0] || theme || "Geral",
+        questions: (parsed.perguntas || []).map((p: any, idx: number) => ({
+          id: p.id || `q-${idx + 1}-${Date.now()}`,
+          question: p.enunciado,
+          options: p.opcoes || [],
+          correctAnswerIndex: p.indiceRespostaCorreta ?? 0,
+          correctAnswerText: p.textoRespostaCorreta || (p.opcoes ? p.opcoes[p.indiceRespostaCorreta || 0] : ""),
+          explanation: p.justificativa || "",
+          hint: p.dica || ""
+        }))
+      };
+
       res.status(200).json({
         success: true,
-        quiz: {
-          title: `Quiz sobre ${theme || "Geral"}`,
-          questions: [
-            {
-              id: "q1",
-              question: `[SERVIDOR] Pergunta gerada para ${theme || "o tema"}?`,
-              options: ["Resposta A", "Resposta B", "Resposta C", "Resposta D"],
-              correctAnswerIndex: 0,
-              correctAnswerText: "Resposta A"
-            }
-          ]
-        },
+        quiz: generatedQuiz,
         provider: targetProvider,
         model: model || "default"
       });
