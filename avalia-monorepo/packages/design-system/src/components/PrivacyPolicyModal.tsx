@@ -296,7 +296,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                                 <ul className="list-disc pl-5 mt-2 space-y-1 text-gray-400">
                                     <li>React 19 & TypeScript (MIT)</li>
                                     <li>Vite, TailwindCSS & Turborepo (MIT)</li>
-                                    <li>Google Gen AI SDK & Firebase SDK (Apache 2.0)</li>
+                                    <li>Google Gen AI SDK & Firebase SDK (respectivas licenças dos componentes)</li>
                                     <li>VLibras Widget e Runtime Unity WebGL (Termos e Licenças dos respectivos Provedores)</li>
                                 </ul>
                             </section>
