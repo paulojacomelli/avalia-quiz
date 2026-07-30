@@ -120,9 +120,10 @@ O ecossistema usa o Firestore como banco NoSQL para autenticação, telemetria e
 
 ### Coleções
 
-**`auth/config`** — configuração global gerenciada pelo painel admin (PIN de acesso e modelos padronizados):
-- `secret_code`: chave de acesso por PIN (ex: `"1234"`)
-- Modelos padrão liberados: `admin_model_google_ai`, `admin_model_groq`, `admin_model_deepseek`, `admin_model_openrouter`, `admin_model_openai`, `admin_model_claude`, `admin_model_live`, `admin_model_tts`, `admin_model_tts_openai`
+**`auth/config`** — documento de configuração global e autenticação:
+- `secret_code`: PIN de autenticação do sistema (ex: `"1234"`)
+- `admin_model_*`: identificadores de configuração dos modelos padrão liberados
+- `admin_key_*`: ⛔ **NÃO EXISTE NO FIRESTORE** (gerenciadas exclusivamente pelo backend via Google Secret Manager)
 
 > 🛡️ **Segurança de Credenciais**: As chaves de API privadas dos provedores de IA (`admin_key_*`) são gerenciadas exclusivamente pelo **Google Secret Manager** na Cloud Function serverless (`generateQuizProxy`), **não ficando expostas nem armazenadas no banco NoSQL**.
 
