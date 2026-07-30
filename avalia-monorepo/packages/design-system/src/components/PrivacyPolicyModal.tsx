@@ -240,7 +240,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             <section>
                                 <h4 className="text-white font-bold mb-2">1. Uso de LocalStorage (Sem Cookies)</h4>
                                 <p>
-                                    O aplicativo utiliza exclusivamente o <code>localStorage</code> do seu navegador para manter suas sessões ativas e salvar suas preferências de jogo. Não gravamos cookies de rastreamento nem arquivos de cookies em seu computador.
+                                    O aplicativo utiliza o <code>localStorage</code> do seu navegador para manter suas sessões ativas e salvar suas preferências de jogo. Não gravamos cookies de rastreamento nem arquivos de cookies em seu computador.
                                 </p>
                             </section>
 
@@ -255,9 +255,9 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             </section>
 
                             <section>
-                                <h4 className="text-white font-bold mb-2">3. Síntese de Voz (TTS) e Atalhos de Teclado</h4>
+                                <h4 className="text-white font-bold mb-2">3. Síntese de Voz (TTS), Transcrição e Atalhos de Teclado</h4>
                                 <p>
-                                    Disponibilizamos leitura de conteúdo por síntese de voz e transcrição local via Web Speech API nativa do seu navegador. O Avalia Quiz não armazena nem envia deliberadamente gravações de áudio próprias. A navegação acessível suporta os atalhos de teclado: <code>1-4</code> / <code>A-D</code> (seleção de alternativas), <code>Espaço</code> / <code>Enter</code> (avançar), <code>Esc</code> (fechar menus) e <code>Tab</code> (foco).
+                                    Disponibilizamos recursos de síntese e reconhecimento de voz que podem utilizar tecnologias do navegador e/ou serviços de Inteligência Artificial, conforme a funcionalidade, o provedor e o modelo selecionados pelo usuário. O Avalia Quiz não mantém armazenamento permanente próprio das gravações de áudio. O processamento por provedores externos está sujeito às respectivas políticas e termos de serviço. A navegação acessível suporta os atalhos de teclado: <code>1-4</code> / <code>A-D</code> (seleção de alternativas), <code>Espaço</code> / <code>Enter</code> (avançar), <code>Esc</code> (fechar menus) e <code>Tab</code> (foco).
                                 </p>
                             </section>
                         </div>
