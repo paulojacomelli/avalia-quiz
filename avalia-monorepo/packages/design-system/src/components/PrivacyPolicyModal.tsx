@@ -119,7 +119,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                                     <li>Preferências visuais (Tema Claro/Escuro, Zoom da tela).</li>
                                     <li>Configurações de som e narração/síntese de voz (TTS).</li>
                                     <li>Histórico de palavras-chave usadas localmente para evitar repetições.</li>
-                                    <li>No modo por Código de Acesso, credenciais e chaves administrativas são mantidas 100% no servidor via GCP Secret Manager. No modo Chave API (BYOK), a chave pessoal é armazenada no armazenamento local do seu navegador.</li>
+                                    <li>No modo Chave API (BYOK), sua chave pessoal é armazenada exclusivamente de forma local no seu navegador. Nenhuma informação pessoal ou credencial privada sua é coletada ou compartilhada.</li>
                                 </ul>
                             </section>
 
