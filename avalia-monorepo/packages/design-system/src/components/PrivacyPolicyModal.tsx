@@ -160,7 +160,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             <section>
                                 <h4 className="text-white font-bold mb-2">2. Conteúdo Gerado por IA e Responsabilidade</h4>
                                 <p>
-                                    O Avalia Quiz não realiza moderação prévia manual sobre o conteúdo gerado pela IA. O conteúdo gerado está sujeito aos mecanismos de segurança e políticas dos provedores utilizados (Google AI, OpenAI, Groq, Anthropic, DeepSeek, OpenRouter), mas esses mecanismos não garantem a detecção ou bloqueio de todo conteúdo inadequado. O usuário é o único responsável por revisar e validar os conteúdos antes do uso ou compartilhamento.
+                                    O Avalia Quiz não realiza moderação prévia manual sobre o conteúdo gerado pela IA. O conteúdo gerado está sujeito aos mecanismos de segurança e políticas dos provedores utilizados (Google AI, OpenAI, Groq, Anthropic, DeepSeek, OpenRouter), mas esses mecanismos não garantem a detecção ou bloqueio de todo conteúdo inadequado. O usuário é responsável por revisar e validar os conteúdos antes do uso ou compartilhamento.
                                 </p>
                             </section>
 
@@ -169,10 +169,10 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                                 <p>É proibido utilizar o aplicativo para:</p>
                                 <ul className="list-disc pl-5 mt-2 space-y-1 text-gray-400">
                                     <li>Gerar conteúdo discriminatório, odioso, difamatório ou ilegal.</li>
-                                    <li>Ataques de força bruta ou exploração não autorizada contra credenciais de autenticação, serviços de backend e APIs do ecossistema.</li>
+                                    <li>Ataques de força bruta ou exploração maliciosa contra credenciais de autenticação, serviços de backend e APIs do ecossistema.</li>
                                     <li>Distribuição automatizada não autorizada (spams ou bots em massa).</li>
                                     <li>
-                                        <strong>Abuso de Cotas de Provedores:</strong> Ao utilizar o modo Chave API (BYOK) ou qualquer outro método de geração, você é responsável por respeitar os limites de uso e cotas estabelecidas pelos provedores de IA (Google AI, OpenAI, Groq, etc.). O usuário assume integralmente a responsabilidade por consumo de tokens e cumprimento dos termos de serviço dos provedores.
+                                        <strong>Abuso de Cotas de Provedores:</strong> Ao utilizar o modo Chave API (BYOK) ou qualquer outro método de geração, você é responsável por respeitar os limites de uso e cotas estabelecidas pelos provedores de IA (Google AI, OpenAI, Groq, etc.). O usuário assume a responsabilidade pelo consumo de tokens e cumprimento dos termos de serviço dos provedores.
                                     </li>
                                 </ul>
                             </section>
