@@ -1,6 +1,7 @@
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
+import * as crypto from "node:crypto";
 
 // Declaracao oficial de Secrets gerenciados nativamente pelo GCP Secret Manager
 const googleAiKey = defineSecret("GOOGLE_AI_KEY");
@@ -242,7 +243,9 @@ export const getAvailableModelsProxy = onCall(
     const isPinValid = actualSecretCode === cleanReceivedPin;
 
     if (!isPinValid) {
-      console.log(`[PIN Validation Failed] SecretLen: ${actualSecretCode.length}, ReceivedLen: ${cleanReceivedPin.length}`);
+      const secretHash = crypto.createHash("sha256").update(actualSecretCode).digest("hex").substring(0, 8);
+      const receivedHash = crypto.createHash("sha256").update(cleanReceivedPin).digest("hex").substring(0, 8);
+      console.log(`[PIN Validation Failed] SecretLen: ${actualSecretCode.length} (hash:${secretHash}), ReceivedLen: ${cleanReceivedPin.length} (hash:${receivedHash})`);
       await verifyAndTrackBruteForce(clientIp, false);
       throw new HttpsError("unauthenticated", "Código de acesso incorreto.");
     }
