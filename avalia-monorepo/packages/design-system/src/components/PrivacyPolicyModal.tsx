@@ -158,17 +158,28 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             </section>
 
                             <section>
-                                <h4 className="text-white font-bold mb-2">2. Uso Aceitável</h4>
+                                <h4 className="text-white font-bold mb-2">2. Conteúdo Gerado por IA e Responsabilidade</h4>
+                                <p>
+                                    O Avalia Quiz não realiza moderação prévia manual ou censura própria sobre o conteúdo gerado pela IA. A filtragem de temas inadequados depende dos filtros nativos de segurança dos provedores utilizados (Google AI, OpenAI, Groq, Anthropic, DeepSeek, OpenRouter). O usuário é o único responsável por revisar e validar os conteúdos antes do uso ou compartilhamento.
+                                </p>
+                            </section>
+
+                            <section>
+                                <h4 className="text-white font-bold mb-2">3. Uso Aceitável</h4>
                                 <p>É proibido utilizar o aplicativo para:</p>
                                 <ul className="list-disc pl-5 mt-2 space-y-1 text-gray-400">
                                     <li>Gerar conteúdo discriminatório, odioso, difamatório ou ilegal.</li>
-                                    <li>Tentativas de engenharia reversa para burlar cotas de API ou chaves de acesso.</li>
+                                    <li>Ataques de força bruta contra credenciais de autenticação ou chaves de acesso.</li>
+                                    <li>Engenharia reversa não autorizada do código ou APIs do projeto.</li>
                                     <li>Distribuição automatizada não autorizada (spams ou bots em massa).</li>
+                                    <li>
+                                        <strong>Abuso de Cotas de Provedores:</strong> Ao utilizar o modo Chave API (BYOK) ou qualquer outro método de geração, você é responsável por respeitar os limites de uso e cotas estabelecidas pelos provedores de IA (Google AI, OpenAI, Groq, etc.). O usuário assume integralmente a responsabilidade por consumo de tokens e cumprimento dos termos de serviço dos provedores.
+                                    </li>
                                 </ul>
                             </section>
 
                             <section>
-                                <h4 className="text-white font-bold mb-2">3. Propriedade Intelectual</h4>
+                                <h4 className="text-white font-bold mb-2">4. Propriedade Intelectual</h4>
                                 <p>
                                     A marca, o design do aplicativo e a arquitetura visual pertencem ao ecossistema Avalia. Os conteúdos de perguntas gerados por IA pertencem ao usuário para fins educacionais e acadêmicos.
                                 </p>
