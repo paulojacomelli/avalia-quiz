@@ -285,14 +285,12 @@ export const resolveAiModelLabel = (provider: string, specificModel: string): st
   if (!specificModel) {
     throw new Error("Modelo de IA não informado.");
   }
-  const p = provider as AiProvider;
-  const effectiveProvider = p === 'auto' ? 'openrouter' : p;
   
-  if (specificModel.startsWith(`${effectiveProvider}/`)) {
+  if (specificModel.startsWith(`${provider}/`)) {
     return specificModel;
   }
   
-  return `${effectiveProvider}/${specificModel}`;
+  return `${provider}/${specificModel}`;
 };
 
 const getTtsModel = (): string => {
