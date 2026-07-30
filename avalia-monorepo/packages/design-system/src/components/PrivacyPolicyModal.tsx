@@ -118,8 +118,8 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                                 <ul className="list-disc pl-5 mt-2 space-y-1 text-gray-400">
                                     <li>Preferências visuais (Tema Claro/Escuro, Zoom da tela).</li>
                                     <li>Configurações de som e narração/síntese de voz (TTS).</li>
-                                    <li>Histórico de palavras-chave usadas localmente para evitar repetições.</li>
-                                    <li>No modo Chave API (BYOK), sua chave pessoal é armazenada exclusivamente de forma local no seu navegador. Nenhuma informação pessoal ou credencial privada sua é coletada ou compartilhada.</li>
+                                    <li><strong>Histórico de Temas:</strong> Até 50 palavras-chave temáticas são salvas localmente para evitar repetição de perguntas. Você pode limpar este histórico a qualquer momento em "Limpar Histórico" nas configurações do jogo.</li>
+                                    <li><strong>Modo Chave API (BYOK):</strong> Sua chave pessoal é armazenada em texto plano no localStorage do navegador e enviada diretamente às APIs oficiais do provedor, sem passar por nossos servidores. <strong>Recomendação:</strong> Use apenas em dispositivos pessoais confiáveis. Faça logout ao usar computadores públicos ou compartilhados.</li>
                                 </ul>
                             </section>
 
