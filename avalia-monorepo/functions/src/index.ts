@@ -143,17 +143,8 @@ export const generateQuizProxy = onRequest(
         return;
       }
 
-      // 1. Leitura do PIN oficial (Lê do GCP Secret Manager com fallback a process.env/Firestore)
-      let actualSecretCode: string | undefined;
-      try {
-        actualSecretCode = avaliaSecretCode.value();
-      } catch (e) {
-        actualSecretCode = process.env.AVALIA_SECRET_CODE;
-      }
-      if (!actualSecretCode) {
-        const configSnap = await db.doc("auth/config").get();
-        actualSecretCode = configSnap.exists ? configSnap.data()?.secret_code : null;
-      }
+      // 1. Leitura do PIN oficial diretamente do GCP Secret Manager (sem nenhum fallback)
+      const actualSecretCode = avaliaSecretCode.value();
       const isPinValid = actualSecretCode === secretCode;
 
       // 2. Transacao Atomica de Forca Bruta
@@ -166,36 +157,28 @@ export const generateQuizProxy = onRequest(
       // 3. Se o PIN estiver correto, valida o estado de bloqueio e limpa o contador
       await verifyAndTrackBruteForce(clientIp, true);
 
-      // 4. Resgate seguro da chave de API do Secret Manager
+      // 4. Resgate seguro da chave de API exclusivamente do Secret Manager
       const targetProvider = provider || "google-ai";
       let apiKey: string | undefined;
 
-      const getSecretVal = (sec: any, envName: string) => {
-        try {
-          return sec.value() || process.env[envName];
-        } catch (e) {
-          return process.env[envName];
-        }
-      };
-
       switch (targetProvider) {
         case "google-ai":
-          apiKey = getSecretVal(googleAiKey, "GOOGLE_AI_KEY");
+          apiKey = googleAiKey.value();
           break;
         case "groq":
-          apiKey = getSecretVal(groqKey, "GROQ_KEY");
+          apiKey = groqKey.value();
           break;
         case "deepseek":
-          apiKey = getSecretVal(deepseekKey, "DEEPSEEK_KEY");
+          apiKey = deepseekKey.value();
           break;
         case "openrouter":
-          apiKey = getSecretVal(openrouterKey, "OPENROUTER_KEY");
+          apiKey = openrouterKey.value();
           break;
         case "openai":
-          apiKey = getSecretVal(openaiKey, "OPENAI_KEY");
+          apiKey = openaiKey.value();
           break;
         case "claude":
-          apiKey = getSecretVal(claudeKey, "CLAUDE_KEY");
+          apiKey = claudeKey.value();
           break;
       }
 
@@ -253,13 +236,8 @@ export const getAvailableModelsProxy = onCall(
 
     const clientIp = getTrustedClientIp(request.rawRequest || {});
 
-    // 1. Validação de PIN (Lê primeiro do .env do servidor AVALIA_SECRET_CODE ou fallback ao Firestore)
-    let actualSecretCode = process.env.AVALIA_SECRET_CODE;
-    if (!actualSecretCode) {
-      const configSnap = await db.doc("auth/config").get();
-      actualSecretCode = configSnap.exists ? configSnap.data()?.secret_code : null;
-    }
-
+    // 1. Validação de PIN diretamente do GCP Secret Manager (sem nenhum fallback)
+    const actualSecretCode = avaliaSecretCode.value();
     const isPinValid = actualSecretCode === secretCode;
 
     // 2. Transação Atômica de Força Bruta por IP
@@ -273,7 +251,7 @@ export const getAvailableModelsProxy = onCall(
 
     try {
       if (provider === "google-ai" || provider === "vertex" || provider === "auto") {
-        const apiKey = process.env.GOOGLE_AI_KEY;
+        const apiKey = googleAiKey.value();
         if (!apiKey) return { models: [], valid: true };
 
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
