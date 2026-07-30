@@ -371,20 +371,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           }
         }
 
-        if (effectiveProvider === 'auto') {
-          // Se o modelo for um ID direto do Google AI (ex: gemini-2.5-flash) e o provider estiver 'auto', a rota serverless padrão é google-ai
-          if (customSelectedModel.includes('gemini')) {
-            effectiveProvider = 'google-ai';
-          } else {
-            setError('Por favor, selecione um provedor de IA específico para este modelo.');
-            setIsValidating(false);
-            return;
-          }
-        }
+        // No modo Auto, se o modelo selecionado for o retornado pelo Firestore, preserva o provider 'auto'.
+        // O backend é a autoridade responsável por aplicar a configuração do Firestore.
+        const testConnCallable = httpsCallable<
+          { secretCode: string; provider: string; testModel: string },
+          { valid: boolean; tested: boolean }
+        >(functions, 'getAvailableModelsProxy');
+
+        await testConnCallable({
+          secretCode: cleanedCode,
+          provider: effectiveProvider,
+          testModel: customSelectedModel
+        });
 
         await onLoginWithCode(cleanedCode, effectiveProvider, customSelectedModel);
       } catch (err: any) {
-        setError(err.message || 'Erro ao validar o código.');
+        const cleanMsg = err.message ? err.message.replace(/^internal\s*/i, '').trim() : '';
+        setError(cleanMsg || 'Falha ao conectar com o provedor/modelo selecionado. Verifique o status da API.');
       } finally {
         setIsValidating(false);
       }
