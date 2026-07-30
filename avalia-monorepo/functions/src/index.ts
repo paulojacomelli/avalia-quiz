@@ -138,9 +138,27 @@ export const generateQuizProxy = onRequest(
     const clientIp = getTrustedClientIp(req);
     const { secretCode, provider, model, theme, subTopic } = req.body || {};
 
+    const SUPPORTED_PROVIDERS = ["google-ai", "vertex", "openai", "groq", "deepseek", "openrouter", "claude"];
+
     try {
-      if (!secretCode || typeof secretCode !== "string") {
-        res.status(400).json({ error: "Código de acesso (secretCode) é obrigatório." });
+      // Validação estrita de entrada — sem fallbacks
+      if (!secretCode || typeof secretCode !== "string" || !secretCode.trim()) {
+        res.status(400).json({ error: "Campo obrigatório ausente: secretCode." });
+        return;
+      }
+
+      if (!provider || typeof provider !== "string" || !provider.trim()) {
+        res.status(400).json({ error: "Campo obrigatório ausente: provider." });
+        return;
+      }
+
+      if (!SUPPORTED_PROVIDERS.includes(provider)) {
+        res.status(400).json({ error: `Provedor '${provider}' não é suportado. Provedores válidos: ${SUPPORTED_PROVIDERS.join(", ")}.` });
+        return;
+      }
+
+      if (!model || typeof model !== "string" || !model.trim()) {
+        res.status(400).json({ error: "Campo obrigatório ausente: model. Informe o identificador exato do modelo de IA." });
         return;
       }
 
@@ -158,8 +176,8 @@ export const generateQuizProxy = onRequest(
       // 3. Se o PIN estiver correto, valida o estado de bloqueio e limpa o contador
       await verifyAndTrackBruteForce(clientIp, true);
 
-      // 4. Resgate seguro da chave de API exclusivamente do Secret Manager
-      const targetProvider = provider || "google-ai";
+      // 4. Resgate seguro da chave de API exclusivamente do Secret Manager (provider já validado acima)
+      const targetProvider = provider;
       let apiKey: string | undefined;
 
       switch (targetProvider) {
@@ -210,8 +228,8 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
       let aiRawResponseText = "";
 
       if (targetProvider === "google-ai" || targetProvider === "vertex") {
-        const targetModel = model && model !== "default" ? model : "gemini-2.5-flash";
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
+        // model já validado como não-vazio antes de chegar aqui
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         const aiResp = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -224,20 +242,25 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
         if (!aiResp.ok) {
           const errText = await aiResp.text();
           console.error("[generateQuizProxy] Erro na API do Google AI:", errText);
-          res.status(500).json({ error: `Falha no provedor Google AI: ${aiResp.status}` });
+          res.status(500).json({ error: `Falha no provedor Google AI (modelo: ${model}): ${aiResp.status}` });
           return;
         }
 
         const aiJson = await aiResp.json();
         aiRawResponseText = aiJson.candidates?.[0]?.content?.parts?.[0]?.text || "";
       } else {
-        const apiUrl = targetProvider === 'openai'
-          ? "https://api.openai.com/v1/chat/completions"
-          : targetProvider === 'deepseek'
-            ? "https://api.deepseek.com/chat/completions"
-            : targetProvider === 'groq'
-              ? "https://api.groq.com/openai/v1/chat/completions"
-              : "https://openrouter.ai/api/v1/chat/completions";
+        const OPENAI_COMPAT_URLS: Record<string, string> = {
+          openai: "https://api.openai.com/v1/chat/completions",
+          deepseek: "https://api.deepseek.com/chat/completions",
+          groq: "https://api.groq.com/openai/v1/chat/completions",
+          openrouter: "https://openrouter.ai/api/v1/chat/completions",
+          claude: "https://api.anthropic.com/v1/messages"
+        };
+        const apiUrl = OPENAI_COMPAT_URLS[targetProvider];
+        if (!apiUrl) {
+          res.status(400).json({ error: `URL de API não mapeada para o provedor '${targetProvider}'.` });
+          return;
+        }
 
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
@@ -248,7 +271,7 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
           method: "POST",
           headers,
           body: JSON.stringify({
-            model: model || "gpt-4o-mini",
+            model: model, // model já validado, sem fallback
             messages: [{ role: "user", content: prompt }],
             response_format: { type: "json_object" }
           })
@@ -293,7 +316,7 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
         success: true,
         quiz: generatedQuiz,
         provider: targetProvider,
-        model: model || "default"
+        model: model // model validado e não-vazio acima
       });
     } catch (err: any) {
       console.error("Erro na generateQuizProxy:", err);

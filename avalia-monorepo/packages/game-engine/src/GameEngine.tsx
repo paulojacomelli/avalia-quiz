@@ -249,8 +249,17 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
             try {
               // Validacao de PIN e geracao mediada 100% via servidor/Cloud Function (Cenario A Seguro)
               resetFailedCodeAttempts();
-              const realModel = selectedModel && selectedModel !== 'default' ? selectedModel : 'gemini-2.5-flash';
-              login(code.trim(), selectedProvider === 'auto' ? 'google-ai' : selectedProvider, realModel);
+
+              // Validação estrita: modelo e provedor devem ser explícitos
+              if (!selectedModel || !selectedModel.trim()) {
+                throw new Error("Selecione um modelo de IA antes de entrar.");
+              }
+              const resolvedProvider = selectedProvider === 'auto' ? 'google-ai' : selectedProvider;
+              if (!resolvedProvider || !resolvedProvider.trim()) {
+                throw new Error("Selecione um provedor de IA antes de entrar.");
+              }
+
+              login(code.trim(), resolvedProvider, selectedModel.trim());
             } catch (err: any) {
               if (err.message && (err.message.includes('offline') || err.code === 'unavailable')) {
                 throw new Error("Não foi possível conectar ao servidor (cliente offline ou sem credenciais de Firebase configuradas). Utilize a aba 'Chave API' para entrar diretamente com sua chave.");

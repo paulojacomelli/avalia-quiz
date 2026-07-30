@@ -248,40 +248,35 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   }, [provider, inputKey, loginMode]);
 
   // Obtém as opções consolidadas de modelos de texto para o CustomSelect (sem opções fictícias como 'default')
+  // No modo 'code': modelos vêm EXCLUSIVAMENTE de getAvailableModelsProxy (populado após validação do PIN)
+  // No modo 'api': modelos vêm de fetchDynamicModels via chave direta
   const textModelOptions = React.useMemo(() => {
+    // Modelos reais do servidor têm prioridade máxima
     if (dynamicModels.length > 0) {
       return dynamicModels;
     }
 
-    if (provider === 'openrouter') {
-      const pinned: ModelOption[] = [
+    // No modo 'api' com openrouter, oferece opções estáticas conhecidas
+    if (loginMode === 'api' && provider === 'openrouter') {
+      return [
         { value: "openrouter/auto:free", label: "Modelos gratuitos", status: "Grátis" },
         { value: "openrouter/auto", label: "Modo automático", status: "Estável" }
       ];
-      const rest = dynamicModels.filter(m => m.value !== 'openrouter/auto:free' && m.value !== 'openrouter/auto');
-      return [...pinned, ...rest];
     }
 
-    // Se o provedor for Google AI, exibe os modelos reais oficiais
-    if (provider === 'google-ai' || provider === 'vertex' || provider === 'auto') {
-      return [
-        { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (Oficial)", status: "Recomendado" },
-        { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (Oficial)", status: "Estável" },
-        { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (Oficial)", status: "Estável" },
-        { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro (Oficial)", status: "Avançado" }
-      ];
-    }
-
-    return dynamicModels;
+    // Em qualquer outro caso (incluindo modo 'code' aguardando resposta do servidor),
+    // retorna lista vazia — nenhum fallback hardcoded.
+    return [];
   }, [provider, loginMode, dynamicModels]);
 
   // Sincroniza o modelo de texto quando os modelos dinâmicos são carregados
   useEffect(() => {
     if (textModelOptions.length > 0) {
       setTextModelOption(prev => {
+        // Se ainda não há modelo selecionado ou o modelo atual não existe na lista real, seleciona o primeiro
         if (!prev) return textModelOptions[0].value;
         const exists = textModelOptions.some(m => m.value === prev);
-        return exists ? prev : prev;
+        return exists ? prev : textModelOptions[0].value;
       });
     }
   }, [provider, textModelOptions]);
@@ -315,7 +310,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     try {
       // 1. Valida o PIN via Cloud Function de forma serverless isolada
       const getModelsCallable = httpsCallable<{ secretCode: string; provider: string; target: string }, { models: ModelOption[]; valid?: boolean }>(functions, 'getAvailableModelsProxy');
-      
+
       const textRes = await getModelsCallable({ secretCode: cleanedCode, provider: 'google-ai', target: 'text' });
       setDynamicModels(Array.isArray(textRes.data?.models) ? textRes.data.models : []);
 
@@ -354,7 +349,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
       setIsValidating(true);
       try {
-        const customSelectedModel = textModelOption && textModelOption !== 'default' ? textModelOption : undefined;
+        const customSelectedModel = textModelOption && textModelOption.trim() && textModelOption !== 'default' ? textModelOption.trim() : null;
+        if (!customSelectedModel) {
+          setError('Selecione um modelo de IA antes de entrar.');
+          setIsValidating(false);
+          return;
+        }
         await onLoginWithCode(cleanedCode, provider, customSelectedModel);
       } catch (err: any) {
         setError(err.message || 'Erro ao validar o código.');
@@ -449,120 +449,120 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
             {(loginMode === 'api' || (loginMode === 'code' && codeStep === 'provider_select')) && (
               <div>
-              <label className="text-xs font-bold text-gray-500 mb-3 block tracking-wide text-left">Provedor de API</label>
-              <div className="flex flex-col gap-1.5">
-                {(
-                  [
-                    {
-                      value: "auto",
-                      label: "Auto",
-                      icon: (
-                        <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" className="text-amber-400 fill-amber-400" />
-                        </svg>
-                      )
-                    },
-                    {
-                      value: "google-ai",
-                      label: "Google",
-                      icon: (
-                        <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0">
-                          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                        </svg>
-                      )
-                    },
-                    {
-                      value: "openai",
-                      label: "OpenAI",
-                      icon: (
-                        <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="currentColor">
-                          <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.843-3.372L15.115 7.2a.076.076 0 0 1 .071 0l4.83 2.786a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.403-.662zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" />
-                        </svg>
-                      )
-                    },
-                    {
-                      value: "deepseek",
-                      label: "DeepSeek",
-                      icon: (
-                        <svg viewBox="0 0 500 500" className="w-4 h-4 shrink-0 object-contain">
-                          <path fill="#4d6bfe" d="M435.32,143.14c-6.24-1.12-11.87,15.99-28.34,14.98-12.14-.74-23.36,3.27-31.93,12.24-3.2-13.98-11.1-19.75-23.6-24.83-13.18-5.36-11.1-17.02-15.92-22.72-8.45-9.98-29.94,44.83,7.82,75.95,2.72,2.24,5.78,4.13,7.98,7.25l-5.98,17.07c-13.03-4.74-23.99-12.85-33.5-23-12.38-13.22-24.45-26.22-39.88-36.03-5.45-3.47-10.66-8.77-9.57-15.82,1.08-7.05,6.97-11.73,13.36-14.84-.02-2.16-2.6-3.91-4.73-4.39-22.48-5.09-46.26,10.9-55.15,10.34l-26.92-1.7c-20.26.4-39.97,3.89-56.99,15.4-29.76,20.14-46.47,53.96-46.1,89.94.37,34.86,12.71,67.42,36.35,92.77,15.39,16.5,33.16,29.44,54.18,37.72,23.53,9.28,47.79,10.45,72.78,7.12,21.39-2.85,40.48-11.26,57.22-26.01,16.06,7.23,39.57,7.85,54.92,2.86,4.69-1.52,8.21-9.45,3.76-12.38-7.71-5.09-16.69-7.69-25.14-11.18-2.49-1.03-4.83-1.12-6.39-4l6.85-7.51c11.99-13.15,22.22-27.14,29.1-43.77,7.63-18.44,12.3-37.35,14.21-57.35.26-2.75-2.14-7.68.85-9.73,34.48-3.6,55.7-28.94,55.62-63.25,0-2.78-3.13-4.82-4.88-5.13Z" />
-                        </svg>
-                      )
-                    },
-                    {
-                      value: "groq",
-                      label: "Groq",
-                      icon: (
-                        <svg viewBox="0 0 453 453" className="w-4 h-4 shrink-0 object-contain">
-                          <path fill="#f45036" d="M251.67,0c103.8,5.06,199.26,98.29,201.33,203.35v50.33c-6.37,102.84-98.84,197.34-203.35,199.32h-50.33C95.98,446.6,5.11,355.41,0,251.67v-52.35C6.35,96.23,98.84,2.44,203.35,0h48.32Z" />
-                          <path fill="#fefefe" d="M286.92,278.53l.23-97.15c.08-33.19-29.12-58.48-60.62-58.53-32.91-.05-60.07,26.74-60.96,59.35s24.54,62.06,58.32,62.5l35.46.47-.03,36.62-29.83.02c-34.44.02-65.78-16.13-84.12-42.56-20.1-28.97-23.75-64.93-9.1-96.98,18.95-41.47,61.99-64.73,107.23-57.01,41.53,7.09,78.06,42.57,80.23,87.86l.28,102.83c.12,43.58-31.75,80.31-73.05,91.47-33.74,9.12-67.39-.85-92.26-25.34l25.89-26.03c17.89,17.14,41.58,22.95,64.87,13.57,18.89-7.6,37.39-26.49,37.45-51.09Z" />
-                        </svg>
-                      )
-                    },
-                    {
-                      value: "openrouter",
-                      label: "OpenRouter",
-                      icon: (
-                        <svg viewBox="0 0 362.15 306.13" className="w-4 h-4 shrink-0 object-contain">
-                          <path fill="#C8FF00" d="M251.94,306.13l-.79-28.35c-47.94,2.45-89.25-4.54-128.56-32.25l-24.23-17.07c-15.07-11.05-30.2-20.77-46.88-29.41-16.87-6.67-33.79-11.31-51.48-14.19v-63.31c33.64-4.42,59.4-14.46,86.77-33.83l42.63-29.84c36.07-25.25,80.45-31.84,124.15-29.23l.22-28.65,108.38,62.85-108,62.53-.67-32.05c-17.69-1.89-34.89-1.98-52.25,1.45-15.53,3.52-28.85,10.34-41.72,19.55-19.26,13.78-37.97,27.21-57.78,39.58,20.5,12.82,38.33,25.77,56.99,39.15,19.46,13.96,40.87,22,64.87,21.18l27.62-.94.64-32.4,108.42,62.74-108.34,62.48Z" />
-                        </svg>
-                      )
-                    },
-                    {
-                      value: "claude",
-                      label: "Claude",
-                      icon: (
-                        <svg viewBox="0 0 46.08 46.08" className="w-4 h-4 shrink-0 object-contain">
-                          <path fill="#d97454" d="M30.13,37.27c.66.17,1.06.16,1.58-.07.3-.14.43-.49.39-.84l-.15-1.25-3.91-5.87c-.04-.06,0-.19.02-.22.02-.02.13-.02.17.01l3.94,3.33,2.76,2.11c.2.15.51.36.77.22.5-.45.5-.76.23-1.41l-6.36-5.87c-.55-.5-1.08-.94-1.54-1.64l9.8,2.32,1.73-.84c.04-.22.18-.54.07-.73-.16-.29-.34-.64-.61-.83l-1.14-.78-4.41-.29c-1.78-.04-3.48.03-5.32-.34l5.12-1.22c1.96-.47,3.88-.77,5.82-1.32l.38-.9c.09-.22.11-.67-.12-.79l-1.06-.52c-2.94.45-5.81,1.01-8.71,1.68-.17.04-.3.04-.46-.09l1.09-1.87,4.53-5.97.48-1.63-1.06-1.57c-.45.04-.99-.12-1.41.04-.82.31-3.06,2.97-3.88,4.04l-2.91,3.74c-.16.2-.35.33-.58.28l1.26-6.71.52-3.33-.71-.94c-.18-.24-.52-.28-.83-.4l-.97.72c-.23.37-.51.88-.55,1.33l-.45,4.72c-.18,1.89-.43,3.74-.52,5.59-.19.05-.24-.05-.28-.16l-.44-1.38-2.75-5.43-2.33-5.13c-.34-.75-2.18-.91-2.57-.5s-.75.91-1.03,1.39c.05.67.16,1.42.49,2.01l4.81,8.4c.05.08.19.23.14.32-.04.06-.19.1-.26.1-.07,0-.13-.12-.2-.17l-3.62-2.68-4.14-3.15c-.44-.24-1.04-.08-1.53-.17l-.85,1.01c.02.75.13,1.64.67,2.03l2.89,2.07,7.09,4.77c.13.09.14.2.11.28-.05.11-.19.09-.3.08l-3.61-.34-8.71-.61c-.6.27-.94.73-.7,1.02.57.71.44,1.04,1.76,1.09l9.98.4,1.4.08c.16,0,.17.4,0,.5l-6.59,3.73-2.73,1.86c-.25.17-.32.43-.31.73.01.42-.29.57.67,1.26l1.57-.22,8.89-5.8c.14.1.07.24-.02.35l-1.21,1.42-4.67,6.02c-.7.9-1.53,1.7-1.3,2.63.55.44,1.16.69,1.56.26l2.34-2.53,5.05-6.82c.08-.11.29-.14.27-.07-.14.56-.28,1.08-.35,1.64-.15,1.26-.38,2.44-.64,3.67l-1.09,5.15c.16.37.2.84.49,1.07l.81.64.98-.39c.18-.07.38-.34.48-.54l.94-9.95c.02-.18.06-.34.23-.32,1.67,2.98,3.52,5.8,5.55,8.5Z" />
-                        </svg>
-                      )
-                    }
-                  ] as { value: string; label: string; icon: React.ReactNode }[]
-                )
-                  .filter(opt => loginMode !== 'api' || opt.value !== 'auto')
-                  .filter(opt => isProvidersExpanded || opt.value === provider)
-                  .map(opt => {
-                    const isSelected = provider === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => {
-                          if (!isProvidersExpanded) {
-                            setIsProvidersExpanded(true);
-                            return;
-                          }
-                          const nextProvider = opt.value as AiProvider;
-                          setProvider(nextProvider);
-                          setIsProvidersExpanded(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer text-left border-0 outline-none
+                <label className="text-xs font-bold text-gray-500 mb-3 block tracking-wide text-left">Provedor de API</label>
+                <div className="flex flex-col gap-1.5">
+                  {(
+                    [
+                      {
+                        value: "auto",
+                        label: "Auto",
+                        icon: (
+                          <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" className="text-amber-400 fill-amber-400" />
+                          </svg>
+                        )
+                      },
+                      {
+                        value: "google-ai",
+                        label: "Google",
+                        icon: (
+                          <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                          </svg>
+                        )
+                      },
+                      {
+                        value: "openai",
+                        label: "OpenAI",
+                        icon: (
+                          <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="currentColor">
+                            <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.843-3.372L15.115 7.2a.076.076 0 0 1 .071 0l4.83 2.786a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.403-.662zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" />
+                          </svg>
+                        )
+                      },
+                      {
+                        value: "deepseek",
+                        label: "DeepSeek",
+                        icon: (
+                          <svg viewBox="0 0 500 500" className="w-4 h-4 shrink-0 object-contain">
+                            <path fill="#4d6bfe" d="M435.32,143.14c-6.24-1.12-11.87,15.99-28.34,14.98-12.14-.74-23.36,3.27-31.93,12.24-3.2-13.98-11.1-19.75-23.6-24.83-13.18-5.36-11.1-17.02-15.92-22.72-8.45-9.98-29.94,44.83,7.82,75.95,2.72,2.24,5.78,4.13,7.98,7.25l-5.98,17.07c-13.03-4.74-23.99-12.85-33.5-23-12.38-13.22-24.45-26.22-39.88-36.03-5.45-3.47-10.66-8.77-9.57-15.82,1.08-7.05,6.97-11.73,13.36-14.84-.02-2.16-2.6-3.91-4.73-4.39-22.48-5.09-46.26,10.9-55.15,10.34l-26.92-1.7c-20.26.4-39.97,3.89-56.99,15.4-29.76,20.14-46.47,53.96-46.1,89.94.37,34.86,12.71,67.42,36.35,92.77,15.39,16.5,33.16,29.44,54.18,37.72,23.53,9.28,47.79,10.45,72.78,7.12,21.39-2.85,40.48-11.26,57.22-26.01,16.06,7.23,39.57,7.85,54.92,2.86,4.69-1.52,8.21-9.45,3.76-12.38-7.71-5.09-16.69-7.69-25.14-11.18-2.49-1.03-4.83-1.12-6.39-4l6.85-7.51c11.99-13.15,22.22-27.14,29.1-43.77,7.63-18.44,12.3-37.35,14.21-57.35.26-2.75-2.14-7.68.85-9.73,34.48-3.6,55.7-28.94,55.62-63.25,0-2.78-3.13-4.82-4.88-5.13Z" />
+                          </svg>
+                        )
+                      },
+                      {
+                        value: "groq",
+                        label: "Groq",
+                        icon: (
+                          <svg viewBox="0 0 453 453" className="w-4 h-4 shrink-0 object-contain">
+                            <path fill="#f45036" d="M251.67,0c103.8,5.06,199.26,98.29,201.33,203.35v50.33c-6.37,102.84-98.84,197.34-203.35,199.32h-50.33C95.98,446.6,5.11,355.41,0,251.67v-52.35C6.35,96.23,98.84,2.44,203.35,0h48.32Z" />
+                            <path fill="#fefefe" d="M286.92,278.53l.23-97.15c.08-33.19-29.12-58.48-60.62-58.53-32.91-.05-60.07,26.74-60.96,59.35s24.54,62.06,58.32,62.5l35.46.47-.03,36.62-29.83.02c-34.44.02-65.78-16.13-84.12-42.56-20.1-28.97-23.75-64.93-9.1-96.98,18.95-41.47,61.99-64.73,107.23-57.01,41.53,7.09,78.06,42.57,80.23,87.86l.28,102.83c.12,43.58-31.75,80.31-73.05,91.47-33.74,9.12-67.39-.85-92.26-25.34l25.89-26.03c17.89,17.14,41.58,22.95,64.87,13.57,18.89-7.6,37.39-26.49,37.45-51.09Z" />
+                          </svg>
+                        )
+                      },
+                      {
+                        value: "openrouter",
+                        label: "OpenRouter",
+                        icon: (
+                          <svg viewBox="0 0 362.15 306.13" className="w-4 h-4 shrink-0 object-contain">
+                            <path fill="#C8FF00" d="M251.94,306.13l-.79-28.35c-47.94,2.45-89.25-4.54-128.56-32.25l-24.23-17.07c-15.07-11.05-30.2-20.77-46.88-29.41-16.87-6.67-33.79-11.31-51.48-14.19v-63.31c33.64-4.42,59.4-14.46,86.77-33.83l42.63-29.84c36.07-25.25,80.45-31.84,124.15-29.23l.22-28.65,108.38,62.85-108,62.53-.67-32.05c-17.69-1.89-34.89-1.98-52.25,1.45-15.53,3.52-28.85,10.34-41.72,19.55-19.26,13.78-37.97,27.21-57.78,39.58,20.5,12.82,38.33,25.77,56.99,39.15,19.46,13.96,40.87,22,64.87,21.18l27.62-.94.64-32.4,108.42,62.74-108.34,62.48Z" />
+                          </svg>
+                        )
+                      },
+                      {
+                        value: "claude",
+                        label: "Claude",
+                        icon: (
+                          <svg viewBox="0 0 46.08 46.08" className="w-4 h-4 shrink-0 object-contain">
+                            <path fill="#d97454" d="M30.13,37.27c.66.17,1.06.16,1.58-.07.3-.14.43-.49.39-.84l-.15-1.25-3.91-5.87c-.04-.06,0-.19.02-.22.02-.02.13-.02.17.01l3.94,3.33,2.76,2.11c.2.15.51.36.77.22.5-.45.5-.76.23-1.41l-6.36-5.87c-.55-.5-1.08-.94-1.54-1.64l9.8,2.32,1.73-.84c.04-.22.18-.54.07-.73-.16-.29-.34-.64-.61-.83l-1.14-.78-4.41-.29c-1.78-.04-3.48.03-5.32-.34l5.12-1.22c1.96-.47,3.88-.77,5.82-1.32l.38-.9c.09-.22.11-.67-.12-.79l-1.06-.52c-2.94.45-5.81,1.01-8.71,1.68-.17.04-.3.04-.46-.09l1.09-1.87,4.53-5.97.48-1.63-1.06-1.57c-.45.04-.99-.12-1.41.04-.82.31-3.06,2.97-3.88,4.04l-2.91,3.74c-.16.2-.35.33-.58.28l1.26-6.71.52-3.33-.71-.94c-.18-.24-.52-.28-.83-.4l-.97.72c-.23.37-.51.88-.55,1.33l-.45,4.72c-.18,1.89-.43,3.74-.52,5.59-.19.05-.24-.05-.28-.16l-.44-1.38-2.75-5.43-2.33-5.13c-.34-.75-2.18-.91-2.57-.5s-.75.91-1.03,1.39c.05.67.16,1.42.49,2.01l4.81,8.4c.05.08.19.23.14.32-.04.06-.19.1-.26.1-.07,0-.13-.12-.2-.17l-3.62-2.68-4.14-3.15c-.44-.24-1.04-.08-1.53-.17l-.85,1.01c.02.75.13,1.64.67,2.03l2.89,2.07,7.09,4.77c.13.09.14.2.11.28-.05.11-.19.09-.3.08l-3.61-.34-8.71-.61c-.6.27-.94.73-.7,1.02.57.71.44,1.04,1.76,1.09l9.98.4,1.4.08c.16,0,.17.4,0,.5l-6.59,3.73-2.73,1.86c-.25.17-.32.43-.31.73.01.42-.29.57.67,1.26l1.57-.22,8.89-5.8c.14.1.07.24-.02.35l-1.21,1.42-4.67,6.02c-.7.9-1.53,1.7-1.3,2.63.55.44,1.16.69,1.56.26l2.34-2.53,5.05-6.82c.08-.11.29-.14.27-.07-.14.56-.28,1.08-.35,1.64-.15,1.26-.38,2.44-.64,3.67l-1.09,5.15c.16.37.2.84.49,1.07l.81.64.98-.39c.18-.07.38-.34.48-.54l.94-9.95c.02-.18.06-.34.23-.32,1.67,2.98,3.52,5.8,5.55,8.5Z" />
+                          </svg>
+                        )
+                      }
+                    ] as { value: string; label: string; icon: React.ReactNode }[]
+                  )
+                    .filter(opt => loginMode !== 'api' || opt.value !== 'auto')
+                    .filter(opt => isProvidersExpanded || opt.value === provider)
+                    .map(opt => {
+                      const isSelected = provider === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            if (!isProvidersExpanded) {
+                              setIsProvidersExpanded(true);
+                              return;
+                            }
+                            const nextProvider = opt.value as AiProvider;
+                            setProvider(nextProvider);
+                            setIsProvidersExpanded(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer text-left border-0 outline-none
                           ${isSelected
-                            ? 'bg-brand-blue/10 ring-1 ring-brand-blue/30 text-white'
-                            : 'bg-[#1c1c1c] text-gray-400 hover:bg-white/4 hover:text-gray-200'
-                          }`}
-                      >
-                        <span className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-colors ${isSelected ? 'bg-brand-blue/15' : 'bg-white/5'}`}>
-                          {opt.icon}
-                        </span>
-                        <span className="flex-1">{opt.label}</span>
-                        {!isProvidersExpanded ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 shrink-0">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                          </svg>
-                        ) : isSelected ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-brand-blue shrink-0">
-                            <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
-                          </svg>
-                        ) : null}
-                      </button>
-                    );
-                  })}
+                              ? 'bg-brand-blue/10 ring-1 ring-brand-blue/30 text-white'
+                              : 'bg-[#1c1c1c] text-gray-400 hover:bg-white/4 hover:text-gray-200'
+                            }`}
+                        >
+                          <span className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-colors ${isSelected ? 'bg-brand-blue/15' : 'bg-white/5'}`}>
+                            {opt.icon}
+                          </span>
+                          <span className="flex-1">{opt.label}</span>
+                          {!isProvidersExpanded ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 shrink-0">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                            </svg>
+                          ) : isSelected ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-brand-blue shrink-0">
+                              <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+                            </svg>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                </div>
               </div>
-            </div>
             )}
 
             {loginMode === 'api' && (
@@ -624,7 +624,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                       provider === 'openai' ? "Digite o nome do modelo (ex: gpt-5.6-sol)" :
                         provider === 'deepseek' ? "Digite o nome do modelo (ex: deepseek-chat)" :
                           provider === 'groq' ? "Digite o nome do modelo (ex: llama-3.3-70b-versatile)" :
-                            provider === 'openrouter' ? "Digite o nome do modelo (ex: google/gemini-2.5-flash)" :
+                            provider === 'openrouter' ? "Digite o nome do modelo" :
                               "Digite o nome do modelo (ex: gemini-4.0-flash)"
                     }
                     className="w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-brand-blue/40 transition-all text-sm font-medium"
