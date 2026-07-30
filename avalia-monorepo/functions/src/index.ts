@@ -459,20 +459,17 @@ export const getAvailableModelsProxy = onCall(
     }
 
     try {
-      // 3. Lê as configurações canônicas de modelos gravadas pelo Admin no Firestore (auth/config)
       const configDoc = await db.collection("auth").doc("config").get();
       const firestoreConfig = configDoc.exists ? configDoc.data() || {} : {};
 
-      if (provider === "google-ai" || provider === "vertex" || provider === "auto") {
+      // CENÁRIO A: Modo AUTO -> Retorna estritamente o modelo preconfigurado no Firestore pelo Admin
+      if (provider === "auto") {
         const apiKey = googleAiKey.value();
         if (!apiKey) {
           throw new HttpsError("internal", "Chave do provedor Google AI não configurada no servidor.");
         }
 
-        // Recupera o modelo especificamente configurado pelo admin no Firestore para o Google AI
         const configuredGoogleModel = (firestoreConfig.admin_model_google_ai || "gemini-1.5-flash").trim();
-
-        // Faz o teste real de sanidade para o modelo preconfigurado no Firestore
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${configuredGoogleModel}?key=${apiKey}`);
         if (!response.ok) {
           const errText = await response.text().catch(() => '');
@@ -489,6 +486,50 @@ export const getAvailableModelsProxy = onCall(
           ],
           valid: true
         };
+      }
+
+      // CENÁRIO B: Provedor ESPECÍFICO (ex: google-ai, vertex) -> Busca a lista dinâmica completa de modelos disponíveis na API oficial do provedor
+      if (provider === "google-ai" || provider === "vertex") {
+        const apiKey = googleAiKey.value();
+        if (!apiKey) {
+          throw new HttpsError("internal", "Chave do provedor Google AI não configurada no servidor.");
+        }
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        if (!response.ok) {
+          const errText = await response.text().catch(() => '');
+          throw new HttpsError("internal", `Falha ao buscar modelos do Google AI: HTTP ${response.status}. ${errText.slice(0, 150)}`);
+        }
+
+        const apiData = await response.json();
+        if (apiData && Array.isArray(apiData.models)) {
+          const result = apiData.models
+            .filter((m: any) => {
+              if (!m.name) return false;
+              const cleanId = m.name.replace(/^models\//, '');
+              const idLower = cleanId.toLowerCase();
+              const isTts = idLower.includes('tts') || idLower.includes('audio') || idLower.includes('speech');
+              
+              if (target === 'tts') return isTts;
+              
+              const isNonText = isTts || idLower.includes('image') || idLower.includes('embed') || idLower.includes('bidi') || idLower.includes('realtime');
+              if (isNonText) return false;
+              
+              return cleanId.includes('gemini') && m.supportedGenerationMethods?.includes('generateContent');
+            })
+            .map((m: any) => {
+              const cleanId = m.name.replace(/^models\//, '');
+              return {
+                value: cleanId,
+                label: m.displayName ? `${m.displayName} (${cleanId})` : cleanId,
+                status: target === 'tts' ? 'Voz' : 'Estável'
+              };
+            });
+
+          return { models: result, valid: true };
+        }
+
+        throw new HttpsError("internal", "Resposta inesperada da API Google AI: campo 'models' ausente.");
       }
 
       throw new HttpsError("invalid-argument", `Provedor '${provider}' não é suportado em getAvailableModelsProxy.`);
