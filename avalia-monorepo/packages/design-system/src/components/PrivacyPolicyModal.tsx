@@ -218,9 +218,9 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             </section>
 
                             <section>
-                                <h4 className="text-white font-bold mb-2">3. Interação por Voz (TTS & Transcrição)</h4>
+                                <h4 className="text-white font-bold mb-2">3. Interação por Voz (TTS e Transcrição)</h4>
                                 <p>
-                                    Nas modalidades de interação por voz, a conversão é processada via Web Speech API nativa do navegador. O Avalia Quiz não mantém armazenamento permanente de gravações de áudio próprias, embora os provedores do navegador ou sistema operacional possam processar dados conforme suas próprias políticas.
+                                    Nas modalidades de interação por voz, os recursos de síntese e reconhecimento de voz poderão utilizar tecnologias nativas do navegador e/ou serviços de Inteligência Artificial, conforme a funcionalidade, o provedor e o modelo selecionados pelo usuário. O Avalia Quiz não mantém armazenamento permanente próprio das gravações de áudio. O processamento e eventual tratamento dos dados pelos provedores utilizados estão sujeitos às respectivas políticas e termos de serviço.
                                 </p>
                             </section>
                         </div>
