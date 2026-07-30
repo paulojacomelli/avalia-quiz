@@ -238,10 +238,11 @@ export const getAvailableModelsProxy = onCall(
 
     // 1. Validação de PIN diretamente do GCP Secret Manager (sem nenhum fallback)
     const actualSecretCode = (avaliaSecretCode.value() || "").trim();
-    const isPinValid = actualSecretCode === secretCode.trim();
+    const cleanReceivedPin = secretCode.trim();
+    const isPinValid = actualSecretCode === cleanReceivedPin;
 
-    // 2. Transação Atômica de Força Bruta por IP
     if (!isPinValid) {
+      console.log(`[PIN Validation Failed] SecretLen: ${actualSecretCode.length}, ReceivedLen: ${cleanReceivedPin.length}`);
       await verifyAndTrackBruteForce(clientIp, false);
       throw new HttpsError("unauthenticated", "Código de acesso incorreto.");
     }
