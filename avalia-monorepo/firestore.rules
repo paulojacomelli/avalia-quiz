@@ -27,7 +27,7 @@ service cloud.firestore {
     // Leitura pública (necessário para o login por código de acesso funcionar).
     // Escrita restrita ao admin autenticado via Google.
     match /auth/{document=**} {
-      allow read: if true;
+      allow read: if isAdmin();
       allow write: if isAdmin();
     }
 
