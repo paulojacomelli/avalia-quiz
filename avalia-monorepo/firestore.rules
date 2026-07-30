@@ -26,7 +26,7 @@ service cloud.firestore {
     // O documento 'auth/config' armazena apenas o PIN (secret_code) e identificadores de modelos.
     // As chaves de API privadas (admin_key_*) foram removidas deste documento e movidas para o Secret Manager.
     match /auth/config {
-      allow read: if true;
+      allow read: if isAdmin();
       allow write: if isAdmin();
     }
     match /auth/{document=**} {

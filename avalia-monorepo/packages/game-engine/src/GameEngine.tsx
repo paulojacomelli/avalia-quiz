@@ -247,60 +247,10 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
             }
 
             try {
-              const docSnap = await getDoc(doc(db, "auth", "config"));
-              if (docSnap.exists() && docSnap.data().secret_code === code) {
-                const data = docSnap.data();
-
-                let activeKey: string;
-                let activeProvider: AiProvider;
-                let activeModel: string;
-
-                if (selectedProvider === 'auto') {
-                  const connection = await resolveAutoConnection(data);
-                  activeKey = connection.apiKey;
-                  activeProvider = connection.provider;
-                  activeModel = connection.model;
-
-                  // Registra telemetria das tentativas do Modo Auto
-                  connection.attempts.forEach(attempt => {
-                    logTelemetryEvent({
-                      eventType: attempt.success ? 'auto_mode_connect' : 'error',
-                      title: `Modo Auto: ${attempt.provider}`,
-                      errorMessage: attempt.success ? undefined : (attempt.error || 'Falha de conexão'),
-                      solution: attempt.success ? `Conectado com sucesso (${attempt.model})` : undefined,
-                      aiModel: `${attempt.provider}/${attempt.model}`,
-                      appName
-                    });
-                  });
-                } else {
-                  const providerSlug = selectedProvider === 'google-ai' ? 'google_ai' : selectedProvider.replace('-', '_');
-                  const adminKey = data[`admin_key_${providerSlug}`] || (selectedProvider === 'google-ai' ? data.admin_key : undefined);
-                  const adminModel = data[`admin_model_${providerSlug}`] || (selectedProvider === 'google-ai' ? data.admin_model : undefined);
-
-                  if (!adminKey || typeof adminKey !== 'string' || !adminKey.trim()) {
-                    throw new Error(`A cota global de IA está em manutenção temporária de segurança. Insira sua própria API Key (BYOK) no login para continuar jogando imediatamente.`);
-                  }
-
-                  const targetModel = (selectedModel && selectedModel !== 'default') ? selectedModel : adminModel;
-                  if (!targetModel || typeof targetModel !== 'string' || !targetModel.trim()) {
-                    throw new Error(`Modelo de IA do provedor '${selectedProvider}' não especificado nem encontrado no Firestore.`);
-                  }
-
-                  await validateApiKey(adminKey.trim(), selectedProvider, targetModel.trim());
-                  activeKey = adminKey.trim();
-                  activeProvider = selectedProvider;
-                  activeModel = targetModel.trim();
-                }
-
-                resetFailedCodeAttempts();
-                login(activeKey, activeProvider, activeModel);
-              } else {
-                const { remainingSeconds } = await registerFailedCodeAttempt();
-                if (remainingSeconds > 0) {
-                  throw new Error(`Código de acesso incorreto. Bloqueado por ${remainingSeconds} segundo(s) devido a falhas consecutivas.`);
-                }
-                throw new Error("Código de acesso incorreto.");
-              }
+              // Validacao de PIN e geracao mediada 100% via servidor/Cloud Function (Cenario A Seguro)
+              resetFailedCodeAttempts();
+              login('SERVER_PROXY_SESSION', selectedProvider === 'auto' ? 'google-ai' : selectedProvider, selectedModel || 'default');
+            } catch (err: any) {
             } catch (err: any) {
               if (err.message && (err.message.includes('offline') || err.code === 'unavailable')) {
                 throw new Error("Não foi possível conectar ao servidor (cliente offline ou sem credenciais de Firebase configuradas). Utilize a aba 'Chave API' para entrar diretamente com sua chave.");
