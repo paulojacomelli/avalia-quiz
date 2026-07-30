@@ -1027,21 +1027,19 @@ export const generateReplacementQuestion = async (apiKey: string, config: QuizCo
 };
 
 const parseEvaluationResult = (rawText: string): EvaluationResult => {
-  try {
-    const cleaned = cleanJson(rawText || "{}");
-    const parsed = JSON.parse(cleaned);
-    const score = typeof parsed.score === 'number'
-      ? parsed.score
-      : (typeof parsed.pontuacao === 'number' ? parsed.pontuacao : (parsed.isCorrect ? 1.0 : 0.0));
-    const isCorrect = typeof parsed.isCorrect === 'boolean'
-      ? parsed.isCorrect
-      : (score >= 0.6);
-    const feedback = parsed.feedback || parsed.comentario || (isCorrect ? 'Resposta aceitável.' : 'Resposta incorreta.');
-    return { score, feedback, isCorrect };
-  } catch (e) {
-    console.error("Evaluation Result Parse Error:", e, "Raw Text:", rawText);
-    return { score: 0, feedback: "Não foi possível avaliar a resposta automaticamente.", isCorrect: false };
+  if (!rawText || !rawText.trim() || rawText.trim() === '{}') {
+    throw new Error("IA retornou resposta vazia ou inválida para avaliação.");
   }
+  const cleaned = cleanJson(rawText);
+  const parsed = JSON.parse(cleaned); // lança SyntaxError se inválido — propagado ao chamador
+  const score = typeof parsed.score === 'number'
+    ? parsed.score
+    : (typeof parsed.pontuacao === 'number' ? parsed.pontuacao : (parsed.isCorrect ? 1.0 : 0.0));
+  const isCorrect = typeof parsed.isCorrect === 'boolean'
+    ? parsed.isCorrect
+    : (score >= 0.6);
+  const feedback = parsed.feedback || parsed.comentario || (isCorrect ? 'Resposta aceitável.' : 'Resposta incorreta.');
+  return { score, feedback, isCorrect };
 };
 
 const fallbackEvaluate = (question: string, modelAnswer: string, userAnswer: string): EvaluationResult => {
@@ -1113,13 +1111,16 @@ export const evaluateFreeResponse = async (apiKey: string, question: string, mod
       });
 
       if (!response.ok) {
-        console.error(`${displayName} API Error:`, response.status, await response.text());
-        return fallbackEvaluate(question, modelAnswer, userAnswer);
+        const errText = await response.text().catch(() => '');
+        throw new Error(`${displayName} API Error ${response.status}: ${errText.slice(0, 200)}`);
       }
 
       const data = await response.json();
       const text = data.choices?.[0]?.message?.content;
-      return parseEvaluationResult(text || "{}");
+      if (!text || !text.trim()) {
+        throw new Error(`${displayName} retornou resposta de avaliação vazia.`);
+      }
+      return parseEvaluationResult(text);
     }
 
     const genAI = getSDKInstance(apiKey);
@@ -1148,10 +1149,16 @@ export const evaluateFreeResponse = async (apiKey: string, question: string, mod
     });
 
     const text = result.text;
-    return parseEvaluationResult(text || "{}");
-  } catch (error) {
-    console.error("evaluateFreeResponse AI Error, applying fallback:", error);
-    return fallbackEvaluate(question, modelAnswer, userAnswer);
+    if (!text || !text.trim()) {
+      throw new Error("Google AI retornou resposta de avaliação vazia.");
+    }
+    return parseEvaluationResult(text);
+  } catch (error: any) {
+    // Não aplicar avaliação textual como substituto da IA — sempr propagar o erro real.
+    // QuizCard tem tratamento explícito que exibe mensagem ao usuário.
+    const msg = error?.message || String(error);
+    console.error("evaluateFreeResponse falhou:", msg);
+    throw new Error(msg);
   }
 };
 
