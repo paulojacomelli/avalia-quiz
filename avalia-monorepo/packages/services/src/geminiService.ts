@@ -737,7 +737,12 @@ export const generateQuizContent = async (apiKey: string, config: QuizConfig, gl
   if (!appName) throw new Error("Nome do aplicativo não informado.");
   const startTime = Date.now();
 
-  const effectiveProvider = provider === 'auto' ? 'google-ai' : provider;
+  // 'auto' não deve chegar aqui: o modo Auto tem seu próprio fluxo via resolveAutoConnection no GameEngine.
+  // Se chegar, é estado inválido — falha explícita em vez de substituir silenciosamente.
+  if (provider === 'auto') {
+    throw new Error("Provider 'auto' não é suportado em generateQuizContent. Use resolveAutoConnection antes de chamar esta função.");
+  }
+  const effectiveProvider = provider;
 
   // Se apiKey não for um token de API direto de cliente (ex: AIza... ou sk-...), encaminha via Cloud Function Proxy Serverless
   const isDirectApiKey = apiKey.startsWith("AIza") || apiKey.startsWith("sk-") || apiKey.startsWith("gsk_");
@@ -810,7 +815,10 @@ export const generateReplacementQuestion = async (apiKey: string, config: QuizCo
   if (!model) throw new Error("Modelo de IA não informado.");
   if (!appName) throw new Error("Nome do aplicativo não informado.");
 
-  const effectiveProvider = provider === 'auto' ? 'openrouter' : provider;
+  if (provider === 'auto') {
+    throw new Error("Provider 'auto' não é suportado em generateReplacementQuestion. Use resolveAutoConnection antes de chamar esta função.");
+  }
+  const effectiveProvider = provider;
   if (effectiveProvider === 'openai' || effectiveProvider === 'deepseek' || effectiveProvider === 'groq' || effectiveProvider === 'openrouter') {
     const topicPrompt = getTopicPrompt(config);
     const formatInstruction = getFormatInstruction(config);

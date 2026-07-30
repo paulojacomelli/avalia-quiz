@@ -368,10 +368,16 @@ export const getAvailableModelsProxy = onCall(
     try {
       if (provider === "google-ai" || provider === "vertex" || provider === "auto") {
         const apiKey = googleAiKey.value();
-        if (!apiKey) return { models: [], valid: true };
+        if (!apiKey) {
+          // Secret não configurado — falha de infraestrutura real, não lista vazia
+          throw new HttpsError("internal", "Chave do provedor Google AI não configurada no servidor.");
+        }
 
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-        if (!response.ok) return { models: [], valid: true };
+        if (!response.ok) {
+          const errText = await response.text().catch(() => '');
+          throw new HttpsError("internal", `Falha ao buscar modelos do Google AI: HTTP ${response.status}. ${errText}`);
+        }
 
         const apiData = await response.json();
         if (apiData && Array.isArray(apiData.models)) {
@@ -400,12 +406,18 @@ export const getAvailableModelsProxy = onCall(
 
           return { models: result, valid: true };
         }
+
+        // apiData veio mas sem campo 'models' — resposta inesperada da API
+        throw new HttpsError("internal", "Resposta inesperada da API Google AI: campo 'models' ausente.");
       }
 
-      return { models: [], valid: true };
-    } catch (err) {
-      console.error("Erro na getAvailableModelsProxy:", err);
-      return { models: [], valid: true };
+      // Provider não suportado nesta função (apenas google-ai/vertex são aceitos por ora)
+      throw new HttpsError("invalid-argument", `Provedor '${provider}' não é suportado em getAvailableModelsProxy.`);
+    } catch (err: any) {
+      // Se já é um HttpsError, relanaça diretamente sem encapsular
+      if (err?.httpErrorCode || err?.code) throw err;
+      console.error("Erro inesperado na getAvailableModelsProxy:", err);
+      throw new HttpsError("internal", err?.message || "Erro interno ao buscar modelos de IA.");
     }
   }
 );
