@@ -99,6 +99,6 @@ jobs:
             echo "ERROR: FIREBASE_TOKEN is not set"
             exit 1
           fi
-          firebase deploy --only hosting:avaliaquizdev,hosting:avaliajwquizdev,functions --non-interactive
+          firebase deploy --only hosting:avaliaquizdev,hosting:avaliajwquizdev,functions --force --non-interactive
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
