@@ -1,6 +1,6 @@
 {
   "name": "@avalia/services",
-  "version": "1.0.39",
+  "version": "1.9.49-beta",
   "license": "GPL-3.0-only",
   "private": true,
   "main": "src/index.ts",

@@ -1,4 +1,4 @@
-# Avalia - Ecossistema Modular & Agnóstico de Quizzes com IA (v1.9.48)
+# Avalia - Ecossistema Modular & Agnóstico de Quizzes com IA (v1.9.49-beta)
 
 O **Avalia** é uma plataforma e **Monorepo** agnóstico projetado para construção, execução e gerenciamento de aplicações de quiz interativas impulsionadas por Inteligência Artificial. Gerido via **Turborepo** e **NPM Workspaces**, o ecossistema separa estritamente a infraestrutura, o motor de jogo e o design system de qualquer contexto de domínio ou marca.
 
@@ -190,7 +190,7 @@ Você é livre para estudar, modificar e estender a plataforma mantendo a transp
 
 ---
 
-## 🔖 Release Atual: v1.4.74
+## 🔖 Release Atual: v1.9.49-beta
 - Métrica de Usuários Criadores e Média de Quizzes por Criador no Bento Grid.
 - Proteção estrita contra enumeração de Administradores por UID/E-mail no Firestore.
 - Deduplicação de telemetria de acessos.
