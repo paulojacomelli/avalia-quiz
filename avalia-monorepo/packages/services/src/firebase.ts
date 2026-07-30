@@ -453,7 +453,7 @@ export const deleteSavedQuiz = async (quizId: string): Promise<boolean> => {
 export const checkIsUserAdmin = async (email?: string | null, uid?: string | null): Promise<boolean> => {
     if (!email && !uid) return false;
 
-    // 1. Tenta por UID direto do documento (ex: /admins/89oIauVjACPcLkhW0yq030VFNlk2)
+    // 1. Tenta por UID direto do documento
     if (uid) {
         try {
             const adminUidRef = doc(db, 'admins', uid);
@@ -466,7 +466,7 @@ export const checkIsUserAdmin = async (email?: string | null, uid?: string | nul
         }
     }
 
-    // 2. Tenta por E-mail no ID do documento (ex: /admins/paulo.jacomelli2001@gmail.com)
+    // 2. Tenta por E-mail no ID do documento
     if (email) {
         const normalizedEmail = email.toLowerCase().trim();
         try {

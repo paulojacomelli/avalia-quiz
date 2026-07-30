@@ -1,157 +1,171 @@
-# Avalia - Ecossistema Modular & Agnóstico de Quizzes com IA (v1.9.49-beta)
+# Avalia
 
-O **Avalia** é uma plataforma e **Monorepo** agnóstico projetado para construção, execução e gerenciamento de aplicações de quiz interativas impulsionadas por Inteligência Artificial. Gerido via **Turborepo** e **NPM Workspaces**, o ecossistema separa estritamente a infraestrutura, o motor de jogo e o design system de qualquer contexto de domínio ou marca.
+> **Plataforma e Monorepo Agnóstico para Construção de Aplicações de Quiz Interativas com Inteligência Artificial.**
 
----
-
-## 🏗️ Arquitetura Agnóstica & Filosofia de Design
-
-A arquitetura do projeto foi desenhada sob a diretriz de **Zero Contexto de Domínio nos Pacotes**:
-
-1. **Pacotes Base (`packages/`)**: Totalmente neutros e reutilizáveis. Não possuem regras de negócio específicas, termos hardcoded ou preferências visuais fixas.
-2. **Aplicativos Consumidores (`apps/`)**: Funcionam como **modelos e implementações de referência** (ex: *Avalia Quiz*, *Avalia JW Quiz*, *Avalia Kids*), injetando suas próprias configurações (`appConfig`), paletas, ícones e dicionários de temas (`themeLabelMap`) nos motores compartilhados.
+`v1.9.49-beta` · Turborepo + NPM Workspaces · Licença GPLv3
 
 ---
 
-## 🌟 Funcionalidades da Plataforma
+## 🎯 O que é o Avalia?
 
-- **Motor de IA Multi-Provedor**: Suporte agnóstico e resiliente aos principais modelos do mercado:
-  - **Google Gemini** (Gemini 3.6 Flash / Pro e Gemini Live API)
-  - **DeepSeek**
-  - **Groq** (Inferência de altíssima velocidade)
-  - **OpenRouter** (Acesso a centenas de modelos)
-- **Chat Contínuo de IA no QuizCard**: Módulo conversacional reutilizável para esclarecimentos sobre perguntas em tempo real.
-- **Painel Administrativo Agnóstico (`AdminDashboard`)**:
-  - **Gerenciamento de Quizzes**: Leitura e exclusão segura de conteúdos gerados.
-  - **Persistência de Estado**: Restauração automática de abas ao atualizar a página (F5).
-  - **Telemetria & Tratamento Sanitizado de Erros**: Mapeamento limpo de códigos HTTP (`500`) e logs operacionais.
-- **Segurança Integrada**: Proteção contra ataques de força bruta no login via Rate Limiter expansivo por cliente/IP.
-- **Acessibilidade Universal**: Integração nativa com o ecossistema VLibras (avatar e glosas).
-- **Gerenciamento de Marcas & Assets (Canary)**: Scripts automatizados para injeção de identidades visuais de desenvolvimento e produção.
+O Avalia é uma infraestrutura completa e modular para criação de ecossistemas de quizzes dinâmicos baseados em IA. Em vez de construir um aplicativo isolado para cada projeto ou marca, o Avalia funciona como um **motor reutilizável**: separa rigorosamente a lógica de jogo, a geração por IA e os componentes de interface do contexto de negócio ou identidade visual.
+
+Isso é feito através da diretriz central do projeto — **Zero Contexto de Domínio nos Pacotes**: nenhum pacote compartilhado conhece marcas, regras de negócio restritas ou temas fixos. Quem conhece essas coisas são as aplicações em `apps/`, que injetam essa configuração nos motores compartilhados.
+
+### Principais Casos de Uso
+- **Quizzes Genéricos** — testes de conhecimentos gerais com suporte a múltiplos provedores de IA.
+- **Aplicações Especializadas** — ambientes de estudo customizados com glossários e regras de domínio específicas.
+- **Aplicações Infantis / Educacionais** — interfaces adaptadas e simplificadas para públicos específicos.
+
+Hoje o ecossistema roda três aplicações-modelo: **Avalia Quiz** (genérico), **Avalia JW Quiz** (especializado) e **Avalia Kids** (infantil).
 
 ---
 
-## 🚀 Estrutura do Monorepo
+## ✨ Funcionalidades
 
-O repositório é estruturado no diretório `avalia-monorepo/`:
+### 🤖 Motor de IA Multi-Provedor
+- Suporte agnóstico e resiliente a **Google Gemini** (3.6 Flash/Pro + Gemini Live API), **DeepSeek**, **Groq** e **OpenRouter**.
+- Chat contínuo de IA embutido no `QuizCard`, para esclarecimentos em tempo real sobre as perguntas.
 
-- `packages/` — **Infraestrutura e Motores Compartilhados**:
-  - `@avalia/core`: Tipagens, contratos e interfaces agnósticas.
-  - `@avalia/services`: Integrações com LLMs, Firebase, telemetria e rate limiters.
-  - `@avalia/design-system`: Componentes visuais desacoplados (`QuizCard`, `AdminDashboard`, `ReadyCheck`).
-  - `@avalia/game-engine`: Motor de regras do quiz e gerenciamento de estado (`useGameLoop`).
-- `apps/` — **Aplicações e Modelos de Referência**:
-  - `avalia-quiz`: Instância modelo genérica do aplicativo.
-  - `avalia-jw-quiz`: Instância modelo especializada via injeção de configuração.
-  - `avalia-kids`: Instância modelo voltada para o público infantil.
-- `functions/` — Backend serverless e funções de apoio em nuvem.
-- `scripts/` — Ferramental de automação de compilação e substituição de ativos.
+### 🎮 Game Engine & Design System
+- Motor de jogo desacoplado, com gerenciamento centralizado do ciclo de vida das perguntas via `useGameLoop`.
+- Componentes visuais reutilizáveis, prontos para injeção de temas e paletas por marca.
+- Acessibilidade universal via integração nativa com o **VLibras** (avatar e glosas).
+
+### 🛠️ Painel Administrativo (`AdminDashboard`)
+- Gerenciamento e exclusão segura de quizzes gerados.
+- Persistência de estado das abas (sobrevive a um F5).
+- Telemetria com tratamento sanitizado de erros (mapeamento limpo de códigos HTTP como `500`).
+
+### 🔒 Segurança
+- Rate Limiter por cliente/IP contra ataques de força bruta no login.
+- Proteção estrita contra enumeração de administradores por UID/e-mail no Firestore.
+
+### 🎨 Gerenciamento de Marca (Canary)
+- Scripts automatizados para injeção de identidade visual (ícones, paletas, assets) por ambiente de desenvolvimento e produção.
 
 ---
 
-## 🛠️ Instalação e Execução
+## 🏗️ Arquitetura do Monorepo
 
-### 1. Pré-requisitos
-* [Node.js](https://nodejs.org/) (v22+ recomendada).
-* Conta no Firebase e chaves de API dos provedores desejados.
+```
+avalia-monorepo/
+├── packages/                    # 📦 Infraestrutura e motores compartilhados (agnósticos)
+│   ├── @avalia/core             # Tipagens, contratos e interfaces base
+│   ├── @avalia/services         # Conectores de IA, Firebase, telemetria e rate limiters
+│   ├── @avalia/design-system    # Componentes visuais (QuizCard, AdminDashboard, ReadyCheck)
+│   └── @avalia/game-engine      # Regras de jogo e gerenciamento de estado (useGameLoop)
+│
+├── apps/                        # 📱 Aplicações-modelo (injetam marca e configurações)
+│   ├── avalia-quiz               # Instância genérica
+│   ├── avalia-jw-quiz             # Instância especializada
+│   └── avalia-kids                # Instância infantil
+│
+├── functions/                   # ⚡ Backend serverless
+└── scripts/                     # 🛠️ Automação de build e injeção de identidades visuais
+```
 
-### 2. Instalação
+---
+
+## 🚀 Instalação e Execução
+
+### Pré-requisitos
+- [Node.js](https://nodejs.org/) v22+
+- Conta no Firebase com Firestore habilitado
+- Chaves de API dos provedores de IA que for utilizar
+
+### Instalação
 
 ```bash
-# Clone o repositório
 git clone https://github.com/paulojacomelli/avalia-quiz.git
 cd avalia-monorepo
-
-# Instale as dependências na raiz do monorepo
 npm install
 ```
 
-### 3. Executando as Aplicações Modelo
+### Rodando as aplicações-modelo
 
-Na raiz do diretório `avalia-monorepo/`:
-- `npm run dev:generic`: Inicia a aplicação modelo **Avalia Quiz**.
-- `npm run dev:jw`: Inicia a aplicação modelo **Avalia JW Quiz**.
-- `npm run dev:kids`: Inicia a aplicação modelo **Avalia Kids**.
-- `npm run dev`: Executa todos os modelos simultaneamente via Turborepo.
+| Comando | Ação |
+|---|---|
+| `npm run dev:generic` | Inicia o **Avalia Quiz** |
+| `npm run dev:jw` | Inicia o **Avalia JW Quiz** |
+| `npm run dev:kids` | Inicia o **Avalia Kids** |
+| `npm run dev` | Inicia todas as apps simultaneamente via Turborepo |
 
-### 4. Compilação e Deploy
+### Build e Deploy
 
-- `npm run build`: Compila todos os pacotes e aplicativos.
-- `npm run deploy:generic`: Compila e realiza o deploy do target genérico no Firebase Hosting.
-- `npm run deploy:jw`: Compila e realiza o deploy do target específico no Firebase Hosting.
+| Comando | Ação |
+|---|---|
+| `npm run build` | Compila todos os pacotes e aplicativos |
+| `npm run deploy:generic` | Compila e publica o target genérico no Firebase Hosting |
+| `npm run deploy:jw` | Compila e publica o target JW no Firebase Hosting |
 
----
+### Variáveis de Ambiente
 
-## ⚙️ Variáveis de Ambiente
-
-Cada aplicação em `apps/` define suas credenciais em seu respectivo `.env`. Consulte os arquivos `.env.example` para configurar os tokens de IA e conexões do Firebase.
-
----
-
-## 🗄️ Estrutura do Banco de Dados (Firebase Firestore)
-
-O ecossistema utiliza o **Cloud Firestore** como banco de dados NoSQL. Para o funcionamento correto da autenticação, auditoria, telemetria e biblioteca de quizzes, o banco deve ser inicializado no console do Firebase com a seguinte estrutura de coleções:
-
-### 1. Coleções Principais
-
-- **`auth/access_control`** (ou subdocumento de configuração da coleção `auth`):
-  - Contém o código de acesso e as chaves/modelos globais gerenciados pelo painel administrativo:
-    - **Chave de Acesso**: `secret_code` (ex: `"1234"`).
-    - **Chaves de API dos Provedores (Admin)**: `admin_key_google_ai`, `admin_key_groq`, `admin_key_deepseek`, `admin_key_openrouter`, `admin_key_openai`, `admin_key_claude`.
-    - **Modelos Padrão Liberados (Admin)**: `admin_model_google_ai`, `admin_model_groq`, `admin_model_deepseek`, `admin_model_openrouter`, `admin_model_openai`, `admin_model_claude`, `admin_model_live`, `admin_model_tts`, `admin_model_tts_openai`.
-
-  > **Exemplo Prático de Preenchimento do Documento `auth/access_control` no Firestore:**
-  ```json
-  {
-    "secret_code": "1234",
-
-    "admin_key_google_ai": "AIzaSy...",
-    "admin_model_google_ai": "gemini-3.6-flash",
-
-    "admin_key_groq": "gsk_...",
-    "admin_model_groq": "groq/compound",
-
-    "admin_key_openrouter": "sk-or-v1-...",
-    "admin_model_openrouter": "openrouter/auto:free",
-
-    "admin_key_deepseek": "sk-...",
-    "admin_model_deepseek": "deepseek-reasoner",
-
-    "admin_key_openai": "sk-proj-...",
-    "admin_model_openai": "gpt-5.6",
-
-    "admin_key_claude": "sk-ant-...",
-    "admin_model_claude": "claude-fable-5",
-
-    "admin_model_live": "gemini-3.1-flash-live-preview",
-    "admin_model_tts": "gemini-3.1-flash-tts-preview",
-    "admin_model_tts_openai": "gpt-4o-mini-tts"
-  ```
-  
-  > **Identificadores de Modelos Suportados (Exemplos por Provedor):**
-  >
-  > | Provedor | Campo no Firestore | Exemplos de Modelos Válidos |
-  > | :--- | :--- | :--- |
-  > | **Google AI** | `admin_model_google_ai` | `gemini-3.6-flash`, `gemini-3.5-flash` |
-  > | **Groq** | `admin_model_groq` | `groq/compound`, `llama-3.3-70b-versatile` |
-  > | **OpenRouter** | `admin_model_openrouter` | `openrouter/auto:free`, `deepseek/deepseek-v4-flash` |
-  > | **DeepSeek** | `admin_model_deepseek` | `deepseek-reasoner`, `deepseek-chat` |
-  > | **OpenAI** | `admin_model_openai` | `gpt-5.6`, `gpt-4o-mini` |
-- **`admins/`**:
-  - IDs dos documentos contêm o **UID** ou o **E-mail** do Administrador.
-  - *Campos*: `active` (boolean), `email` (string).
-
-- **`generated_quizzes/`**:
-  - Armazena o acervo de quizzes gerados (título, tema, perguntas, opções e áudios).
-  - *Campos*: `appName`, `topic`, `subTopic`, `title`, `questions`, `createdAt`, `clientId`, `aiModel`.
-
-- **`telemetry_logs/`**:
-  - Registra a telemetria em tempo real: conexões de IA, acessos, execuções do modo auto e logs de erros (`500`).
-  - *Campos*: `isoDate`, `eventType`, `appName`, `clientId`, `errorCode`, `errorMessage`.
+Cada aplicação em `apps/` define suas próprias credenciais em seu `.env`. Use os arquivos `.env.example` de cada app como referência para tokens de IA e configuração do Firebase.
 
 ---
 
-### 2. Regras de Segurança (`firestore.rules`)
+## ⚙️ Configuração de Banco de Dados (Cloud Firestore)
+
+O ecossistema usa o Firestore como banco NoSQL para autenticação, telemetria e acervo de quizzes. As coleções abaixo precisam existir para o funcionamento correto da plataforma.
+
+### Coleções
+
+**`auth/access_control`** — configuração global gerenciada pelo painel admin:
+- `secret_code`: chave de acesso (ex: `"1234"`)
+- Chaves de API por provedor: `admin_key_google_ai`, `admin_key_groq`, `admin_key_deepseek`, `admin_key_openrouter`, `admin_key_openai`, `admin_key_claude`
+- Modelos padrão liberados: `admin_model_google_ai`, `admin_model_groq`, `admin_model_deepseek`, `admin_model_openrouter`, `admin_model_openai`, `admin_model_claude`, `admin_model_live`, `admin_model_tts`, `admin_model_tts_openai`
+
+<details>
+<summary><b>📄 Exemplo completo do documento <code>auth/access_control</code></b></summary>
+
+```json
+{
+  "secret_code": "1234",
+
+  "admin_key_google_ai": "AIzaSy...",
+  "admin_model_google_ai": "gemini-3.6-flash",
+
+  "admin_key_groq": "gsk_...",
+  "admin_model_groq": "groq/compound",
+
+  "admin_key_openrouter": "sk-or-v1-...",
+  "admin_model_openrouter": "openrouter/auto:free",
+
+  "admin_key_deepseek": "sk-...",
+  "admin_model_deepseek": "deepseek-reasoner",
+
+  "admin_key_openai": "sk-proj-...",
+  "admin_model_openai": "gpt-5.6",
+
+  "admin_key_claude": "sk-ant-...",
+  "admin_model_claude": "claude-fable-5",
+
+  "admin_model_live": "gemini-3.1-flash-live-preview",
+  "admin_model_tts": "gemini-3.1-flash-tts-preview",
+  "admin_model_tts_openai": "gpt-4o-mini-tts"
+}
+```
+</details>
+
+**Modelos válidos por provedor (exemplos):**
+
+| Provedor | Campo | Exemplos de Modelos Válidos |
+|---|---|---|
+| Google AI | `admin_model_google_ai` | `gemini-3.6-flash`, `gemini-3.5-flash` |
+| Groq | `admin_model_groq` | `groq/compound`, `llama-3.3-70b-versatile` |
+| OpenRouter | `admin_model_openrouter` | `openrouter/auto:free`, `deepseek/deepseek-v4-flash` |
+| DeepSeek | `admin_model_deepseek` | `deepseek-reasoner`, `deepseek-chat` |
+| OpenAI | `admin_model_openai` | `gpt-5.6`, `gpt-4o-mini` |
+
+**`admins/`** — IDs de documento = UID ou e-mail do administrador. Campos: `active` (boolean), `email` (string).
+
+**`generated_quizzes/`** — acervo de quizzes gerados. Campos: `appName`, `topic`, `subTopic`, `title`, `questions`, `createdAt`, `clientId`, `aiModel`.
+
+**`telemetry_logs/`** — telemetria em tempo real (conexões de IA, acessos, execuções do modo auto, erros). Campos: `isoDate`, `eventType`, `appName`, `clientId`, `errorCode`, `errorMessage`.
+
+<details>
+<summary><b>🛡️ Regras de Segurança (<code>firestore.rules</code>)</b></summary>
 
 ```javascript
 rules_version = '2';
@@ -180,22 +194,23 @@ service cloud.firestore {
   }
 }
 ```
+</details>
 
 ---
 
 ## 📜 Licença
 
-Este projeto é distribuído sob a licença **GPLv3**.
-Você é livre para estudar, modificar e estender a plataforma mantendo a transparência open-source.
+Distribuído sob **GPLv3**. Livre para estudar, modificar e estender, mantendo a transparência open-source.
 
 ---
 
-## 🔖 Release Atual: v1.9.49-beta
-- Métrica de Usuários Criadores e Média de Quizzes por Criador no Bento Grid.
-- Proteção estrita contra enumeração de Administradores por UID/E-mail no Firestore.
+## Release Atual — v1.9.49-beta
+
+- Métrica de usuários criadores e média de quizzes por criador no Bento Grid.
+- Proteção estrita contra enumeração de administradores por UID/e-mail no Firestore.
 - Deduplicação de telemetria de acessos.
 - Workflow automático de publicação para GitHub Pages (`deploy-pages.yml`).
-- Suporte a Gemini 3.6 Flash / Pro e Gemini Live API.
-- Chat contínuo com a IA por pergunta.
+- Suporte a Gemini 3.6 Flash/Pro e Gemini Live API.
+- Chat contínuo com IA por pergunta.
 - Exclusão completa de quizzes e persistência de abas administrativas.
 - Rate Limiter contra força bruta.
