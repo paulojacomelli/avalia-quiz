@@ -143,8 +143,13 @@ export const generateQuizProxy = onRequest(
         return;
       }
 
-      // 1. Leitura do PIN oficial (Lê do .env AVALIA_SECRET_CODE ou fallback ao Firestore)
-      let actualSecretCode = process.env.AVALIA_SECRET_CODE;
+      // 1. Leitura do PIN oficial (Lê do GCP Secret Manager com fallback a process.env/Firestore)
+      let actualSecretCode: string | undefined;
+      try {
+        actualSecretCode = avaliaSecretCode.value();
+      } catch (e) {
+        actualSecretCode = process.env.AVALIA_SECRET_CODE;
+      }
       if (!actualSecretCode) {
         const configSnap = await db.doc("auth/config").get();
         actualSecretCode = configSnap.exists ? configSnap.data()?.secret_code : null;
@@ -165,24 +170,32 @@ export const generateQuizProxy = onRequest(
       const targetProvider = provider || "google-ai";
       let apiKey: string | undefined;
 
+      const getSecretVal = (sec: any, envName: string) => {
+        try {
+          return sec.value() || process.env[envName];
+        } catch (e) {
+          return process.env[envName];
+        }
+      };
+
       switch (targetProvider) {
         case "google-ai":
-          apiKey = process.env.GOOGLE_AI_KEY;
+          apiKey = getSecretVal(googleAiKey, "GOOGLE_AI_KEY");
           break;
         case "groq":
-          apiKey = process.env.GROQ_KEY;
+          apiKey = getSecretVal(groqKey, "GROQ_KEY");
           break;
         case "deepseek":
-          apiKey = process.env.DEEPSEEK_KEY;
+          apiKey = getSecretVal(deepseekKey, "DEEPSEEK_KEY");
           break;
         case "openrouter":
-          apiKey = process.env.OPENROUTER_KEY;
+          apiKey = getSecretVal(openrouterKey, "OPENROUTER_KEY");
           break;
         case "openai":
-          apiKey = process.env.OPENAI_KEY;
+          apiKey = getSecretVal(openaiKey, "OPENAI_KEY");
           break;
         case "claude":
-          apiKey = process.env.CLAUDE_KEY;
+          apiKey = getSecretVal(claudeKey, "CLAUDE_KEY");
           break;
       }
 
