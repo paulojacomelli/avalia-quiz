@@ -1,5 +1,25 @@
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
+
+// Declaracao oficial de Secrets gerenciados nativamente pelo GCP Secret Manager
+const googleAiKey = defineSecret("GOOGLE_AI_KEY");
+const openaiKey = defineSecret("OPENAI_KEY");
+const groqKey = defineSecret("GROQ_KEY");
+const deepseekKey = defineSecret("DEEPSEEK_KEY");
+const claudeKey = defineSecret("CLAUDE_KEY");
+const openrouterKey = defineSecret("OPENROUTER_KEY");
+const avaliaSecretCode = defineSecret("AVALIA_SECRET_CODE");
+
+const ALL_SECRETS = [
+  googleAiKey,
+  openaiKey,
+  groqKey,
+  deepseekKey,
+  claudeKey,
+  openrouterKey,
+  avaliaSecretCode
+];
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -97,7 +117,16 @@ async function verifyAndTrackBruteForce(clientIp: string, isCorrectPin: boolean)
 
 export const generateQuizProxy = onRequest(
   {
-    cors: true
+    cors: true,
+    secrets: [
+      googleAiKey,
+      openaiKey,
+      groqKey,
+      deepseekKey,
+      claudeKey,
+      openrouterKey,
+      avaliaSecretCode
+    ]
   },
   async (req, res) => {
     if (req.method !== "POST") {
@@ -191,7 +220,18 @@ export const generateQuizProxy = onRequest(
  * Cloud Function Serverless Callable para consultar a lista oficial de modelos dos provedores usando as chaves de servidor.
  */
 export const getAvailableModelsProxy = onCall(
-  { cors: true },
+  {
+    cors: true,
+    secrets: [
+      googleAiKey,
+      openaiKey,
+      groqKey,
+      deepseekKey,
+      claudeKey,
+      openrouterKey,
+      avaliaSecretCode
+    ]
+  },
   async (request) => {
     const data = request.data || {};
     const secretCode = String(data.secretCode || "");
