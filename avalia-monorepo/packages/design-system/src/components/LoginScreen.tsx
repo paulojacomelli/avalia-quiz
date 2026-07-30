@@ -249,7 +249,37 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const textModelOptions = React.useMemo(() => {
     if (loginMode === 'code') {
       const defaultOption: ModelOption = { value: "default", label: "Padrão (Configuração do Sistema)", status: "Padrão" };
-      return [defaultOption];
+      let providerDefaults: ModelOption[] = [];
+
+      if (provider === 'google-ai') {
+        providerDefaults = [
+          { value: "gemini-3.6-flash", label: "Gemini 3.6 Flash (Recomendado)", status: "Estável" },
+          { value: "gemini-3.5-flash", label: "Gemini 3.5 Flash", status: "Estável" },
+          { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", status: "Avançado" }
+        ];
+      } else if (provider === 'groq') {
+        providerDefaults = [
+          { value: "groq/compound", label: "Groq Compound (Recomendado)", status: "Ultrarrápido" },
+          { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B", status: "Estável" }
+        ];
+      } else if (provider === 'deepseek') {
+        providerDefaults = [
+          { value: "deepseek-reasoner", label: "DeepSeek R1 (Reasoner)", status: "Raciocínio" },
+          { value: "deepseek-chat", label: "DeepSeek V3 (Chat)", status: "Estável" }
+        ];
+      } else if (provider === 'openrouter') {
+        providerDefaults = [
+          { value: "openrouter/auto:free", label: "OpenRouter Auto Free", status: "Grátis" },
+          { value: "deepseek/deepseek-v3", label: "DeepSeek V3", status: "Estável" }
+        ];
+      } else if (provider === 'openai') {
+        providerDefaults = [
+          { value: "gpt-4o-mini", label: "GPT-4o Mini", status: "Estável" },
+          { value: "gpt-4o", label: "GPT-4o", status: "Avançado" }
+        ];
+      }
+
+      return [defaultOption, ...providerDefaults];
     }
 
     if (provider === 'openrouter') {
@@ -557,7 +587,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                           ? "Carregando modelos do provedor..."
                           : "Selecione um modelo..."
                   }
-                  disableCustom={loginMode === 'code'}
+                  disableCustom={false}
                 />
                 {textModelOption === 'custom' && (
                   <input
@@ -584,12 +614,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     <CustomSelect
                       value={ttsModelOption}
                       onChange={setTtsModelOption}
-                      options={dynamicTtsModels}
+                      options={dynamicTtsModels.length > 0 ? dynamicTtsModels : [
+                        { value: "default", label: "Padrão (Configuração do Sistema)", status: "Padrão" },
+                        { value: "gemini-3.1-flash-tts-preview", label: "Gemini 3.1 Flash TTS", status: "Estável" }
+                      ]}
                       placeholder={
-                        !inputKey.trim()
-                          ? "Insira sua Chave de API para ver os modelos de voz..."
-                          : dynamicTtsModels.length === 0
-                            ? "Nenhum modelo de voz encontrado para esta chave"
+                        loginMode === 'code'
+                          ? "Selecione um modelo de voz..."
+                          : !inputKey.trim()
+                            ? "Insira sua Chave de API para ver os modelos de voz..."
                             : "Selecione um modelo TTS..."
                       }
                       disableCustom={true}
