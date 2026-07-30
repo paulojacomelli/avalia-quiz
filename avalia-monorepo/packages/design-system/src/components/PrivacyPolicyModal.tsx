@@ -200,17 +200,17 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             <section>
                                 <h4 className="text-white font-bold mb-2">1. Processamento de Conteúdo e Envio de Dados para a IA</h4>
                                 <p>
-                                    Nenhum dado pessoal, histórico de navegação ou informação do seu dispositivo é enviado automaticamente para os servidores dos provedores de Inteligência Artificial.
+                                    O Avalia Quiz não envia deliberadamente dados pessoais, histórico de navegação ou informações do dispositivo como parte do conteúdo das requisições de IA, salvo quando necessários para a funcionalidade ou fornecidos pelo próprio usuário.
                                 </p>
                                 <p className="mt-2 text-gray-400">
-                                    <strong>Dados Enviados para Provedores de IA:</strong> No modo Chave API (BYOK), você fornece sua credencial de acesso — isso é esperado e necessário para autorizar suas requisições diretamente do seu navegador. Porém, ao personalizar quizzes com temas, links ou trechos de texto, você é responsável por não incluir tokens de acesso privados, senhas ou dados sensíveis nesses campos, pois a string completa será enviada como contexto para a IA gerar o seu desafio.
+                                    <strong>Dados Enviados para Provedores de IA:</strong> No modo Chave API (BYOK), você fornece sua credencial de acesso para autorizar suas requisições diretamente do seu navegador. Ao personalizar quizzes com temas, links ou trechos de texto, você é responsável por não incluir tokens de acesso privados, senhas ou dados sensíveis nesses campos, pois o texto ou link digitado é enviado como contexto na solicitação para a IA gerar o seu desafio.
                                 </p>
                             </section>
 
                             <section>
                                 <h4 className="text-white font-bold mb-2">2. Limitações e Isenção de Responsabilidade</h4>
                                 <p>
-                                    Embora utilizemos Engenharia de Prompt rigorosa para garantir alta precisão científica e pedagógica, modelos de linguagem generativa podem eventualmente apresentar inconsistências ou alucinações. 
+                                    Utilizamos técnicas de engenharia de prompt para orientar a geração dos desafios, mas modelos de linguagem generativa podem eventualmente apresentar inconsistências ou alucinações.
                                 </p>
                                 <p className="mt-2 text-xs text-brand-blue font-bold">
                                     Recomendação: Para provas oficiais ou pesquisas acadêmicas críticas, verifique sempre as fontes primárias.
@@ -218,9 +218,9 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             </section>
 
                             <section>
-                                <h4 className="text-white font-bold mb-2">3. Interação em Tempo Real (Live Voice & Chat)</h4>
+                                <h4 className="text-white font-bold mb-2">3. Interação por Voz (TTS & Transcrição)</h4>
                                 <p>
-                                    Nas modalidades de resposta livre e live por voz, a entrada de áudio é convertida para texto para permitir a validação conceitual por IA sem armazenamento permanente de voz pelo Avalia Quiz.
+                                    Nas modalidades de interação por voz, a conversão é processada via Web Speech API nativa do navegador. O Avalia Quiz não mantém armazenamento permanente de gravações de áudio próprias, embora os provedores do navegador ou sistema operacional possam processar dados conforme suas próprias políticas.
                                 </p>
                             </section>
                         </div>
