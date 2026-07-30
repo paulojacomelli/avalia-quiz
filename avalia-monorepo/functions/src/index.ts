@@ -12,15 +12,32 @@ const LOCKOUT_TIME_MS = 15 * 60 * 1000; // 15 minutos de bloqueio
 const FAILURE_WINDOW_MS = 60 * 60 * 1000; // 1 hora de janela para contagem de falhas
 
 /**
- * Sanitiza e extrai o IP real do cliente gerenciado pelo Google Cloud Load Balancer (previne Spoofing).
+ * Extrai o IP real do cliente no ambiente Google Cloud Functions v2 / Cloud Run.
+ * No GCP:
+ * 1. O GCP injeta o IP validado do cliente no cabecalho seguro 'x-appengine-userip' (infalsificavel na borda GCP).
+ * 2. Na cadeia 'x-forwarded-for', o GCP concatena o IP real do cliente antes dos proxies internos do GFE (penultimo IP).
  */
 function getTrustedClientIp(req: any): string {
+  // 1. Cabecalho direto injetado pelo ambiente de borda da infraestrutura GCP
+  const gcpUserIp = req.headers["x-appengine-userip"] || req.headers["fastly-client-ip"];
+  if (typeof gcpUserIp === "string" && gcpUserIp.trim()) {
+    return gcpUserIp.trim();
+  }
+
+  // 2. Analise do x-forwarded-for gerenciado pelo Google Front End (GFE)
   const forwarded = req.headers["x-forwarded-for"];
   if (typeof forwarded === "string" && forwarded.trim()) {
-    // O ultimo IP da cadeia do x-forwarded-for e o adicionado pelo Load Balancer confiavel do GCP
-    const ips = forwarded.split(",").map(ip => ip.trim());
-    return ips[ips.length - 1] || req.ip || "unknown_ip";
+    const ips = forwarded.split(",").map(ip => ip.trim()).filter(Boolean);
+    // Se a cadeia possuir múltiplos IPs, o penultimo (ips[ips.length - 2]) e o IP real do cliente anexado pelo GFE
+    if (ips.length >= 2) {
+      return ips[ips.length - 2];
+    }
+    if (ips.length === 1) {
+      return ips[0];
+    }
   }
+
+  // 3. Fallback nativo do framework
   return req.ip || req.socket?.remoteAddress || "unknown_ip";
 }
 
@@ -101,6 +118,9 @@ export const generateQuizProxy = onRequest(
 
     const clientIp = getTrustedClientIp(req);
     const { secretCode, provider, model, theme, subTopic } = req.body || {};
+
+    // Log estruturado de diagnóstico seguro (para auditoria de IP de borda da GCP)
+    console.log(`[DIAGNOSTIC] Client IP extraído: ${clientIp} | raw req.ip: ${req.ip} | x-forwarded-for: ${req.headers["x-forwarded-for"]}`);
 
     try {
       if (!secretCode || typeof secretCode !== "string") {
