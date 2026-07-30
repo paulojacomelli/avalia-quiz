@@ -217,7 +217,7 @@ export const generateQuizProxy = onRequest(
  */
 export const getAvailableModelsProxy = onCall(
   {
-    cors: ["http://localhost:5173", "http://127.0.0.1:5173", "https://avalia-quiz.web.app", "https://avalia-jw-quiz.web.app", "*"],
+    cors: true,
     secrets: [
       googleAiKey,
       openaiKey,
