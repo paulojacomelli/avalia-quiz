@@ -371,20 +371,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           }
         }
 
-        // No modo Auto, se o modelo selecionado for o retornado pelo Firestore, preserva o provider 'auto'.
-        // O backend é a autoridade responsável por aplicar a configuração do Firestore.
+        // No modo Auto, se o backend retornar o activeProvider e activeModel validados da cadeia,
+        // o frontend registra e exibe fielmente esse provedor/modelo ativos (ex: google-ai/gemini-3.6-flash).
         const testConnCallable = httpsCallable<
           { secretCode: string; provider: string; testModel: string },
-          { valid: boolean; tested: boolean }
+          { valid: boolean; tested: boolean; activeProvider?: string; activeModel?: string }
         >(functions, 'getAvailableModelsProxy');
 
-        await testConnCallable({
+        const testResult = await testConnCallable({
           secretCode: cleanedCode,
           provider: effectiveProvider,
           testModel: customSelectedModel
         });
 
-        await onLoginWithCode(cleanedCode, effectiveProvider, customSelectedModel);
+        const resolvedActiveProvider = (testResult.data?.activeProvider as AiProvider) || effectiveProvider;
+        const resolvedActiveModel = testResult.data?.activeModel || customSelectedModel;
+
+        await onLoginWithCode(cleanedCode, resolvedActiveProvider, resolvedActiveModel);
       } catch (err: any) {
         const cleanMsg = err.message ? err.message.replace(/^internal\s*/i, '').trim() : '';
         setError(cleanMsg || 'Falha ao conectar com o provedor/modelo selecionado. Verifique o status da API.');
