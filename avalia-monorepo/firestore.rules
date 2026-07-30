@@ -34,6 +34,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ─── Coleção: telemetry_brute_force_locks ────────────────────────────────
+    // Controle de força bruta exclusivo do servidor (Admin SDK). Bloqueio total client-side.
+    match /telemetry_brute_force_locks/{document=**} {
+      allow read, write: if false;
+    }
+
     // ─── Coleção: admins ─────────────────────────────────────────────────────
     // Proteção de nível de produção: impede enumeração. Apenas o próprio admin lê seu documento por UID ou E-mail
     match /admins/{adminId} {
