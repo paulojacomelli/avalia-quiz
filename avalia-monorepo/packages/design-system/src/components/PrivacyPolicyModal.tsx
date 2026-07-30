@@ -277,7 +277,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             <section className="p-4 bg-brand-blue/10 border border-brand-blue/30 rounded-2xl">
                                 <h4 className="text-brand-blue font-bold mb-2">1. Licença GNU General Public License v3.0 (GPLv3)</h4>
                                 <p className="text-gray-200">
-                                    O código-fonte do <strong>{appName}</strong> é 100% open-source sob a licença <strong>GPLv3</strong>. Você tem liberdade para estudar, modificar e redistribuir o código, inclusive para fins comerciais. <strong>Obrigação de Copyleft:</strong> A redistribuição de cópias ou versões modificadas do software deve seguir os termos de licenciamento da GPLv3.
+                                    O código-fonte do <strong>{appName}</strong> é disponibilizado sob a licença open-source <strong>GPLv3</strong>. Você tem liberdade para estudar, modificar e redistribuir o código, inclusive para fins comerciais. <strong>Obrigação de Copyleft:</strong> Ao redistribuir cópias ou versões modificadas, devem ser cumpridas as condições aplicáveis da licença GPLv3, incluindo as obrigações relativas ao código-fonte.
                                 </p>
                             </section>
 
@@ -289,15 +289,15 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             </section>
 
                             <section>
-                                <h4 className="text-white font-bold mb-2">3. Bibliotecas e Licenças de Terceiros</h4>
+                                <h4 className="text-white font-bold mb-2">3. Componentes, Bibliotecas e Licenças de Terceiros</h4>
                                 <p>
-                                    Agradecemos e respeitamos a comunidade de software livre. Embora o código deste projeto seja licenciado sob a GPLv3, ele faz uso de bibliotecas de terceiros licenciadas sob termos permissivos (como MIT, Apache 2.0 e BSD), incluindo:
+                                    Agradecemos e respeitamos a comunidade de software livre e os fornecedores de tecnologia. Este projeto utiliza bibliotecas de código aberto (sob licenças como MIT, Apache 2.0 e BSD), além de componentes, runtimes ou widgets de terceiros (como os SDKs do ecossistema Firebase/Google, o runtime Unity WebGL e a plataforma VLibras), cada qual sujeito aos seus próprios termos e licenças de uso.
                                 </p>
                                 <ul className="list-disc pl-5 mt-2 space-y-1 text-gray-400">
-                                    <li>React 19 & TypeScript</li>
-                                    <li>Vite, TailwindCSS & Turborepo</li>
-                                    <li>Google Gen AI SDK & Firebase SDK</li>
-                                    <li>VLibras Core & Unity Engine WebGL</li>
+                                    <li>React 19 & TypeScript (MIT)</li>
+                                    <li>Vite, TailwindCSS & Turborepo (MIT)</li>
+                                    <li>Google Gen AI SDK & Firebase SDK (Apache 2.0)</li>
+                                    <li>VLibras Widget e Runtime Unity WebGL (Termos e Licenças dos respectivos Provedores)</li>
                                 </ul>
                             </section>
 
