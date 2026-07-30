@@ -374,23 +374,111 @@ export const getAvailableModelsProxy = onCall(
         let isOpenAiFormat = false;
 
         switch (provider) {
-          case "auto":
+          case "auto": {
+            // 1. Lê a ordem e modelos configurados em auth/config no Firestore
+            const configDoc = await db.collection("auth").doc("config").get();
+            const firestoreConfig = configDoc.exists ? configDoc.data() || {} : {};
+
+            // 2. Mapeia os segredos disponíveis no servidor para os provedores suportados
+            const secretMap: Record<string, string | undefined> = {
+              "google-ai": googleAiKey.value(),
+              "openai": openaiKey.value(),
+              "groq": groqKey.value(),
+              "deepseek": deepseekKey.value(),
+              "claude": claudeKey.value(),
+              "openrouter": openrouterKey.value()
+            };
+
+            const supportedProviders = ["google-ai", "openrouter", "groq", "claude", "deepseek", "openai"];
+            const candidates: { provider: string; apiKey: string; model: string }[] = [];
+
+            // Descoberta de candidatos válidos configurados no Firestore
+            if (Array.isArray(firestoreConfig.providers) && firestoreConfig.providers.length > 0) {
+              for (const p of firestoreConfig.providers) {
+                if (p && p.enabled !== false && p.id && p.model) {
+                  const secKey = secretMap[p.id] || p.key;
+                  if (secKey) {
+                    candidates.push({ provider: p.id, apiKey: secKey, model: p.model });
+                  }
+                }
+              }
+            } else {
+              for (const prov of supportedProviders) {
+                const slug = prov === "google-ai" ? "google_ai" : prov.replace("-", "_");
+                const secKey = secretMap[prov];
+                const modelInDoc = firestoreConfig[`admin_model_${slug}`];
+                if (secKey && modelInDoc && typeof modelInDoc === "string" && modelInDoc.trim()) {
+                  candidates.push({ provider: prov, apiKey: secKey, model: modelInDoc.trim() });
+                }
+              }
+            }
+
+            if (candidates.length === 0) {
+              throw new HttpsError("failed-precondition", "Nenhum provedor de IA com credenciais válidas configuradas foi encontrado no Firestore no modo Auto.");
+            }
+
+            // 3. Ordenação baseada em auto_provider_order do Firestore
+            const order: string[] = Array.isArray(firestoreConfig.auto_provider_order) ? firestoreConfig.auto_provider_order : [];
+            const orderedCandidates: typeof candidates = [];
+            const candidateMap = new Map(candidates.map(c => [c.provider, c]));
+
+            for (const provId of order) {
+              const item = candidateMap.get(provId);
+              if (item) {
+                orderedCandidates.push(item);
+                candidateMap.delete(provId);
+              }
+            }
+            for (const item of candidateMap.values()) {
+              orderedCandidates.push(item);
+            }
+
+            // 4. Teste sequencial da cadeia Auto: se ao menos um responder OK, valida a conexão
+            const failureLogs: string[] = [];
+            for (const cand of orderedCandidates) {
+              try {
+                if (cand.provider === "google-ai" || cand.provider === "vertex") {
+                  const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${cand.model}?key=${cand.apiKey}`);
+                  if (gRes.ok) return { valid: true, tested: true, activeProvider: cand.provider, activeModel: cand.model };
+                  failureLogs.push(`Google AI (${cand.model}): HTTP ${gRes.status}`);
+                } else if (cand.provider === "claude") {
+                  const cRes = await fetch("https://api.anthropic.com/v1/messages", {
+                    method: "POST",
+                    headers: { "x-api-key": cand.apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+                    body: JSON.stringify({ model: cand.model, messages: [{ role: "user", content: "Reply 'OK'." }], max_tokens: 5 })
+                  });
+                  if (cRes.ok) return { valid: true, tested: true, activeProvider: cand.provider, activeModel: cand.model };
+                  failureLogs.push(`Claude (${cand.model}): HTTP ${cRes.status}`);
+                } else {
+                  const url = cand.provider === "openai" ? "https://api.openai.com/v1/chat/completions"
+                    : cand.provider === "deepseek" ? "https://api.deepseek.com/chat/completions"
+                    : cand.provider === "groq" ? "https://api.groq.com/openai/v1/chat/completions"
+                    : "https://openrouter.ai/api/v1/chat/completions";
+                  const oRes = await fetch(url, {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${cand.apiKey}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({ model: cand.model, messages: [{ role: "user", content: "Reply 'OK'." }], max_tokens: 5 })
+                  });
+                  if (oRes.ok) return { valid: true, tested: true, activeProvider: cand.provider, activeModel: cand.model };
+                  failureLogs.push(`${cand.provider} (${cand.model}): HTTP ${oRes.status}`);
+                }
+              } catch (e: any) {
+                failureLogs.push(`${cand.provider} (${cand.model}): ${e?.message || String(e)}`);
+              }
+            }
+
+            // Se TODOS os provedores da cadeia Auto falharem -> lança erro detalhado
+            throw new HttpsError("unavailable", `Falha no teste de conexão da cadeia Auto. Nenhum provedor configurado respondeu: [${failureLogs.join(" | ")}]`);
+          }
+
           case "google-ai":
           case "vertex":
             keyToTest = googleAiKey.value();
             if (!keyToTest) throw new HttpsError("internal", "Chave do Google AI não configurada no servidor.");
-            
-            // No modo auto, lê o modelo exato preconfigurado no Firestore auth/config
-            const configDoc = await db.collection("auth").doc("config").get();
-            const firestoreConfig = configDoc.exists ? configDoc.data() || {} : {};
-            const modelToUse = provider === "auto" 
-              ? (firestoreConfig.admin_model_google_ai || testModel || "gemini-1.5-flash").trim()
-              : testModel;
-
-            const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}?key=${keyToTest}`);
+            const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${testModel}?key=${keyToTest}`);
             if (!gRes.ok) {
               const errTxt = await gRes.text().catch(() => "");
-              throw new HttpsError("internal", `Falha ao conectar ao modelo '${modelToUse}' no modo auto/Google AI: HTTP ${gRes.status}. ${errTxt.slice(0, 150)}`);
+              throw new HttpsError("internal", `Falha ao conectar ao modelo '${testModel}' do Google AI: HTTP ${gRes.status}. ${errTxt.slice(0, 150)}`);
             }
             return { valid: true, tested: true };
 
