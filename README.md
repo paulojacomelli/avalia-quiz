@@ -8,12 +8,14 @@
 
 ## 🎯 O que é o Avalia?
 
-O Avalia é uma infraestrutura completa e modular para criação de ecossistemas de quizzes dinâmicos baseados em IA. Em vez de construir um aplicativo isolado para cada projeto ou marca, o Avalia funciona como um **motor reutilizável**: separa rigorosamente a lógica de jogo, a geração por IA e os componentes de interface do contexto de negócio ou identidade visual.
+O Avalia é uma infraestrutura completa e modular para criação de ecossistemas de quizzes dinâmicos. Em vez de construir um aplicativo isolado para cada projeto ou marca, o Avalia funciona como um **motor reutilizável**: separa rigorosamente a lógica de jogo, a geração por IA e os componentes de interface do contexto de negócio ou identidade visual.
 
-Isso é feito através da diretriz central do projeto — **Zero Contexto de Domínio nos Pacotes**: nenhum pacote compartilhado conhece marcas, regras de negócio restritas ou temas fixos. Quem conhece essas coisas são as aplicações em `apps/`, que injetam essa configuração nos motores compartilhados.
+O Avalia não é um quiz convencional com recursos de IA adicionados — é uma plataforma **nativamente impulsionada por IA em todas as pontas da jornada do usuário**. Da criação do quiz à interação durante a partida, cada camada da experiência é mediada por modelos cognitivos.
+
+Isso é sustentado pela diretriz central do projeto — **Zero Contexto de Domínio nos Pacotes**: nenhum pacote compartilhado conhece marcas, regras de negócio restritas ou temas fixos. Quem fornece esse contexto são as aplicações em `apps/`, que injetam suas configurações nos motores compartilhados.
 
 ### Principais Casos de Uso
-- **Quizzes Genéricos** — testes de conhecimentos gerais com suporte a múltiplos provedores de IA.
+- **Quizzes Genéricos** — testes de conhecimentos gerais com geração e suporte por IA.
 - **Aplicações Especializadas** — ambientes de estudo customizados com glossários e regras de domínio específicas.
 - **Aplicações Infantis / Educacionais** — interfaces adaptadas e simplificadas para públicos específicos.
 
@@ -23,23 +25,30 @@ Hoje o ecossistema roda três aplicações-modelo: **Avalia Quiz** (genérico), 
 
 ## ✨ Funcionalidades
 
-### 🤖 Motor de IA Multi-Provedor
-- Suporte agnóstico e resiliente a **Google Gemini** (3.6 Flash/Pro + Gemini Live API), **DeepSeek**, **Groq** e **OpenRouter**.
-- Chat contínuo de IA embutido no `QuizCard`, para esclarecimentos em tempo real sobre as perguntas.
+### 🧠 A IA como Espinha Dorsal da Experiência
+- **Geração Dinâmica de Conteúdo** — criação instantânea de títulos, perguntas, alternativas, gabaritos e referências a partir de qualquer tema ou prompt.
+- **Dicas & Explicações Contextuais** — orientações pedagógicas geradas sob demanda para cada questão.
+- **Chat Contextual no `QuizCard`** — assistente conversacional integrado diretamente no card da pergunta para o jogador tirar dúvidas em tempo real.
+- **Modo Resposta Aberta (Dissertativo)** — avaliação inteligente de respostas digitadas pelo usuário, analisando semântica e acurácia sem exigir múltipla escolha.
+- **Narração e Voz Sintética (TTS)** — síntese de fala gerada por IA para acessibilidade auditiva e imersão.
+- **Tradução Gramatical para Libras** — geração de texto em estrutura de glosa para renderização nativa no avatar 3D do VLibras.
+
+> **Motor Multi-Provedor Agnóstico**: Todas as camadas de IA funcionam de forma transparente sobre qualquer provedor configurado (**Google Gemini**, **DeepSeek**, **Groq** ou **OpenRouter**).
 
 ### 🎮 Game Engine & Design System
-- Motor de jogo desacoplado, com gerenciamento centralizado do ciclo de vida das perguntas via `useGameLoop`.
+- Motor de jogo desacoplado com gerenciamento centralizado do ciclo de vida das perguntas via `useGameLoop`.
 - Componentes visuais reutilizáveis, prontos para injeção de temas e paletas por marca.
-- Acessibilidade universal via integração nativa com o **VLibras** (avatar e glosas).
+- Suporte a acessibilidade universal via integração nativa com o **VLibras**.
 
 ### 🛠️ Painel Administrativo (`AdminDashboard`)
 - Gerenciamento e exclusão segura de quizzes gerados.
 - Persistência de estado das abas (sobrevive a um F5).
-- Telemetria com tratamento sanitizado de erros (mapeamento limpo de códigos HTTP como `500`).
+- Telemetria operacional com tratamento sanitizado de erros (mapeamento de códigos HTTP como `500`).
 
-### 🔒 Segurança
-- Rate Limiter por cliente/IP contra ataques de força bruta no login.
-- Proteção estrita contra enumeração de administradores por UID/e-mail no Firestore.
+### 🔒 Segurança & Proteção de Dados
+- **Proteção contra Força Bruta**: Rate Limiter expansivo por cliente/IP no fluxo de autenticação.
+- **Privacidade Operacional**: Proteção estrita contra enumeração de administradores por UID/e-mail no Firestore.
+- **Controle de Acesso Fino**: Regras de segurança nativas do Cloud Firestore (`firestore.rules`) para restrição de escrita, auditoria e gerenciamento de quizzes.
 
 ### 🎨 Gerenciamento de Marca (Canary)
 - Scripts automatizados para injeção de identidade visual (ícones, paletas, assets) por ambiente de desenvolvimento e produção.
@@ -213,4 +222,4 @@ Distribuído sob **GPLv3**. Livre para estudar, modificar e estender, mantendo a
 - Suporte a Gemini 3.6 Flash/Pro e Gemini Live API.
 - Chat contínuo com IA por pergunta.
 - Exclusão completa de quizzes e persistência de abas administrativas.
-- Rate Limiter contra força bruta.
+- Rate Limiter contra força bruta.
