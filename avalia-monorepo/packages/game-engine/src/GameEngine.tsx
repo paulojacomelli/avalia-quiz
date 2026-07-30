@@ -249,7 +249,7 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
             try {
               // Validacao de PIN e geracao mediada 100% via servidor/Cloud Function (Cenario A Seguro)
               resetFailedCodeAttempts();
-              login('SERVER_PROXY_SESSION', selectedProvider === 'auto' ? 'google-ai' : selectedProvider, selectedModel || 'default');
+              login(code.trim(), selectedProvider === 'auto' ? 'google-ai' : selectedProvider, selectedModel || 'default');
             } catch (err: any) {
               if (err.message && (err.message.includes('offline') || err.code === 'unavailable')) {
                 throw new Error("Não foi possível conectar ao servidor (cliente offline ou sem credenciais de Firebase configuradas). Utilize a aba 'Chave API' para entrar diretamente com sua chave.");

@@ -737,7 +737,51 @@ export const generateQuizContent = async (apiKey: string, config: QuizConfig, gl
   if (!appName) throw new Error("Nome do aplicativo não informado.");
   const startTime = Date.now();
 
-  const effectiveProvider = provider === 'auto' ? 'openrouter' : provider;
+  const effectiveProvider = provider === 'auto' ? 'google-ai' : provider;
+
+  // Se apiKey não for um token de API direto de cliente (ex: AIza... ou sk-...), encaminha via Cloud Function Proxy Serverless
+  const isDirectApiKey = apiKey.startsWith("AIza") || apiKey.startsWith("sk-") || apiKey.startsWith("gsk_");
+  
+  if (!isDirectApiKey) {
+    try {
+      const functionUrl = "https://us-central1-avalia-jw-quiz.cloudfunctions.net/generateQuizProxy";
+      const resp = await fetch(functionUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          secretCode: apiKey,
+          provider: effectiveProvider,
+          model,
+          theme: config.mode,
+          subTopic: config.subTopic || config.specificTopic
+        })
+      });
+
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({}));
+        throw new Error(errorData.error || `Erro HTTP ${resp.status} na geração serverless.`);
+      }
+
+      const data = await resp.json();
+      if (!data.quiz) throw new Error("O servidor proxy não retornou um quiz válido.");
+      
+      logTelemetryEvent({
+        eventType: 'quiz_generated',
+        errorCode: '200',
+        appName,
+        title: data.quiz.title,
+        topic: config.mode,
+        aiModel: `proxy/${effectiveProvider}/${model}`,
+        clientId: getClientId(),
+        durationMs: Date.now() - startTime
+      });
+
+      return shuffleQuizOptions(data.quiz, config.quizFormat);
+    } catch (e: any) {
+      console.error("Erro na geração via Cloud Function generateQuizProxy:", e);
+      throw new Error(e.message || "Falha ao gerar quiz via servidor proxy.");
+    }
+  }
 
   try {
     return await executeSingleQuizRequest(apiKey, config, globalExclusions, effectiveProvider, model, startTime, appName);
