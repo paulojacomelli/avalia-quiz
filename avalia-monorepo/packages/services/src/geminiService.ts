@@ -1040,30 +1040,6 @@ const parseEvaluationResult = (rawText: string): EvaluationResult => {
   return { score, feedback, isCorrect };
 };
 
-const fallbackEvaluate = (question: string, modelAnswer: string, userAnswer: string): EvaluationResult => {
-  const normUser = userAnswer.trim().toLowerCase();
-  const normModel = modelAnswer.trim().toLowerCase();
-
-  if (normModel && (normUser.includes(normModel) || normModel.includes(normUser))) {
-    return { score: 1.0, isCorrect: true, feedback: "Resposta avaliada como correta." };
-  }
-
-  if (normUser.length > 2 && normModel) {
-    const modelWords = normModel.split(/\s+/).filter(w => w.length > 3);
-    const match = modelWords.some(w => normUser.includes(w));
-    if (match) {
-      return { score: 0.8, isCorrect: true, feedback: "Resposta avaliada como parcialmente correta." };
-    }
-  }
-
-  const isCorrect = normUser.length > 3 && !normModel;
-  return {
-    score: isCorrect ? 0.8 : 0.0,
-    isCorrect,
-    feedback: isCorrect ? "Resposta registrada." : (normModel ? `Resposta esperada: "${modelAnswer}".` : "Resposta incorreta.")
-  };
-};
-
 export const evaluateFreeResponse = async (apiKey: string, question: string, modelAnswer: string, userAnswer: string, provider: AiProvider, model: string): Promise<EvaluationResult> => {
   if (!apiKey) throw new Error("Chave de API não fornecida.");
   if (!provider) throw new Error("Provedor de IA não informado.");
