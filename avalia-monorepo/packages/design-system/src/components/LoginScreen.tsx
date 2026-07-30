@@ -247,12 +247,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     }
   }, [provider, inputKey, loginMode]);
 
-  // Obtém as opções consolidadas de modelos de texto para o CustomSelect
+  // Obtém as opções consolidadas de modelos de texto para o CustomSelect (sem opções fictícias como 'default')
   const textModelOptions = React.useMemo(() => {
-    const defaultOption: ModelOption = { value: "default", label: "Padrão (Configuração do Sistema)", status: "Padrão" };
-
     if (dynamicModels.length > 0) {
-      return [defaultOption, ...dynamicModels];
+      return dynamicModels;
     }
 
     if (provider === 'openrouter') {
@@ -261,9 +259,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         { value: "openrouter/auto", label: "Modo automático", status: "Estável" }
       ];
       const rest = dynamicModels.filter(m => m.value !== 'openrouter/auto:free' && m.value !== 'openrouter/auto');
-      return [defaultOption, ...pinned, ...rest];
+      return [...pinned, ...rest];
     }
-    return [defaultOption, ...dynamicModels];
+
+    // Se o provedor for Google AI, exibe os modelos reais oficiais
+    if (provider === 'google-ai' || provider === 'vertex' || provider === 'auto') {
+      return [
+        { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (Oficial)", status: "Recomendado" },
+        { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (Oficial)", status: "Estável" },
+        { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (Oficial)", status: "Estável" },
+        { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro (Oficial)", status: "Avançado" }
+      ];
+    }
+
+    return dynamicModels;
   }, [provider, loginMode, dynamicModels]);
 
   // Sincroniza o modelo de texto quando os modelos dinâmicos são carregados

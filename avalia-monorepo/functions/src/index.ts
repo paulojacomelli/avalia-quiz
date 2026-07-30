@@ -210,7 +210,8 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
       let aiRawResponseText = "";
 
       if (targetProvider === "google-ai" || targetProvider === "vertex") {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || "gemini-1.5-flash"}:generateContent?key=${apiKey}`;
+        const targetModel = model && model !== "default" ? model : "gemini-2.5-flash";
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
         const aiResp = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
