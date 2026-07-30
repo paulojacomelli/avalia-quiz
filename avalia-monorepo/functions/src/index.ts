@@ -136,7 +136,8 @@ export const generateQuizProxy = onRequest(
     }
 
     const clientIp = getTrustedClientIp(req);
-    const { secretCode, provider, model, theme, subTopic } = req.body || {};
+    const { secretCode, provider, model, theme, subTopic, temperature, generationId, globalExclusions } = req.body || {};
+    const activeGenId = generationId || `gen-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
     const SUPPORTED_PROVIDERS = ["google-ai", "vertex", "openai", "groq", "deepseek", "openrouter", "claude"];
 
@@ -206,8 +207,12 @@ export const generateQuizProxy = onRequest(
         return;
       }
 
+      const exclusionText = Array.isArray(globalExclusions) && globalExclusions.length > 0
+        ? `\nTERMOS/TÓPICOS JÁ ABORDADOS ANTERIORMENTE (EVITAR REPETIÇÕES): [${globalExclusions.slice(0, 30).join(", ")}].`
+        : "";
+
       // 5. Integração REAL de IA Serverless: Chamada à API oficial utilizando a apiKey do GCP Secret Manager
-      const prompt = `Gere um quiz com 5 perguntas sobre o tema '${theme || "Geral"}' (Subtópico: '${subTopic || "Geral"}').
+      const prompt = `Gere um quiz com 5 perguntas sobre o tema '${theme || "Geral"}' (Subtópico: '${subTopic || "Geral"}').${exclusionText}
 IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
 {
   "titulo": "Título do Quiz",
@@ -225,24 +230,40 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
   ]
 }`;
 
+      const promptHash = crypto.createHash("sha256").update(prompt).digest("hex").substring(0, 12);
+      console.log("[generateQuizProxy INITIATED]", JSON.stringify({
+        generationId: activeGenId,
+        promptHash,
+        provider: targetProvider,
+        model,
+        theme,
+        subTopic,
+        temperature: typeof temperature === 'number' ? temperature : 0.9,
+        topP: 0.95
+      }));
+
       let aiRawResponseText = "";
 
       if (targetProvider === "google-ai" || targetProvider === "vertex") {
-        // model já validado como não-vazio antes de chegar aqui
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const cleanModel = model.replace(/^models\//, '');
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`;
         const aiResp = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
+            generationConfig: { 
+              responseMimeType: "application/json",
+              temperature: typeof temperature === 'number' ? temperature : 0.9,
+              topP: 0.95
+            }
           })
         });
 
         if (!aiResp.ok) {
           const errText = await aiResp.text();
-          console.error("[generateQuizProxy] Erro na API do Google AI:", errText);
-          res.status(500).json({ error: `Falha no provedor Google AI (modelo: ${model}): ${aiResp.status}` });
+          console.error(`[generateQuizProxy ERROR] genId:${activeGenId} | Provedor: Google AI | Status:${aiResp.status}`, errText);
+          res.status(aiResp.status).json({ error: `O modelo '${model}' do Google AI não está disponível para geração de quiz (HTTP ${aiResp.status}). ${errText.slice(0, 150)}` });
           return;
         }
 
@@ -273,13 +294,14 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
           body: JSON.stringify({
             model: model, // model já validado, sem fallback
             messages: [{ role: "user", content: prompt }],
+            temperature: typeof temperature === 'number' ? temperature : 0.9,
             response_format: { type: "json_object" }
           })
         });
 
         if (!aiResp.ok) {
           const errText = await aiResp.text();
-          console.error(`[generateQuizProxy] Erro na API do ${targetProvider}:`, errText);
+          console.error(`[generateQuizProxy ERROR] genId:${activeGenId} | Provedor:${targetProvider} | Status:${aiResp.status}`, errText);
           res.status(500).json({ error: `Falha no provedor ${targetProvider}: ${aiResp.status}` });
           return;
         }
@@ -287,6 +309,8 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
         const aiJson = await aiResp.json();
         aiRawResponseText = aiJson.choices?.[0]?.message?.content || "";
       }
+
+      console.log(`[generateQuizProxy SUCCESS] genId:${activeGenId} | rawLength:${aiRawResponseText.length} | firstQuestionSnippet:`, aiRawResponseText.slice(0, 120));
 
       if (!aiRawResponseText) {
         res.status(500).json({ error: "O provedor de IA não retornou conteúdo." });
@@ -314,6 +338,8 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
 
       res.status(200).json({
         success: true,
+        generationId: activeGenId,
+        promptHash,
         quiz: generatedQuiz,
         provider: targetProvider,
         model: model // model validado e não-vazio acima
@@ -475,10 +501,22 @@ export const getAvailableModelsProxy = onCall(
           case "vertex":
             keyToTest = googleAiKey.value();
             if (!keyToTest) throw new HttpsError("internal", "Chave do Google AI não configurada no servidor.");
-            const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${testModel}?key=${keyToTest}`);
+            const cleanTestModel = testModel.replace(/^models\//, '');
+            const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${cleanTestModel}:generateContent?key=${keyToTest}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ role: "user", parts: [{ text: "Reply 'OK'." }] }]
+              })
+            });
             if (!gRes.ok) {
               const errTxt = await gRes.text().catch(() => "");
-              throw new HttpsError("internal", `Falha ao conectar ao modelo '${testModel}' do Google AI: HTTP ${gRes.status}. ${errTxt.slice(0, 150)}`);
+              throw new HttpsError("invalid-argument", `O modelo '${testModel}' do Google AI não está operacional para geração de conteúdo (HTTP ${gRes.status}). ${errTxt.slice(0, 150)}`);
+            }
+            const gJson = await gRes.json().catch(() => null);
+            const gText = (gJson?.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
+            if (!gText) {
+              throw new HttpsError("invalid-argument", `O modelo '${testModel}' respondeu HTTP 200, mas a resposta não continha conteúdo textual.`);
             }
             return { valid: true, tested: true };
 
@@ -516,20 +554,30 @@ export const getAvailableModelsProxy = onCall(
                 "anthropic-version": "2023-06-01",
                 "content-type": "application/json"
               },
-              body: JSON.stringify({ model: testModel, messages: [{ role: "user", content: "Reply 'OK'." }], max_tokens: 5 })
+              body: JSON.stringify({
+                model: testModel,
+                messages: [{ role: "user", content: "Reply 'OK'." }],
+                max_tokens: 10
+              })
             });
             if (!cRes.ok) {
               const errTxt = await cRes.text().catch(() => "");
-              throw new HttpsError("internal", `Falha ao conectar ao Claude (${testModel}): HTTP ${cRes.status}. ${errTxt.slice(0, 150)}`);
+              throw new HttpsError("invalid-argument", `O modelo '${testModel}' do Claude não está operacional para geração textual (HTTP ${cRes.status}). ${errTxt.slice(0, 150)}`);
+            }
+            const cJson = await cRes.json().catch(() => null);
+            const cText = (cJson?.content?.[0]?.text || "").trim();
+            if (!cText) {
+              throw new HttpsError("invalid-argument", `O modelo '${testModel}' do Claude respondeu HTTP 200, mas a resposta não continha conteúdo textual.`);
             }
             return { valid: true, tested: true };
 
           default:
-            throw new HttpsError("invalid-argument", `Provedor '${provider}' inválido para teste de conexão.`);
+            throw new HttpsError("invalid-argument", `Provedor '${provider}' inválido para teste de capacidade.`);
         }
 
         if (isOpenAiFormat && testUrl) {
           if (!keyToTest) throw new HttpsError("internal", `Chave do provedor '${provider}' não configurada no servidor.`);
+          
           const oRes = await fetch(testUrl, {
             method: "POST",
             headers: {
@@ -539,13 +587,18 @@ export const getAvailableModelsProxy = onCall(
             body: JSON.stringify({
               model: testModel,
               messages: [{ role: "user", content: "Reply 'OK'." }],
-              max_tokens: 5
+              max_tokens: 10
             })
           });
 
           if (!oRes.ok) {
             const errTxt = await oRes.text().catch(() => "");
-            throw new HttpsError("internal", `Falha ao conectar ao modelo '${testModel}' via ${provider}: HTTP ${oRes.status}. ${errTxt.slice(0, 150)}`);
+            throw new HttpsError("invalid-argument", `O modelo '${testModel}' via ${provider} não está operacional para geração textual (HTTP ${oRes.status}). ${errTxt.slice(0, 150)}`);
+          }
+          const oJson = await oRes.json().catch(() => null);
+          const oText = (oJson?.choices?.[0]?.message?.content || "").trim();
+          if (!oText) {
+            throw new HttpsError("invalid-argument", `O modelo '${testModel}' via ${provider} respondeu HTTP 200, mas a resposta não continha conteúdo textual.`);
           }
           return { valid: true, tested: true };
         }
@@ -605,9 +658,16 @@ export const getAvailableModelsProxy = onCall(
           throw new HttpsError("internal", `Falha ao buscar modelos do Google AI: HTTP ${response.status}. ${errText.slice(0, 150)}`);
         }
 
+        const slug = provider === "google-ai" ? "google_ai" : provider.replace("-", "_");
+        let defaultModel = typeof firestoreConfig[`admin_model_${slug}`] === "string" ? firestoreConfig[`admin_model_${slug}`].trim() : "";
+        if (!defaultModel && Array.isArray(firestoreConfig.providers)) {
+          const provObj = firestoreConfig.providers.find((p: any) => p && p.id === provider);
+          if (provObj && provObj.model) defaultModel = String(provObj.model).trim();
+        }
+
         const apiData = await response.json();
         if (apiData && Array.isArray(apiData.models)) {
-          const result = apiData.models
+          let result = apiData.models
             .filter((m: any) => {
               if (!m.name) return false;
               const cleanId = m.name.replace(/^models\//, '');
@@ -623,14 +683,24 @@ export const getAvailableModelsProxy = onCall(
             })
             .map((m: any) => {
               const cleanId = m.name.replace(/^models\//, '');
+              const isConfiguredDefault = defaultModel && cleanId === defaultModel;
               return {
                 value: cleanId,
                 label: m.displayName ? `${m.displayName} (${cleanId})` : cleanId,
-                status: target === 'tts' ? 'Voz' : 'Estável'
+                status: isConfiguredDefault ? 'Oficial' : (target === 'tts' ? 'Voz' : 'Estável')
               };
             });
 
-          return { models: result, valid: true };
+          // Se houver um modelo padrão configurado no Firestore, move ele para o topo da lista (índice 0)
+          if (defaultModel) {
+            const defaultIndex = result.findIndex((m: any) => m.value === defaultModel);
+            if (defaultIndex > 0) {
+              const [defaultItem] = result.splice(defaultIndex, 1);
+              result.unshift(defaultItem);
+            }
+          }
+
+          return { models: result, defaultModel, valid: true };
         }
 
         throw new HttpsError("internal", "Resposta inesperada da API Google AI: campo 'models' ausente.");

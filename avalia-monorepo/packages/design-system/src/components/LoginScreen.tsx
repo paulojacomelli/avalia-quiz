@@ -189,6 +189,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [inputKey, setInputKey] = useState('');
   const [error, setError] = useState<string>('');
   const [isValidating, setIsValidating] = useState(false);
+  const [codeStep, setCodeStep] = useState<'code_input' | 'provider_select'>('code_input');
+  const [validatedSessionPin, setValidatedSessionPin] = useState<string | null>(null);
 
 
   const [textModelOption, setTextModelOption] = useState(() => {
@@ -225,32 +227,81 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   // Busca dinâmica de modelos em tempo real para qualquer provedor (Texto e TTS)
   useEffect(() => {
-    // No modo 'code', fetchDynamicModels não é chamado — modelos vêm exclusivamente de getAvailableModelsProxy.
-    // null é o valor correto e explícito aqui, sem sentinelas mágicas.
-    const keyToUse = loginMode === 'api' ? (inputKey ? inputKey.trim() : '') : null;
+    if (loginMode === 'api') {
+      const keyToUse = inputKey ? inputKey.trim() : '';
+      if (keyToUse) {
+        fetchDynamicModels(provider, keyToUse, 'text').then(fetched => {
+          setDynamicModels(fetched && fetched.length > 0 ? fetched : []);
+        });
 
-    if (loginMode === 'api' && keyToUse) {
-      fetchDynamicModels(provider, keyToUse, 'text').then(fetched => {
-        setDynamicModels(fetched && fetched.length > 0 ? fetched : []);
-      });
-
-      fetchDynamicModels(provider, keyToUse, 'tts').then(fetchedTts => {
-        if (fetchedTts && fetchedTts.length > 0) {
-          setDynamicTtsModels(fetchedTts);
-          setTtsModelOption(prev => {
-            const exists = fetchedTts.some(m => m.value === prev);
-            return exists ? prev : fetchedTts[0].value;
-          });
-        } else {
-          setDynamicTtsModels([]);
-        }
-      });
-    } else {
-      setDynamicModels([]);
-      setDynamicTtsModels([]);
-      setAdminDefaultModel('');
+        fetchDynamicModels(provider, keyToUse, 'tts').then(fetchedTts => {
+          if (fetchedTts && fetchedTts.length > 0) {
+            setDynamicTtsModels(fetchedTts);
+            setTtsModelOption(prev => {
+              const exists = fetchedTts.some(m => m.value === prev);
+              return exists ? prev : fetchedTts[0].value;
+            });
+          } else {
+            setDynamicTtsModels([]);
+          }
+        });
+      } else {
+        setDynamicModels([]);
+        setDynamicTtsModels([]);
+        setAdminDefaultModel('');
+      }
     }
   }, [provider, inputKey, loginMode]);
+
+  // Efeito dedicado ao modo 'code': busca modelos dinâmicos via Cloud Function quando o PIN já foi autenticado e o provedor muda
+  useEffect(() => {
+    if (loginMode !== 'code' || !validatedSessionPin || codeStep !== 'provider_select') {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadCodeModels() {
+      try {
+        const getModelsCallable = httpsCallable<{ secretCode: string; provider: string; target: string }, { models: ModelOption[]; defaultModel?: string; valid?: boolean }>(functions, 'getAvailableModelsProxy');
+        
+        const textRes = await getModelsCallable({ secretCode: validatedSessionPin!, provider, target: 'text' });
+        if (cancelled) return;
+
+        const fetchedModels = Array.isArray(textRes.data?.models) ? textRes.data.models : [];
+        const backendDefaultModel = textRes.data?.defaultModel;
+
+        setDynamicModels(fetchedModels);
+
+        // Definição estrita sem fallback: atribui apenas se o backendDefaultModel for explicitamente fornecido e válido
+        if (backendDefaultModel && fetchedModels.some(m => m.value === backendDefaultModel)) {
+          setTextModelOption(backendDefaultModel);
+        } else {
+          setTextModelOption('');
+        }
+
+        try {
+          const ttsRes = await getModelsCallable({ secretCode: validatedSessionPin!, provider, target: 'tts' });
+          if (!cancelled) {
+            setDynamicTtsModels(Array.isArray(ttsRes.data?.models) ? ttsRes.data.models : []);
+          }
+        } catch {
+          if (!cancelled) setDynamicTtsModels([]);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setDynamicModels([]);
+          setDynamicTtsModels([]);
+        }
+      }
+    }
+
+    loadCodeModels();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [provider, validatedSessionPin, codeStep, loginMode]);
 
   // Obtém as opções consolidadas de modelos de texto para o CustomSelect (sem opções fictícias como 'default')
   // No modo 'code': modelos vêm EXCLUSIVAMENTE de getAvailableModelsProxy (populado após validação do PIN)
@@ -274,17 +325,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     return [];
   }, [provider, loginMode, dynamicModels]);
 
-  // Sincroniza o modelo de texto quando os modelos dinâmicos são carregados
-  useEffect(() => {
-    if (textModelOptions.length > 0) {
-      setTextModelOption(prev => {
-        // Se ainda não há modelo selecionado ou o modelo atual não existe na lista real, seleciona o primeiro
-        if (!prev) return textModelOptions[0].value;
-        const exists = textModelOptions.some(m => m.value === prev);
-        return exists ? prev : textModelOptions[0].value;
-      });
-    }
-  }, [provider, textModelOptions]);
+
 
   // Sincroniza o modelo TTS quando os modelos dinâmicos são carregados
   useEffect(() => {
@@ -298,7 +339,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     }
   }, [provider, dynamicTtsModels]);
 
-  const [codeStep, setCodeStep] = useState<'code_input' | 'provider_select'>('code_input');
+
 
   const handleValidateCodeOnly = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -313,23 +354,35 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setIsValidating(true);
 
     try {
-      // 1. Valida o PIN via Cloud Function de forma serverless isolada
-      const getModelsCallable = httpsCallable<{ secretCode: string; provider: string; target: string }, { models: ModelOption[]; valid?: boolean }>(functions, 'getAvailableModelsProxy');
+      // Valida o PIN via Cloud Function para o provedor selecionado
+      const getModelsCallable = httpsCallable<{ secretCode: string; provider: string; target: string }, { models: ModelOption[]; defaultModel?: string; valid?: boolean }>(functions, 'getAvailableModelsProxy');
 
-      const textRes = await getModelsCallable({ secretCode: cleanedCode, provider: 'google-ai', target: 'text' });
-      setDynamicModels(Array.isArray(textRes.data?.models) ? textRes.data.models : []);
+      const textRes = await getModelsCallable({ secretCode: cleanedCode, provider, target: 'text' });
+      const fetchedModels = Array.isArray(textRes.data?.models) ? textRes.data.models : [];
+      const backendDefaultModel = textRes.data?.defaultModel;
+
+      setDynamicModels(fetchedModels);
+
+      // Definição estrita sem fallback: atribui apenas se o backendDefaultModel for explicitamente fornecido e válido
+      if (backendDefaultModel && fetchedModels.some(m => m.value === backendDefaultModel)) {
+        setTextModelOption(backendDefaultModel);
+      } else {
+        setTextModelOption('');
+      }
 
       try {
-        const ttsRes = await getModelsCallable({ secretCode: cleanedCode, provider: 'google-ai', target: 'tts' });
+        const ttsRes = await getModelsCallable({ secretCode: cleanedCode, provider, target: 'tts' });
         setDynamicTtsModels(Array.isArray(ttsRes.data?.models) ? ttsRes.data.models : []);
       } catch {
         setDynamicTtsModels([]);
       }
 
-      // Se validou com sucesso sem erro, avança exclusivamente a UI para a Etapa 2
+      // PIN validado com sucesso: guarda o PIN autenticado no estado da sessão e avança para a Etapa 2
+      setValidatedSessionPin(cleanedCode);
       setCodeStep('provider_select');
       setError('');
     } catch (err: any) {
+      setValidatedSessionPin(null);
       if (err.message && (err.message.includes('offline') || err.code === 'unavailable')) {
         setError("Não foi possível conectar ao servidor. Utilize a aba 'Chave API' para entrar com sua chave.");
       } else {

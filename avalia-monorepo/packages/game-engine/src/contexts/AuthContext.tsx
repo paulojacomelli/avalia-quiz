@@ -61,6 +61,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, storageKey
     if (!newModel || !newModel.trim() || newModel === 'default') {
       throw new Error('Modelo de IA inválido. Informe um identificador real de modelo.');
     }
+    // Invalida a sessão anterior do jogo no sessionStorage para forçar o início de um jogo novo
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem(`${storageKeyPrefix}-session-v1`);
+    }
     localStorage.setItem(keyName, key);
     localStorage.setItem(providerName, newProvider);
     localStorage.setItem(modelNameKey, newModel.trim());
@@ -70,6 +74,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, storageKey
   };
 
   const logout = () => {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem(`${storageKeyPrefix}-session-v1`);
+    }
     localStorage.removeItem(keyName);
     localStorage.removeItem(providerName);
     localStorage.removeItem(modelNameKey);

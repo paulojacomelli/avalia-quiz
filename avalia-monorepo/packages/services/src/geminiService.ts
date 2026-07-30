@@ -756,7 +756,8 @@ export const generateQuizContent = async (apiKey: string, config: QuizConfig, gl
           provider: effectiveProvider,
           model,
           theme: config.mode,
-          subTopic: config.subTopic || config.specificTopic
+          subTopic: config.subTopic || config.specificTopic,
+          globalExclusions
         })
       });
 
