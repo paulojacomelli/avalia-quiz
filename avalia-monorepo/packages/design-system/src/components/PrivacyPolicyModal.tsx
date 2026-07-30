@@ -106,14 +106,14 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                                     Política de Privacidade e Proteção de Dados (LGPD)
                                 </h3>
                                 <p>
-                                    No <strong>{appName}</strong>, levamos a privacidade e a segurança dos seus dados com extrema responsabilidade, em conformidade total com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 - LGPD).
+                                    No <strong>{appName}</strong>, levamos a privacidade e a proteção de suas informações com extrema responsabilidade, adotando práticas e medidas alinhadas à Lei Geral de Proteção de Dados (Lei nº 13.709/2018 - LGPD).
                                 </p>
                             </section>
 
                             <section>
                                 <h4 className="text-white font-bold mb-2">1. Coleta e Armazenamento Local</h4>
                                 <p>
-                                    O aplicativo funciona no modelo <em>client-side first</em>. Não coletamos dados pessoais identificáveis (PII) nem armazenamos seu histórico privado de navegação em servidores terceiros sem o seu consentimento explícito.
+                                    O aplicativo funciona no modelo <em>client-side first</em> e adotamos medidas e práticas de proteção de dados alinhadas à LGPD. O Avalia Quiz não mantém servidores próprios destinados ao armazenamento de dados pessoais ou do histórico de uso. Algumas funcionalidades podem transmitir informações diretamente aos provedores necessários para sua execução, conforme descrito nesta política.
                                 </p>
                                 <ul className="list-disc pl-5 mt-2 space-y-1 text-gray-400">
                                     <li>Preferências visuais (Tema Claro/Escuro, Zoom da tela).</li>
@@ -133,7 +133,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             <section>
                                 <h4 className="text-white font-bold mb-2">3. Direitos do Titular</h4>
                                 <p>
-                                    Você tem total controle sobre seus dados. A qualquer momento, é possível redefinir ou apagar todo o histórico local clicando em <strong>Alterar Chave / Sair</strong> ou limpando os dados de navegação do seu browser.
+                                    Você tem total controle sobre suas informações. A qualquer momento, clicar em <strong>Alterar Chave / Sair</strong> encerra a sessão e remove a chave de API, o provedor e o modelo persistidos no <code>localStorage</code>. Para apagar os temas salvos, basta utilizar a opção "Limpar Histórico" nas configurações do jogo ou limpar os dados de navegação do seu browser.
                                 </p>
                             </section>
                         </div>
