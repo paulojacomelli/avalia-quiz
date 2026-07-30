@@ -12,10 +12,13 @@ const LOCKOUT_TIME_MS = 15 * 60 * 1000; // 15 minutos de bloqueio
 const FAILURE_WINDOW_MS = 60 * 60 * 1000; // 1 hora de janela para contagem de falhas
 
 /**
- * Extrai o IP real do cliente conforme a documentacao oficial das Cloud Functions v2 (GCP Cloud Run).
- * Em endpoints padrao do Cloud Functions v2 sem proxies externos:
- * - O primeiro IP no cabecalho 'X-Forwarded-For' representa o cliente de origem (conforme documentado pela GCP).
- * - O framework Express embutido em 'req.ip' ja fornece o valor sanitizado pela borda da GCP.
+ * Extrai o IP real do cliente conforme a especificação oficial das Cloud Functions v2 / GCP Cloud Run.
+ * 
+ * ⚠️ PREMISSA DE INFRAESTRUTURA:
+ * Esta implementação pressupõe que a Function é acessada DIRETA e EXCLUSIVAMENTE pelo seu endpoint padrão
+ * da GCP (https://us-central1-<project-id>.cloudfunctions.net/...), sem proxies intermediários ou CDNs.
+ * Se futuramente for adicionada uma camada de Cloudflare, Fastly, Nginx ou Load Balancer customizado, 
+ * este método DEVE ser reavaliado para ler o cabeçalho correspondente desse proxy intermediário.
  */
 function getTrustedClientIp(req: any): string {
   // 1. req.ip nativo configurado pela runtime do Firebase v2 / Express

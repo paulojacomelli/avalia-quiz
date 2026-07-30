@@ -120,36 +120,24 @@ O ecossistema usa o Firestore como banco NoSQL para autenticação, telemetria e
 
 ### Coleções
 
-**`auth/access_control`** — configuração global gerenciada pelo painel admin:
-- `secret_code`: chave de acesso (ex: `"1234"`)
-- Chaves de API por provedor: `admin_key_google_ai`, `admin_key_groq`, `admin_key_deepseek`, `admin_key_openrouter`, `admin_key_openai`, `admin_key_claude`
+**`auth/config`** — configuração global gerenciada pelo painel admin (PIN de acesso e modelos padronizados):
+- `secret_code`: chave de acesso por PIN (ex: `"1234"`)
 - Modelos padrão liberados: `admin_model_google_ai`, `admin_model_groq`, `admin_model_deepseek`, `admin_model_openrouter`, `admin_model_openai`, `admin_model_claude`, `admin_model_live`, `admin_model_tts`, `admin_model_tts_openai`
 
+> 🛡️ **Segurança de Credenciais**: As chaves de API privadas dos provedores de IA (`admin_key_*`) são gerenciadas exclusivamente pelo **Google Secret Manager** na Cloud Function serverless (`generateQuizProxy`), **não ficando expostas nem armazenadas no banco NoSQL**.
+
 <details>
-<summary><b>📄 Exemplo completo do documento <code>auth/access_control</code></b></summary>
+<summary><b>📄 Exemplo completo do documento <code>auth/config</code></b></summary>
 
 ```json
 {
   "secret_code": "1234",
-
-  "admin_key_google_ai": "AIzaSy...",
   "admin_model_google_ai": "gemini-3.6-flash",
-
-  "admin_key_groq": "gsk_...",
   "admin_model_groq": "groq/compound",
-
-  "admin_key_openrouter": "sk-or-v1-...",
   "admin_model_openrouter": "openrouter/auto:free",
-
-  "admin_key_deepseek": "sk-...",
   "admin_model_deepseek": "deepseek-reasoner",
-
-  "admin_key_openai": "sk-proj-...",
   "admin_model_openai": "gpt-5.6",
-
-  "admin_key_claude": "sk-ant-...",
   "admin_model_claude": "claude-fable-5",
-
   "admin_model_live": "gemini-3.1-flash-live-preview",
   "admin_model_tts": "gemini-3.1-flash-tts-preview",
   "admin_model_tts_openai": "gpt-4o-mini-tts"
