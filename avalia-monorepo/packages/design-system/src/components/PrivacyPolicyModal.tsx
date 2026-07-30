@@ -258,7 +258,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             <section>
                                 <h4 className="text-white font-bold mb-2">3. Síntese de Voz (TTS) e Atalhos de Teclado</h4>
                                 <p>
-                                    Disponibilizamos leitura de conteúdo por síntese e reconhecimento de voz via Web Speech API nativa do seu navegador. O Avalia Quiz não armazena nem envia deliberadamente gravações de áudio próprias. A navegação acessível suporta os atalhos de teclado: <code>1-4</code> / <code>A-D</code> (seleção de alternativas), <code>Espaço</code> / <code>Enter</code> (avançar), <code>Esc</code> (fechar menus) e <code>Tab</code> (foco).
+                                    Disponibilizamos leitura de conteúdo por síntese de voz e transcrição local via Web Speech API nativa do seu navegador. O Avalia Quiz não armazena nem envia deliberadamente gravações de áudio próprias. A navegação acessível suporta os atalhos de teclado: <code>1-4</code> / <code>A-D</code> (seleção de alternativas), <code>Espaço</code> / <code>Enter</code> (avançar), <code>Esc</code> (fechar menus) e <code>Tab</code> (foco).
                                 </p>
                             </section>
                         </div>
@@ -278,7 +278,7 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             <section className="p-4 bg-brand-blue/10 border border-brand-blue/30 rounded-2xl">
                                 <h4 className="text-brand-blue font-bold mb-2">1. Licença GNU General Public License v3.0 (GPLv3)</h4>
                                 <p className="text-gray-200">
-                                    O código-fonte do <strong>{appName}</strong> é 100% open-source sob a licença <strong>GPLv3</strong>. Você tem liberdade para estudar, modificar e redistribuir o código, inclusive para fins comerciais. <strong>Obrigação de Copyleft:</strong> Caso você redistribua cópias ou versões modificadas do software, o código-fonte correspondente deve ser disponibilizado sob os termos da mesma licença GPLv3.
+                                    O código-fonte do <strong>{appName}</strong> é 100% open-source sob a licença <strong>GPLv3</strong>. Você tem liberdade para estudar, modificar e redistribuir o código, inclusive para fins comerciais. <strong>Obrigação de Copyleft:</strong> A redistribuição de cópias ou versões modificadas do software deve seguir os termos de licenciamento da GPLv3.
                                 </p>
                             </section>
 
