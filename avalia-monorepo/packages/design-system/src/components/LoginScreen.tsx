@@ -240,25 +240,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           setDynamicTtsModels([]);
         }
       });
-    } else if (loginMode === 'code') {
-      // Invocacao 100% nativa do SDK do Firebase Cloud Functions (sem URLs hardcoded)
-      const getModelsCallable = httpsCallable<{ provider: string; target: string }, { models: ModelOption[] }>(functions, 'getAvailableModelsProxy');
-
-      getModelsCallable({ provider, target: 'text' })
-        .then(res => {
-          setDynamicModels(Array.isArray(res.data?.models) ? res.data.models : []);
-        })
-        .catch(() => {
-          setDynamicModels([]);
-        });
-
-      getModelsCallable({ provider, target: 'tts' })
-        .then(res => {
-          setDynamicTtsModels(Array.isArray(res.data?.models) ? res.data.models : []);
-        })
-        .catch(() => {
-          setDynamicTtsModels([]);
-        });
     } else {
       setDynamicModels([]);
       setDynamicTtsModels([]);
@@ -326,8 +307,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       // 1. Valida o PIN via Cloud Function de forma serverless isolada
       const getModelsCallable = httpsCallable<{ secretCode: string; provider: string; target: string }, { models: ModelOption[]; valid?: boolean }>(functions, 'getAvailableModelsProxy');
       
-      await getModelsCallable({ secretCode: cleanedCode, provider: 'google-ai', target: 'text' });
-      
+      const textRes = await getModelsCallable({ secretCode: cleanedCode, provider: 'google-ai', target: 'text' });
+      setDynamicModels(Array.isArray(textRes.data?.models) ? textRes.data.models : []);
+
+      try {
+        const ttsRes = await getModelsCallable({ secretCode: cleanedCode, provider: 'google-ai', target: 'tts' });
+        setDynamicTtsModels(Array.isArray(ttsRes.data?.models) ? ttsRes.data.models : []);
+      } catch {
+        setDynamicTtsModels([]);
+      }
+
       // Se validou com sucesso sem erro, avança exclusivamente a UI para a Etapa 2
       setCodeStep('provider_select');
       setError('');
