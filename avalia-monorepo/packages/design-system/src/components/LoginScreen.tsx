@@ -360,7 +360,29 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           setIsValidating(false);
           return;
         }
-        await onLoginWithCode(cleanedCode, provider, customSelectedModel);
+
+        // Resolve o provedor real a partir do modelo selecionado (ex: "openrouter/gemini-pro-latest" -> "openrouter")
+        // ou a partir da seleção do usuário. Não envia a string "auto" para generateQuizContent.
+        let effectiveProvider: AiProvider = provider;
+        if (customSelectedModel.includes('/')) {
+          const prefix = customSelectedModel.split('/')[0];
+          if (prefix === 'openrouter' || prefix === 'groq' || prefix === 'deepseek' || prefix === 'openai' || prefix === 'claude') {
+            effectiveProvider = prefix as AiProvider;
+          }
+        }
+
+        if (effectiveProvider === 'auto') {
+          // Se o modelo for um ID direto do Google AI (ex: gemini-2.5-flash) e o provider estiver 'auto', a rota serverless padrão é google-ai
+          if (customSelectedModel.includes('gemini')) {
+            effectiveProvider = 'google-ai';
+          } else {
+            setError('Por favor, selecione um provedor de IA específico para este modelo.');
+            setIsValidating(false);
+            return;
+          }
+        }
+
+        await onLoginWithCode(cleanedCode, effectiveProvider, customSelectedModel);
       } catch (err: any) {
         setError(err.message || 'Erro ao validar o código.');
       } finally {
