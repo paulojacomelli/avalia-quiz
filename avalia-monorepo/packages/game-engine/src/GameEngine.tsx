@@ -271,10 +271,7 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
         <div className="min-h-screen flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-[#1a1a1a] w-full max-w-md p-10 md:p-12 rounded-[2rem] shadow-2xl border border-white/5 flex flex-col items-center relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-[var(--accent-primary,#4287f5)] shadow-[0_0_15px_var(--accent-primary,rgba(66,135,245,0.5))]"></div>
-            <div className="mb-8">
-              <AppLogo className="w-28 h-28" />
-            </div>
-            <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight">
+            <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight mt-2">
               {renderFormattedAppTitle(appName)}
             </h1>
             <p className="text-sm text-gray-400 mb-10">Selecione o idioma para começar.</p>
