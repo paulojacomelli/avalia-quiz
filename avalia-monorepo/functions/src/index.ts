@@ -566,7 +566,14 @@ export const getAvailableModelsProxy = onCall(
           throw new HttpsError("internal", "Chave do provedor Google AI não configurada no servidor.");
         }
 
-        const configuredGoogleModel = (firestoreConfig.admin_model_google_ai || "gemini-1.5-flash").trim();
+        const configuredGoogleModel = firestoreConfig.admin_model_google_ai && typeof firestoreConfig.admin_model_google_ai === 'string'
+          ? firestoreConfig.admin_model_google_ai.trim()
+          : '';
+
+        if (!configuredGoogleModel) {
+          throw new HttpsError("failed-precondition", "Modelo do Google AI não configurado no Firestore (campo 'admin_model_google_ai' ausente no documento auth/config).");
+        }
+
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${configuredGoogleModel}?key=${apiKey}`);
         if (!response.ok) {
           const errText = await response.text().catch(() => '');
