@@ -199,12 +199,15 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             </section>
 
                             <section>
-                                <h4 className="text-white font-bold mb-2">1. Processamento de Conteúdo pelos Provedores de IA</h4>
+                                <h4 className="text-white font-bold mb-2">1. Processamento de Conteúdo e Responsabilidade sobre URLs</h4>
                                 <p>
                                     Nenhum dado pessoal, histórico de navegação ou informação do seu dispositivo é enviado automaticamente para os servidores dos provedores de Inteligência Artificial.
                                 </p>
                                 <p className="mt-2 text-gray-400">
                                     Os únicos dados transmitidos para a IA são os temas, assuntos, trechos de texto ou links públicos digitados ou colados explicitamente por você nas seções de criação de quiz personalizado.
+                                </p>
+                                <p className="mt-2 text-gray-400 font-bold">
+                                    <strong>URLs e Dados Fornecidos:</strong> Você é integralmente responsável por qualquer informação pessoal, tokens de acesso ou dados sensíveis que cole nos campos de personalização de quiz. O Avalia não sanitiza automaticamente URLs ou parâmetros — a string completa é enviada ao provedor de IA. Evite compartilhar credenciais ou tokens de acesso.
                                 </p>
                             </section>
 
