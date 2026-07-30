@@ -276,12 +276,9 @@ export function PrivacyPolicyModal({ isOpen, onClose, appName, defaultTab = 'pri
                             </section>
 
                             <section className="p-4 bg-brand-blue/10 border border-brand-blue/30 rounded-2xl">
-                                <h4 className="text-brand-blue font-bold mb-2">1. Este Aplicativo é 100% Open Source</h4>
+                                <h4 className="text-brand-blue font-bold mb-2">1. Licença GNU General Public License v3.0 (GPLv3)</h4>
                                 <p className="text-gray-200">
-                                    O <strong>{appName}</strong> é um projeto inteiramente open-source. Todo o código-fonte desta aplicação (incluindo o motor de jogo, o sistema de design visual, os componentes de acessibilidade em LIBRAS e os conectores da Google Gemini API) está publicamente disponível para estudo, auditoria e uso livre.
-                                </p>
-                                <p className="mt-2 text-xs text-gray-400">
-                                    Você pode visualizar o código, criar bifurcações (forks), propor melhorias ou hospedar sua própria versão autônoma da plataforma.
+                                    O <strong>{appName}</strong> é 100% open-source sob a licença <strong>GPLv3</strong>. Você pode estudar, modificar, redistribuir e hospedar sua própria versão, inclusive comercialmente. <strong>Obrigação de copyleft:</strong> Qualquer trabalho derivado ou modificação deve permanecer aberto sob a mesma licença GPLv3 — você não pode fechar o código-fonte de versões derivadas.
                                 </p>
                             </section>
 
