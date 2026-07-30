@@ -346,6 +346,7 @@ export const getAvailableModelsProxy = onCall(
     const secretCode = String(data.secretCode || "");
     const provider = String(data.provider || "google-ai");
     const target = String(data.target || "text");
+    const testModel = data.testModel ? String(data.testModel).trim() : null;
 
     const clientIp = getTrustedClientIp(request.rawRequest || {});
 
@@ -364,6 +365,98 @@ export const getAvailableModelsProxy = onCall(
 
     // Se o PIN for válido, limpa qualquer contagem parcial e autoriza
     await verifyAndTrackBruteForce(clientIp, true);
+
+    // 2. Se for uma requisição de TESTE DE CONEXÃO REAL para um modelo e provedor específicos:
+    if (testModel) {
+      try {
+        let keyToTest: string | undefined;
+        let testUrl = "";
+        let isOpenAiFormat = false;
+
+        switch (provider) {
+          case "google-ai":
+          case "vertex":
+            keyToTest = googleAiKey.value();
+            if (!keyToTest) throw new HttpsError("internal", "Chave do Google AI não configurada no servidor.");
+            const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${testModel}?key=${keyToTest}`);
+            if (!gRes.ok) {
+              const errTxt = await gRes.text().catch(() => "");
+              throw new HttpsError("internal", `Falha ao conectar ao modelo '${testModel}' do Google AI: HTTP ${gRes.status}. ${errTxt.slice(0, 150)}`);
+            }
+            return { valid: true, tested: true };
+
+          case "groq":
+            keyToTest = groqKey.value();
+            testUrl = "https://api.groq.com/openai/v1/chat/completions";
+            isOpenAiFormat = true;
+            break;
+
+          case "deepseek":
+            keyToTest = deepseekKey.value();
+            testUrl = "https://api.deepseek.com/chat/completions";
+            isOpenAiFormat = true;
+            break;
+
+          case "openrouter":
+            keyToTest = openrouterKey.value();
+            testUrl = "https://openrouter.ai/api/v1/chat/completions";
+            isOpenAiFormat = true;
+            break;
+
+          case "openai":
+            keyToTest = openaiKey.value();
+            testUrl = "https://api.openai.com/v1/chat/completions";
+            isOpenAiFormat = true;
+            break;
+
+          case "claude":
+            keyToTest = claudeKey.value();
+            if (!keyToTest) throw new HttpsError("internal", "Chave do Claude/Anthropic não configurada no servidor.");
+            const cRes = await fetch("https://api.anthropic.com/v1/messages", {
+              method: "POST",
+              headers: {
+                "x-api-key": keyToTest,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json"
+              },
+              body: JSON.stringify({ model: testModel, messages: [{ role: "user", content: "Reply 'OK'." }], max_tokens: 5 })
+            });
+            if (!cRes.ok) {
+              const errTxt = await cRes.text().catch(() => "");
+              throw new HttpsError("internal", `Falha ao conectar ao Claude (${testModel}): HTTP ${cRes.status}. ${errTxt.slice(0, 150)}`);
+            }
+            return { valid: true, tested: true };
+
+          default:
+            throw new HttpsError("invalid-argument", `Provedor '${provider}' inválido para teste de conexão.`);
+        }
+
+        if (isOpenAiFormat && testUrl) {
+          if (!keyToTest) throw new HttpsError("internal", `Chave do provedor '${provider}' não configurada no servidor.`);
+          const oRes = await fetch(testUrl, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${keyToTest}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              model: testModel,
+              messages: [{ role: "user", content: "Reply 'OK'." }],
+              max_tokens: 5
+            })
+          });
+
+          if (!oRes.ok) {
+            const errTxt = await oRes.text().catch(() => "");
+            throw new HttpsError("internal", `Falha ao conectar ao modelo '${testModel}' via ${provider}: HTTP ${oRes.status}. ${errTxt.slice(0, 150)}`);
+          }
+          return { valid: true, tested: true };
+        }
+      } catch (err: any) {
+        if (err?.httpErrorCode || err?.code) throw err;
+        throw new HttpsError("internal", err?.message || `Erro no teste de conexão com ${provider}/${testModel}.`);
+      }
+    }
 
     try {
       if (provider === "google-ai" || provider === "vertex" || provider === "auto") {
