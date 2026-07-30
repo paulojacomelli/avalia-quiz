@@ -225,7 +225,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   // Busca dinâmica de modelos em tempo real para qualquer provedor (Texto e TTS)
   useEffect(() => {
-    const keyToUse = loginMode === 'api' ? (inputKey ? inputKey.trim() : '') : 'openrouter-free';
+    // No modo 'code', fetchDynamicModels não é chamado — modelos vêm exclusivamente de getAvailableModelsProxy.
+    // null é o valor correto e explícito aqui, sem sentinelas mágicas.
+    const keyToUse = loginMode === 'api' ? (inputKey ? inputKey.trim() : '') : null;
 
     if (loginMode === 'api' && keyToUse) {
       fetchDynamicModels(provider, keyToUse, 'text').then(fetched => {
