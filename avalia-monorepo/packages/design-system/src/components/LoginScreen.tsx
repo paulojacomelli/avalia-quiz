@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { validateApiKey, db, fetchClaudeModels, fetchDynamicModels, functions, httpsCallable } from '@avalia/services';
+import { validateApiKey, recordModelCompatibilityStatus, db, fetchClaudeModels, fetchDynamicModels, functions, httpsCallable } from '@avalia/services';
 import { doc, getDoc } from 'firebase/firestore';
 import { ApiErrorDetail, AiProvider } from '@avalia/core';
 import { AppLogo } from './AppLogo';
@@ -23,13 +23,8 @@ interface ModelOption {
   label: string;
   status?: string;
   icon?: React.ReactNode;
-}
-
-interface ModelOption {
-  value: string;
-  label: string;
-  status?: string;
-  icon?: React.ReactNode;
+  isBlocked?: boolean;
+  isDefault?: boolean;
 }
 
 
@@ -41,17 +36,20 @@ interface ModelOption {
 
 const getStatusColor = (status: string) => {
   const lower = status.toLowerCase();
+  if (status === 'Padrão' || status === 'Oficial') {
+    return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+  }
+  if (status.includes('Shutdown') || status === 'Padrão · Incompatível' || status === 'Oficial · Incompatível' || status === 'Incompatível') {
+    return 'bg-red-500/20 text-red-400 border-red-500/40';
+  }
+  if (status === 'Não testado') {
+    return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+  }
   if (status === 'Grátis' || lower === '$0.00/1m' || lower.includes('grátis')) {
     return 'bg-green-500/10 text-green-400 border-green-500/20';
   }
-  if (status === 'Estável') {
-    return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-  }
   if (status === 'Pré-lançamento') {
     return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
-  }
-  if (status === 'Legado') {
-    return 'bg-red-500/10 text-red-400 border-red-500/20';
   }
   if (status.startsWith('$') || status === 'Pago' || status.includes('/') || /\d/.test(status)) {
     return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
@@ -130,14 +128,22 @@ const CustomSelect = ({ value, onChange, options, placeholder, disableCustom = f
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => { onChange(opt.value); setIsOpen(false); setSearchQuery(''); }}
-                    className={`w-full text-left px-4 py-3 hover:bg-white/5 flex items-center justify-between transition-colors border-b border-white/5 last:border-0 ${value === opt.value ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-300'}`}
+                    disabled={opt.isBlocked}
+                    onClick={() => {
+                      if (opt.isBlocked) return;
+                      onChange(opt.value);
+                      setIsOpen(false);
+                      setSearchQuery('');
+                    }}
+                    className={`w-full text-left px-4 py-3 flex items-center justify-between transition-colors border-b border-white/5 last:border-0 ${
+                      opt.isBlocked ? 'opacity-50 cursor-not-allowed bg-red-500/5' : 'hover:bg-white/5'
+                    } ${value === opt.value ? 'bg-brand-blue/10 text-brand-blue' : 'text-gray-300'}`}
                   >
                     <span className="text-sm font-medium flex items-center gap-2 truncate">
                       {opt.icon && <span className="shrink-0 flex items-center justify-center">{opt.icon}</span>}
                       {opt.label}
                     </span>
-                    {opt.status && opt.status !== 'Estável' && (
+                    {opt.status && (
                       <span className={`text-[10px] px-2 py-0.5 rounded-full border ${getStatusColor(opt.status)} shrink-0 uppercase tracking-wider font-bold`}>
                         {opt.status}
                       </span>
@@ -231,15 +237,38 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       const keyToUse = inputKey ? inputKey.trim() : '';
       if (keyToUse) {
         fetchDynamicModels(provider, keyToUse, 'text').then(fetched => {
-          setDynamicModels(fetched && fetched.length > 0 ? fetched : []);
+          if (fetched && fetched.length > 0) {
+            setDynamicModels(fetched as any);
+            setTextModelOption(prev => {
+              // 1. Se houver um modelo Oficial (isDefault) não bloqueado, ele tem prioridade máxima
+              const defaultItem = fetched.find((m: any) => m.isDefault && !m.isBlocked);
+              if (defaultItem) return defaultItem.value;
+
+              // 2. Se a escolha anterior ainda for válida e não bloqueada, mantém
+              const prevItem = fetched.find(m => m.value === prev);
+              if (prevItem && !prevItem.isBlocked) return prev;
+
+              // 3. Caso contrário, pega a primeira opção válida não bloqueada
+              const firstValid = fetched.find((m: any) => !m.isBlocked)?.value;
+              return firstValid || fetched[0].value;
+            });
+          } else {
+            setDynamicModels([]);
+          }
         });
 
         fetchDynamicModels(provider, keyToUse, 'tts').then(fetchedTts => {
           if (fetchedTts && fetchedTts.length > 0) {
-            setDynamicTtsModels(fetchedTts);
+            setDynamicTtsModels(fetchedTts as any);
             setTtsModelOption(prev => {
-              const exists = fetchedTts.some(m => m.value === prev);
-              return exists ? prev : fetchedTts[0].value;
+              const defaultItem = fetchedTts.find((m: any) => m.isDefault && !m.isBlocked);
+              if (defaultItem) return defaultItem.value;
+
+              const prevItem = fetchedTts.find(m => m.value === prev);
+              if (prevItem && !prevItem.isBlocked) return prev;
+
+              const firstValid = fetchedTts.find((m: any) => !m.isBlocked)?.value;
+              return firstValid || fetchedTts[0].value;
             });
           } else {
             setDynamicTtsModels([]);
@@ -274,10 +303,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         setDynamicModels(fetchedModels);
 
         // Definição estrita sem fallback: atribui apenas se o backendDefaultModel for explicitamente fornecido e válido
-        if (backendDefaultModel && fetchedModels.some(m => m.value === backendDefaultModel)) {
+        const validFirstModel = fetchedModels.find(m => !m.isBlocked)?.value || '';
+        if (backendDefaultModel && fetchedModels.some(m => m.value === backendDefaultModel && !m.isBlocked)) {
           setTextModelOption(backendDefaultModel);
         } else {
-          setTextModelOption('');
+          setTextModelOption(validFirstModel);
         }
 
         try {
@@ -363,11 +393,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
       setDynamicModels(fetchedModels);
 
-      // Definição estrita sem fallback: atribui apenas se o backendDefaultModel for explicitamente fornecido e válido
-      if (backendDefaultModel && fetchedModels.some(m => m.value === backendDefaultModel)) {
+      // Seleção segura sem fallback: seleciona backendDefaultModel se fornecido e não bloqueado, ou o primeiro modelo válido não bloqueado
+      const validFirstModel = fetchedModels.find(m => !m.isBlocked)?.value || '';
+      if (backendDefaultModel && fetchedModels.some(m => m.value === backendDefaultModel && !m.isBlocked)) {
         setTextModelOption(backendDefaultModel);
       } else {
-        setTextModelOption('');
+        setTextModelOption(validFirstModel);
       }
 
       try {
@@ -463,6 +494,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       setIsValidating(true);
       try {
         await validateApiKey(cleanedKey, provider, selectedModel.trim());
+        recordModelCompatibilityStatus(provider, selectedModel.trim(), 'compatible');
         await onLoginWithApiKey(cleanedKey, provider, selectedModel.trim());
       } catch (err: any) {
         setError(err.message || 'Erro ao validar a chave. Verifique sua conexão.');

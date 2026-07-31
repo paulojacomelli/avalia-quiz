@@ -3,7 +3,67 @@ import { QuizConfig, TopicMode, GeneratedQuiz, QuizQuestion, HintType, QuizForma
 import { getQuestionReadAloudText } from "./tts";
 import { PROMPTS } from "@avalia/core";
 import { buildQuizPrompt } from "@avalia/ai-prompts";
-import { logTelemetryEvent, getClientId } from "./firebase";
+import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { db, logTelemetryEvent, getClientId } from "./firebase";
+
+export const COMPATIBILITY_CONTRACT_VERSION = 'v1';
+
+export type ModelCompatibilityState = 'compatible' | 'incompatible' | 'untested';
+
+/**
+ * Le o status de compatibilidade armazenado no localStorage para um par provider + model.
+ * Retorna:
+ * - 'Incompatível' se foi comprovadamente incompatível com o contrato estruturado
+ * - '' (string vazia) se foi testado com sucesso (compatível)
+ * - 'Não testado' se nunca foi testado
+ */
+export const getStoredModelCompatibility = (provider: string, model: string): { state: ModelCompatibilityState; statusTag: string } => {
+  if (typeof localStorage === 'undefined' || !provider || !model) {
+    return { state: 'untested', statusTag: 'Não testado' };
+  }
+
+  const cleanModel = model.replace(/^models\//, '');
+  const cleanProvider = provider.includes('google') ? 'google-ai' : provider;
+  const storageKey = `avalia_compat:${COMPATIBILITY_CONTRACT_VERSION}:${cleanProvider}:${cleanModel}`;
+  const stored = localStorage.getItem(storageKey);
+
+  if (stored === 'incompatible') {
+    return { state: 'incompatible', statusTag: 'Incompatível' };
+  }
+  if (stored === 'compatible') {
+    return { state: 'compatible', statusTag: '' };
+  }
+
+  return { state: 'untested', statusTag: 'Não testado' };
+};
+
+/**
+ * Grava a compatibilidade confirmada no localStorage e Firestore para disponibilidade imediata e multiplataforma.
+ */
+export const recordModelCompatibilityStatus = (provider: string, model: string, status: 'compatible' | 'incompatible'): void => {
+  if (!provider || !model) return;
+
+  const cleanModel = model.replace(/^models\//, '');
+  const cleanProvider = provider.includes('google') ? 'google-ai' : provider;
+  
+  if (typeof localStorage !== 'undefined') {
+    const storageKey = `avalia_compat:${COMPATIBILITY_CONTRACT_VERSION}:${cleanProvider}:${cleanModel}`;
+    localStorage.setItem(storageKey, status);
+  }
+
+  // Persiste no Firestore para refletir entre todos os modos e dispositivos
+  const docId = `${cleanProvider}_${cleanModel}_v1`;
+  try {
+    setDoc(doc(db, "modelCompatibility", docId), {
+      provider: cleanProvider,
+      model: cleanModel,
+      contractVersion: COMPATIBILITY_CONTRACT_VERSION,
+      status,
+      reasonCode: null,
+      updatedAt: new Date().toISOString()
+    }, { merge: true }).catch(() => {});
+  } catch { }
+};
 
 /**
  * Formata mensagens de erro HTTP cruas da API em texto amigável em Português.
@@ -168,36 +228,93 @@ export const fetchDynamicModels = async (
       if (!res.ok) return [];
       const data = await res.json();
       if (data && Array.isArray(data.models)) {
+        let defaultModel = '';
+        const compatMap = new Map<string, { status: string; reasonCode?: string }>();
+        let textExcludedPatterns: string[] = [];
+        try {
+          const configSnap = await getDoc(doc(db, "auth", "config"));
+          if (configSnap.exists()) {
+            const data = configSnap.data();
+            defaultModel = target === 'tts' 
+              ? (data.admin_tts_model || data.admin_model_google_ai || '')
+              : (data.admin_model_google_ai || '');
+          }
+
+          const compatSnap = await getDocs(query(collection(db, "modelCompatibility"), where("contractVersion", "==", "v1")));
+          compatSnap.forEach(docSnap => {
+            const d = docSnap.data();
+            if (d.model && d.status) {
+              const targetModel = String(d.model).replace(/^models\//, '');
+              compatMap.set(targetModel, { status: d.status, reasonCode: d.reasonCode });
+            }
+          });
+
+          const exclusionsSnap = await getDoc(doc(db, "settings", "model_exclusions"));
+          if (exclusionsSnap.exists()) {
+            const exclusionsData = exclusionsSnap.data();
+            if (Array.isArray(exclusionsData.text_excluded_patterns)) {
+              textExcludedPatterns = exclusionsData.text_excluded_patterns.map((p: any) => String(p).toLowerCase());
+            } else {
+              console.error("[fetchDynamicModels] settings/model_exclusions existe mas text_excluded_patterns não é um array.");
+            }
+          } else {
+            console.error("[fetchDynamicModels] Documento settings/model_exclusions não encontrado no Firestore. Nenhum padrão de exclusão aplicado.");
+          }
+        } catch (err) {
+          console.error("[fetchDynamicModels] Erro ao buscar configurações do Firestore:", err);
+        }
+
+        const TTS_PATTERNS = ['tts', 'audio', 'speech'];
+
         const models = data.models
           .filter((m: any) => {
             if (!m.name) return false;
             const nameLower = m.name.toLowerCase();
-            const isTts = nameLower.includes('tts') || nameLower.includes('audio') || nameLower.includes('speech');
+            const isTts = TTS_PATTERNS.some(p => nameLower.includes(p));
             if (target === 'tts') return isTts;
             
-            const isNonText = isTts || 
-              nameLower.includes('image') || 
-              nameLower.includes('imagen') || 
-              nameLower.includes('embed') || 
-              nameLower.includes('bidi') || 
-              nameLower.includes('realtime') ||
-              nameLower.includes('robotics') ||
-              nameLower.includes('computer-use') ||
-              nameLower.includes('deep-research') ||
-              nameLower.includes('teacher');
+            const isNonText = isTts || textExcludedPatterns.some(p => nameLower.includes(p));
 
             if (isNonText) return false;
-            return m.name.includes('gemini') && m.supportedGenerationMethods?.includes('generateContent');
+            return m.supportedGenerationMethods?.includes('generateContent');
           })
           .map((m: any) => {
             const cleanId = m.name.replace(/^models\//, '');
+            const isConfiguredDefault = defaultModel && cleanId === defaultModel;
+            const firestoreCompat = compatMap.get(cleanId);
+            const localCompat = getStoredModelCompatibility(provider, cleanId);
+            const isShutdown = firestoreCompat?.reasonCode === 'DEPRECATED_SHUTDOWN';
+            
+            const isCompatible = firestoreCompat?.status === 'compatible' || localCompat.state === 'compatible';
+            const isIncompatible = isShutdown || firestoreCompat?.status === 'incompatible' || localCompat.state === 'incompatible';
+            const isBlocked = isIncompatible;
+
+            let displayStatus = 'Não testado';
+            if (isConfiguredDefault) {
+              displayStatus = isShutdown ? 'Padrão · Shutdown' : (isBlocked ? 'Padrão · Incompatível' : 'Padrão');
+            } else if (isShutdown) {
+              displayStatus = 'Shutdown';
+            } else if (isCompatible) {
+              displayStatus = ''; // Sem tag para testados e compativeis
+            } else if (isIncompatible) {
+              displayStatus = 'Incompatível';
+            }
+
+            const rank = isConfiguredDefault ? 0 : (isCompatible ? 1 : (isShutdown || isIncompatible ? 3 : 2));
             return {
               value: cleanId,
-              label: m.displayName ? `${m.displayName} (${cleanId})` : cleanId
+              label: m.displayName ? `${m.displayName} (${cleanId})` : cleanId,
+              status: displayStatus || undefined,
+              isBlocked,
+              isDefault: isConfiguredDefault,
+              rank
             };
           });
 
-        return models.sort((a: any, b: any) => b.label.localeCompare(a.label, undefined, { numeric: true, sensitivity: 'base' }));
+        return models.sort((a: any, b: any) => {
+          if (a.rank !== b.rank) return a.rank - b.rank;
+          return b.label.localeCompare(a.label, undefined, { numeric: true, sensitivity: 'base' });
+        });
       }
     }
 
@@ -215,6 +332,26 @@ export const fetchDynamicModels = async (
       if (!res.ok) return [];
       const data = await res.json();
       if (data && Array.isArray(data.data)) {
+        let defaultModel = '';
+        const compatMap = new Map<string, { status: string; reasonCode?: string }>();
+        try {
+          const configSnap = await getDoc(doc(db, "auth", "config"));
+          if (configSnap.exists()) {
+            const confData = configSnap.data();
+            const slug = provider === 'openai' ? 'openai' : provider;
+            defaultModel = confData[`admin_model_${slug}`] || '';
+          }
+
+          const compatSnap = await getDocs(query(collection(db, "modelCompatibility"), where("contractVersion", "==", "v1")));
+          compatSnap.forEach(docSnap => {
+            const d = docSnap.data();
+            if (d.model && d.status) {
+              const targetModel = String(d.model).replace(/^models\//, '');
+              compatMap.set(targetModel, { status: d.status, reasonCode: d.reasonCode });
+            }
+          });
+        } catch { }
+
         const models = data.data
           .filter((m: any) => {
             if (!m.id) return false;
@@ -238,34 +375,50 @@ export const fetchDynamicModels = async (
             return true;
           })
           .map((m: any) => {
+            const cleanId = m.id;
+            const isConfiguredDefault = defaultModel && cleanId === defaultModel;
+            const firestoreCompat = compatMap.get(cleanId);
+            const localCompat = getStoredModelCompatibility(provider, cleanId);
+            
+            const isCompatible = firestoreCompat?.status === 'compatible' || localCompat.state === 'compatible';
+            const isIncompatible = firestoreCompat?.status === 'incompatible' || localCompat.state === 'incompatible';
+            const isBlocked = isIncompatible;
+
+            let displayStatus = 'Não testado';
+            if (isConfiguredDefault) {
+              displayStatus = isBlocked ? 'Padrão · Incompatível' : 'Padrão';
+            } else if (isCompatible) {
+              displayStatus = ''; // Sem tag para testados e compativeis
+            } else if (isIncompatible) {
+              displayStatus = 'Incompatível';
+            }
+
+            const rank = isConfiguredDefault ? 0 : (isCompatible ? 1 : (isIncompatible ? 3 : 2));
             let label = m.name || m.id;
-            let status: string | undefined = undefined;
+            
             if (provider === 'openrouter') {
               const promptVal = m.pricing ? parseFloat(m.pricing.prompt || '0') : 0;
               const completionVal = m.pricing ? parseFloat(m.pricing.completion || '0') : 0;
               const isFree = (m.id && m.id.endsWith(':free')) || (promptVal === 0 && completionVal === 0);
-              
-              if (isFree) {
-                status = 'Grátis';
-              } else if (promptVal > 0) {
-                const costPer1M = promptVal * 1000000;
-                if (costPer1M < 0.01) {
-                  status = '<$0.01/1M';
-                } else {
-                  status = `$${costPer1M.toFixed(2)}/1M`;
-                }
-              } else {
-                status = 'Pago';
+              if (!displayStatus || displayStatus === 'Não testado') {
+                if (isFree) displayStatus = 'Grátis';
               }
             }
+
             return {
-              value: m.id,
+              value: cleanId,
               label,
-              status
+              status: displayStatus || undefined,
+              isBlocked,
+              isDefault: isConfiguredDefault,
+              rank
             };
           });
 
-        return models.sort((a: any, b: any) => b.label.localeCompare(a.label, undefined, { numeric: true, sensitivity: 'base' }));
+        return models.sort((a: any, b: any) => {
+          if (a.rank !== b.rank) return a.rank - b.rank;
+          return a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: 'base' });
+        });
       }
     }
   } catch (e) {
@@ -451,6 +604,23 @@ export const validateApiKey = async (apiKey: string, provider: AiProvider, model
         model: model,
         contents: [{ role: "user", parts: [{ text: "Reply 'OK'." }] }]
       });
+      
+      if (result.text) {
+        const cleanModel = model.replace(/^models\//, '');
+        const docId = `${provider}_${cleanModel}_v1`;
+        try {
+          const { doc, setDoc } = await import('firebase/firestore');
+          await setDoc(doc(db, "modelCompatibility", docId), {
+            provider,
+            model: cleanModel,
+            contractVersion: "v1",
+            status: "compatible",
+            reasonCode: null,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+        } catch { }
+      }
+
       return !!result.text;
     } catch (error: any) {
       console.error("Google AI Validation Error:", error);
@@ -646,43 +816,62 @@ const executeSingleQuizRequest = async (
 
   // Google GenAI SDK (google-ai ou vertex)
   const genAI = getSDKInstance(apiKey);
-  const result = await genAI.models.generateContent({
-    model,
-    contents: [
-      { role: "user", parts: [{ text: getSystemInstruction(config.librasEnabled, config.systemPrompt) + "\n\n" + prompt + "\n\nIMPORTANTE: Responda APENAS em JSON." }] }
-    ],
-    config: {
-      temperature: config.temperature,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        description: "Representação de um quiz educacional",
-        properties: {
-          titulo: { type: Type.STRING, description: "O título cativante do quiz." },
-          palavrasChave: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Termos principais que definem o foco temático." },
-          perguntas: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                enunciado: { type: Type.STRING },
-                opcoes: { type: Type.ARRAY, items: { type: Type.STRING } },
-                indiceRespostaCorreta: { type: Type.INTEGER },
-                textoRespostaCorreta: { type: Type.STRING },
-                referencia: { type: Type.STRING },
-                justificativa: { type: Type.STRING },
-                glosa: { type: Type.STRING },
-                dica: { type: Type.STRING }
-              },
-              required: ["id", "enunciado", "opcoes", "indiceRespostaCorreta", "textoRespostaCorreta", "referencia", "justificativa", "glosa", "dica"]
+  let result: any;
+  try {
+    result = await genAI.models.generateContent({
+      model,
+      contents: [
+        { role: "user", parts: [{ text: getSystemInstruction(config.librasEnabled, config.systemPrompt) + "\n\n" + prompt + "\n\nIMPORTANTE: Responda APENAS em JSON." }] }
+      ],
+      config: {
+        temperature: config.temperature,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          description: "Representação de um quiz educacional",
+          properties: {
+            titulo: { type: Type.STRING, description: "O título cativante do quiz." },
+            palavrasChave: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Termos principais que definem o foco temático." },
+            perguntas: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  enunciado: { type: Type.STRING },
+                  opcoes: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  indiceRespostaCorreta: { type: Type.INTEGER },
+                  textoRespostaCorreta: { type: Type.STRING },
+                  referencia: { type: Type.STRING },
+                  justificativa: { type: Type.STRING },
+                  glosa: { type: Type.STRING },
+                  dica: { type: Type.STRING }
+                },
+                required: ["id", "enunciado", "opcoes", "indiceRespostaCorreta", "textoRespostaCorreta", "referencia", "justificativa", "glosa", "dica"]
+              }
             }
-          }
-        },
-        required: ["titulo", "palavrasChave", "perguntas"]
+          },
+          required: ["titulo", "palavrasChave", "perguntas"]
+        }
       }
+    });
+  } catch (sdkErr: any) {
+    const errMsg = String(sdkErr?.message || sdkErr || '').toLowerCase();
+    const isStructuralIncompat =
+      errMsg.includes('only supports interactions api') ||
+      errMsg.includes('responsemimetype') ||
+      errMsg.includes('responseschema') ||
+      errMsg.includes('not supported') ||
+      errMsg.includes('json_object') ||
+      (sdkErr?.status === 400) ||
+      (sdkErr?.code === 400);
+
+    if (isStructuralIncompat) {
+      recordModelCompatibilityStatus(provider, model, 'incompatible');
+      throw new Error(`O modelo '${model}' não é compatível com geração de quiz em formato estruturado. Modelo marcado como incompatível.`);
     }
-  });
+    throw sdkErr;
+  }
 
   const text = result.text;
   if (!text) throw new Error("Resposta vazia da API do Google AI.");
@@ -757,6 +946,8 @@ export const generateQuizContent = async (apiKey: string, config: QuizConfig, gl
           model,
           theme: config.mode,
           subTopic: config.subTopic || config.specificTopic,
+          count: config.count,
+          temperature: config.temperature,
           globalExclusions
         })
       });
@@ -769,6 +960,9 @@ export const generateQuizContent = async (apiKey: string, config: QuizConfig, gl
       const data = await resp.json();
       if (!data.quiz) throw new Error("O servidor proxy não retornou um quiz válido.");
       
+      // Registra modelo como testado e compativel
+      recordModelCompatibilityStatus(effectiveProvider, model, 'compatible');
+
       logTelemetryEvent({
         eventType: 'quiz_generated',
         errorCode: '200',
@@ -1254,7 +1448,9 @@ export const generateSpeech = async (apiKey: string, text: string, config: TTSCo
       for (let i = 0; i < bytes.byteLength; i++) {
         binary += String.fromCharCode(bytes[i]);
       }
-      return btoa(binary);
+      const audioBase64 = btoa(binary);
+      recordModelCompatibilityStatus('openai', ttsModel);
+      return audioBase64;
     } catch (error) {
       console.error("[TTS/OpenAI] Falha ao gerar áudio:", error);
       return null;
@@ -1278,7 +1474,11 @@ export const generateSpeech = async (apiKey: string, text: string, config: TTSCo
         }
       }
     });
-    return (result as any).data || null;
+    const audioData = (result as any).data || null;
+    if (audioData) {
+      recordModelCompatibilityStatus('google-ai', ttsModel);
+    }
+    return audioData;
   } catch (error) {
     console.error("[TTS/Gemini] Falha ao gerar áudio:", error);
     return null;

@@ -136,8 +136,9 @@ export const generateQuizProxy = onRequest(
     }
 
     const clientIp = getTrustedClientIp(req);
-    const { secretCode, provider, model, theme, subTopic, temperature, generationId, globalExclusions } = req.body || {};
+    const { secretCode, provider, model, theme, subTopic, temperature, generationId, globalExclusions, count } = req.body || {};
     const activeGenId = generationId || `gen-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const questionCount = (typeof count === 'number' && count > 0 && count <= 50) ? count : 10;
 
     const SUPPORTED_PROVIDERS = ["google-ai", "vertex", "openai", "groq", "deepseek", "openrouter", "claude"];
 
@@ -211,8 +212,17 @@ export const generateQuizProxy = onRequest(
         ? `\nTERMOS/TÓPICOS JÁ ABORDADOS ANTERIORMENTE (EVITAR REPETIÇÕES): [${globalExclusions.slice(0, 30).join(", ")}].`
         : "";
 
+      if (!theme || typeof theme !== "string" || !theme.trim()) {
+        res.status(400).json({ error: "Campo obrigatório ausente: theme. Informe o tema do quiz." });
+        return;
+      }
+
+      const subTopicClause = subTopic && typeof subTopic === "string" && subTopic.trim()
+        ? ` (Subtópico: '${subTopic.trim()}')`
+        : "";
+
       // 5. Integração REAL de IA Serverless: Chamada à API oficial utilizando a apiKey do GCP Secret Manager
-      const prompt = `Gere um quiz com 5 perguntas sobre o tema '${theme || "Geral"}' (Subtópico: '${subTopic || "Geral"}').${exclusionText}
+      const prompt = `Gere um quiz com ${questionCount} perguntas sobre o tema '${theme.trim()}'${subTopicClause}.${exclusionText}
 IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
 {
   "titulo": "Título do Quiz",
@@ -238,9 +248,14 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
         model,
         theme,
         subTopic,
-        temperature: typeof temperature === 'number' ? temperature : 0.9,
+        temperature,
         topP: 0.95
       }));
+
+      if (typeof temperature !== 'number' || temperature < 0 || temperature > 2) {
+        res.status(400).json({ error: "Campo obrigatório inválido: temperature. Deve ser um número entre 0 e 2." });
+        return;
+      }
 
       let aiRawResponseText = "";
 
@@ -254,7 +269,7 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: { 
               responseMimeType: "application/json",
-              temperature: typeof temperature === 'number' ? temperature : 0.9,
+              temperature,
               topP: 0.95
             }
           })
@@ -263,7 +278,28 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
         if (!aiResp.ok) {
           const errText = await aiResp.text();
           console.error(`[generateQuizProxy ERROR] genId:${activeGenId} | Provedor: Google AI | Status:${aiResp.status}`, errText);
-          res.status(aiResp.status).json({ error: `O modelo '${model}' do Google AI não está disponível para geração de quiz (HTTP ${aiResp.status}). ${errText.slice(0, 150)}` });
+
+        if (aiResp.status === 400) {
+            const cleanModel = model.replace(/^models\//, '');
+            const docId = `${targetProvider}_${cleanModel}_v1`;
+            await db.collection("modelCompatibility").doc(docId).set({
+              provider: targetProvider,
+              model: cleanModel,
+              contractVersion: "v1",
+              status: "incompatible",
+              reasonCode: "STRUCTURED_OUTPUT_UNSUPPORTED",
+              updatedAt: new Date().toISOString()
+            }, { merge: true }).catch(e => console.warn("Falha ao salvar modelCompatibility:", e));
+            res.status(400).json({ error: `O modelo '${model}' não é compatível com geração de quiz em formato estruturado (HTTP 400). Selecione outro modelo.` });
+          } else if (aiResp.status === 404 || errText.toLowerCase().includes("no longer available")) {
+            res.status(404).json({ error: `O modelo '${model}' foi descontinuado ou não está mais disponível no Google AI.` });
+          } else if (aiResp.status === 429) {
+            res.status(429).json({ error: `Limite de requisições ou cota temporária excedida para o modelo '${model}' (HTTP 429). Aguarde alguns instantes.` });
+          } else if (aiResp.status >= 500) {
+            res.status(aiResp.status).json({ error: `Servidor do Google AI temporariamente indisponível para o modelo '${model}' (HTTP ${aiResp.status}). Tente novamente.` });
+          } else {
+            res.status(aiResp.status).json({ error: `O modelo '${model}' retornou erro inesperado (HTTP ${aiResp.status}).` });
+          }
           return;
         }
 
@@ -294,7 +330,7 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
           body: JSON.stringify({
             model: model, // model já validado, sem fallback
             messages: [{ role: "user", content: prompt }],
-            temperature: typeof temperature === 'number' ? temperature : 0.9,
+            temperature,
             response_format: { type: "json_object" }
           })
         });
@@ -302,7 +338,26 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
         if (!aiResp.ok) {
           const errText = await aiResp.text();
           console.error(`[generateQuizProxy ERROR] genId:${activeGenId} | Provedor:${targetProvider} | Status:${aiResp.status}`, errText);
-          res.status(500).json({ error: `Falha no provedor ${targetProvider}: ${aiResp.status}` });
+
+          if (aiResp.status === 400) {
+            const cleanModel = model.replace(/^models\//, '');
+            const docId = `${targetProvider}_${cleanModel}_v1`;
+            await db.collection("modelCompatibility").doc(docId).set({
+              provider: targetProvider,
+              model: cleanModel,
+              contractVersion: "v1",
+              status: "incompatible",
+              reasonCode: "STRUCTURED_OUTPUT_UNSUPPORTED",
+              updatedAt: new Date().toISOString()
+            }, { merge: true }).catch(e => console.warn("Falha ao salvar modelCompatibility:", e));
+            res.status(400).json({ error: `O modelo '${model}' não é compatível com geração de quiz em formato estruturado (HTTP 400). Selecione outro modelo.` });
+          } else if (aiResp.status === 429) {
+            res.status(429).json({ error: `Limite de requisições ou cota temporária excedida para o modelo '${model}' (HTTP 429). Aguarde alguns instantes.` });
+          } else if (aiResp.status >= 500) {
+            res.status(aiResp.status).json({ error: `Servidor do provedor '${targetProvider}' temporariamente indisponível (HTTP ${aiResp.status}). Tente novamente.` });
+          } else {
+            res.status(aiResp.status).json({ error: `O modelo '${model}' retornou erro inesperado no provedor '${targetProvider}' (HTTP ${aiResp.status}).` });
+          }
           return;
         }
 
@@ -320,6 +375,17 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
       // Limpeza de blocos de markdown e parse JSON
       const cleanJsonStr = aiRawResponseText.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
       const parsed = JSON.parse(cleanJsonStr);
+
+      const cleanModel = model.replace(/^models\//, '');
+      const docId = `${targetProvider}_${cleanModel}_v1`;
+      await db.collection("modelCompatibility").doc(docId).set({
+        provider: targetProvider,
+        model: cleanModel,
+        contractVersion: "v1",
+        status: "compatible",
+        reasonCode: null,
+        updatedAt: new Date().toISOString()
+      }, { merge: true }).catch(e => console.warn("Falha ao atualizar modelCompatibility como compatible:", e));
 
       const generatedQuiz = {
         title: parsed.titulo || `Quiz sobre ${theme || "Geral"}`,
@@ -342,11 +408,30 @@ IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
         promptHash,
         quiz: generatedQuiz,
         provider: targetProvider,
-        model: model // model validado e não-vazio acima
+        model: model
       });
     } catch (err: any) {
       console.error("Erro na generateQuizProxy:", err);
-      res.status(500).json({ error: err?.message || "Erro interno no servidor proxy de IA." });
+      const isSyntaxError = err instanceof SyntaxError;
+      if (isSyntaxError) {
+        // Modelo respondeu HTTP 200 mas com JSON inválido ou fora do formato esperado → incompatível estruturalmente
+        const cleanModel = typeof model === 'string' ? model.replace(/^models\//, '') : '';
+        const safeProvider = typeof provider === 'string' ? provider : '';
+        if (cleanModel && safeProvider) {
+          const docId = `${safeProvider}_${cleanModel}_v1`;
+          await db.collection("modelCompatibility").doc(docId).set({
+            provider: safeProvider,
+            model: cleanModel,
+            contractVersion: "v1",
+            status: "incompatible",
+            reasonCode: "INVALID_JSON_RESPONSE",
+            updatedAt: new Date().toISOString()
+          }, { merge: true }).catch(() => {});
+        }
+        res.status(422).json({ error: `O modelo '${model}' respondeu com conteúdo fora do formato JSON esperado pelo quiz. Modelo marcado como incompatível.` });
+      } else {
+        res.status(500).json({ error: err?.message || "Erro interno no servidor proxy de IA." });
+      }
     }
   }
 );
@@ -511,13 +596,43 @@ export const getAvailableModelsProxy = onCall(
             });
             if (!gRes.ok) {
               const errTxt = await gRes.text().catch(() => "");
-              throw new HttpsError("invalid-argument", `O modelo '${testModel}' do Google AI não está operacional para geração de conteúdo (HTTP ${gRes.status}). ${errTxt.slice(0, 150)}`);
+              if (gRes.status === 404 || errTxt.toLowerCase().includes("no longer available") || errTxt.toLowerCase().includes("not found")) {
+                const docId = `${provider}_${cleanTestModel}_v1`;
+                await db.collection("modelCompatibility").doc(docId).set({
+                  provider,
+                  model: cleanTestModel,
+                  contractVersion: "v1",
+                  status: "incompatible",
+                  reasonCode: "DEPRECATED_SHUTDOWN",
+                  updatedAt: new Date().toISOString()
+                }, { merge: true }).catch(() => {});
+                throw new HttpsError("invalid-argument", `O modelo '${testModel}' foi descontinuado pelo provedor (Shutdown). Selecione outro modelo.`);
+              }
+              if (gRes.status === 429) {
+                throw new HttpsError("resource-exhausted", `Limite de requisições ou cota temporária excedida para o modelo '${testModel}' (HTTP 429). Aguarde alguns instantes ou selecione outro modelo.`);
+              }
+              if (gRes.status === 503 || errTxt.toLowerCase().includes("high demand")) {
+                throw new HttpsError("unavailable", `O servidor do modelo '${testModel}' está temporariamente sob alta demanda (HTTP 503). Tente novamente em alguns segundos.`);
+              }
+              throw new HttpsError("invalid-argument", `O modelo '${testModel}' do Google AI não está operacional no momento (HTTP ${gRes.status}).`);
             }
             const gJson = await gRes.json().catch(() => null);
             const gText = (gJson?.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
             if (!gText) {
               throw new HttpsError("invalid-argument", `O modelo '${testModel}' respondeu HTTP 200, mas a resposta não continha conteúdo textual.`);
             }
+
+            // Atualiza status de compatibilidade no Firestore
+            const docId = `${provider}_${cleanTestModel}_v1`;
+            await db.collection("modelCompatibility").doc(docId).set({
+              provider,
+              model: cleanTestModel,
+              contractVersion: "v1",
+              status: "compatible",
+              reasonCode: null,
+              updatedAt: new Date().toISOString()
+            }, { merge: true }).catch(() => {});
+
             return { valid: true, tested: true };
 
           case "groq":
@@ -600,6 +715,17 @@ export const getAvailableModelsProxy = onCall(
           if (!oText) {
             throw new HttpsError("invalid-argument", `O modelo '${testModel}' via ${provider} respondeu HTTP 200, mas a resposta não continha conteúdo textual.`);
           }
+          const cleanModelName = testModel.replace(/^models\//, '');
+          const docId = `${provider}_${cleanModelName}_v1`;
+          await db.collection("modelCompatibility").doc(docId).set({
+            provider,
+            model: cleanModelName,
+            contractVersion: "v1",
+            status: "compatible",
+            reasonCode: null,
+            updatedAt: new Date().toISOString()
+          }, { merge: true }).catch(() => {});
+
           return { valid: true, tested: true };
         }
       } catch (err: any) {
@@ -659,11 +785,24 @@ export const getAvailableModelsProxy = onCall(
         }
 
         const slug = provider === "google-ai" ? "google_ai" : provider.replace("-", "_");
-        let defaultModel = typeof firestoreConfig[`admin_model_${slug}`] === "string" ? firestoreConfig[`admin_model_${slug}`].trim() : "";
+        let defaultModel = target === 'tts' 
+          ? (typeof firestoreConfig.admin_tts_model === "string" ? firestoreConfig.admin_tts_model.trim() : "")
+          : (typeof firestoreConfig[`admin_model_${slug}`] === "string" ? firestoreConfig[`admin_model_${slug}`].trim() : "");
+        
         if (!defaultModel && Array.isArray(firestoreConfig.providers)) {
           const provObj = firestoreConfig.providers.find((p: any) => p && p.id === provider);
           if (provObj && provObj.model) defaultModel = String(provObj.model).trim();
         }
+
+        // Leitura centralizada do Firestore da colecao modelCompatibility para o contrato v1
+        const compatSnapshot = await db.collection("modelCompatibility").where("contractVersion", "==", "v1").get();
+        const compatMap = new Map<string, { status: string; reasonCode?: string }>();
+        compatSnapshot.forEach(docSnap => {
+          const d = docSnap.data();
+          if (d.provider === provider && d.model) {
+            compatMap.set(d.model, { status: d.status, reasonCode: d.reasonCode });
+          }
+        });
 
         const apiData = await response.json();
         if (apiData && Array.isArray(apiData.models)) {
@@ -679,28 +818,63 @@ export const getAvailableModelsProxy = onCall(
               const isNonText = isTts || idLower.includes('image') || idLower.includes('embed') || idLower.includes('bidi') || idLower.includes('realtime');
               if (isNonText) return false;
               
-              return cleanId.includes('gemini') && m.supportedGenerationMethods?.includes('generateContent');
+              return m.supportedGenerationMethods?.includes('generateContent');
             })
             .map((m: any) => {
               const cleanId = m.name.replace(/^models\//, '');
               const isConfiguredDefault = defaultModel && cleanId === defaultModel;
+              const compatInfo = compatMap.get(cleanId);
+              const compatStatus = compatInfo?.status; // 'compatible' | 'incompatible' | undefined
+              const isShutdown = compatInfo?.reasonCode === 'DEPRECATED_SHUTDOWN';
+
+              let displayStatus = 'Não testado';
+              let isBlocked = false;
+
+              if (isConfiguredDefault) {
+                if (isShutdown) {
+                  displayStatus = 'Padrão · Shutdown';
+                  isBlocked = true;
+                } else if (compatStatus === 'incompatible') {
+                  displayStatus = 'Padrão · Incompatível';
+                  isBlocked = true;
+                } else {
+                  displayStatus = 'Padrão';
+                }
+              } else if (isShutdown) {
+                displayStatus = 'Shutdown';
+                isBlocked = true;
+              } else if (compatStatus === 'compatible') {
+                displayStatus = ''; // Sem tag para testados e compativeis
+              } else if (compatStatus === 'incompatible') {
+                displayStatus = 'Incompatível';
+                isBlocked = true;
+              } else {
+                displayStatus = 'Não testado';
+              }
+
               return {
                 value: cleanId,
                 label: m.displayName ? `${m.displayName} (${cleanId})` : cleanId,
-                status: isConfiguredDefault ? 'Oficial' : (target === 'tts' ? 'Voz' : 'Estável')
+                status: displayStatus || undefined,
+                isDefault: isConfiguredDefault,
+                isBlocked,
+                rank: isConfiguredDefault ? 1 : (compatStatus === 'compatible' ? 2 : (compatStatus === 'incompatible' ? 4 : 3))
               };
             });
 
-          // Se houver um modelo padrão configurado no Firestore, move ele para o topo da lista (índice 0)
-          if (defaultModel) {
-            const defaultIndex = result.findIndex((m: any) => m.value === defaultModel);
-            if (defaultIndex > 0) {
-              const [defaultItem] = result.splice(defaultIndex, 1);
-              result.unshift(defaultItem);
-            }
-          }
+          // Ordenacao estrita nos 4 Niveis:
+          // 1º Modelo Oficial
+          // 2º Testados e Compativeis (sem tag)
+          // 3º Nao testados
+          // 4º Incompativeis
+          result.sort((a: any, b: any) => {
+            if (a.rank !== b.rank) return a.rank - b.rank;
+            return b.label.localeCompare(a.label, undefined, { numeric: true, sensitivity: 'base' });
+          });
 
-          return { models: result, defaultModel, valid: true };
+          const activeDefault = (defaultModel && result.some((m: any) => m.value === defaultModel && !m.isBlocked)) ? defaultModel : '';
+
+          return { models: result, defaultModel: activeDefault, valid: true };
         }
 
         throw new HttpsError("internal", "Resposta inesperada da API Google AI: campo 'models' ausente.");
