@@ -1,6 +1,6 @@
 {
   "name": "@avalia/design-system",
-  "version": "1.9.52-beta",
+  "version": "1.9.58",
   "license": "GPL-3.0-only",
   "private": true,
   "main": "src/index.ts",
