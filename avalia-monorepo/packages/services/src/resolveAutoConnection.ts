@@ -48,25 +48,7 @@ export const discoverConfiguredProviders = (firestoreData: Record<string, any>):
       }));
   }
 
-  // Fallback para mapa explícito dos provedores oficialmente suportados
-  const supportedProviders: AiProvider[] = ['google-ai', 'openrouter', 'groq', 'claude', 'deepseek', 'openai'];
-  const candidates: ProviderCandidate[] = [];
-
-  for (const prov of supportedProviders) {
-    const slug = prov === 'google-ai' ? 'google_ai' : prov.replace('-', '_');
-    const key = firestoreData[`admin_key_${slug}`] || (prov === 'google-ai' ? firestoreData.admin_key : undefined);
-    const model = firestoreData[`admin_model_${slug}`];
-
-    if (key && typeof key === 'string' && key.trim() && model && typeof model === 'string' && model.trim()) {
-      candidates.push({
-        provider: prov,
-        apiKey: key.trim(),
-        model: model.trim()
-      });
-    }
-  }
-
-  return candidates;
+  return [];
 };
 
 /**

@@ -5,7 +5,7 @@ import {
   TUTORIAL_CONFIG, TUTORIAL_DATA, GLOSAS_VALIDADAS, AiProvider
 } from '@avalia/core';
 import { 
-  playSound, speakText, stopSpeech, db, resolveAiModelLabel, validateApiKey, resolveAutoConnection, logTelemetryEvent, getClientId,
+  playSound, speakText, stopSpeech, db, resolveAiModelLabel, validateApiKey, logTelemetryEvent, getClientId,
   checkAccessCodeLock, registerFailedCodeAttempt, resetFailedCodeAttempts
 } from '@avalia/services';
 import { 
