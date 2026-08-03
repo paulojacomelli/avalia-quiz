@@ -80,3 +80,24 @@ export interface QuizConfig {
   librasEnabled?: boolean;
   systemPrompt?: string;
 }
+
+export function shuffleQuestionOptions(question: QuizQuestion): QuizQuestion {
+  if (!question.options || question.options.length <= 1) return question;
+  const correctText = question.options[question.correctAnswerIndex] || question.correctAnswerText;
+  const shuffled = [...question.options].sort(() => Math.random() - 0.5);
+  const newIndex = shuffled.indexOf(correctText);
+  return {
+    ...question,
+    options: shuffled,
+    correctAnswerIndex: newIndex !== -1 ? newIndex : question.correctAnswerIndex,
+    correctAnswerText: correctText
+  };
+}
+
+export function shuffleQuizOptions(quiz: GeneratedQuiz, format?: QuizFormat): GeneratedQuiz {
+  if (format === QuizFormat.TRUE_FALSE || format === QuizFormat.OPEN_ENDED) return quiz;
+  return {
+    ...quiz,
+    questions: quiz.questions.map(q => shuffleQuestionOptions(q))
+  };
+}

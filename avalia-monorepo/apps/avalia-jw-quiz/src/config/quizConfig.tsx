@@ -37,8 +37,9 @@ EXPERIÊNCIA DO JOGADOR & NARRATIVA:
 
 FONTE E REGRAS INVIOLÁVEIS:
 1. FONTE EXCLUSIVA E ATUALIZADA:
-   - Use estritamente a Tradução do Novo Mundo da Bíblia Sagrada e publicações de jw.org.
-   - Reflete o entendimento mais recente ("novas luzes") das publicações.
+   - Use estritamente a Tradução do Novo Mundo da Bíblia Sagrada e publicações oficiais de jw.org.
+   - FOCO EM RELATOS E FATOS ESTÁVEIS: Dê prioridade absoluta a relatos bíblicos, biografias de personagens, lições morais/práticas e fatos históricos/geográficos atemporais da Tradução do Novo Mundo.
+   - PROIBIÇÃO DE ESPECULAÇÃO DOUTRINÁRIA: É estritamente proibido criar perguntas baseadas em interpretações doutrinárias complexas ou entendimentos proféticos que possam sofrer revisões recentes. Restrinja-se sempre aos fatos diretos e incontestáveis do texto bíblico.
    - Proibido usar fontes externas, dados seculares sem contexto bíblico oficial ou tradições confessionais genéricas.
 2. UMA RESPOSTA CORRETA E ALTERNATIVAS PLAUSÍVEIS:
    - Toda pergunta deve ter apenas 1 resposta correta e 3 alternativas plausíveis sem pegadinhas desonestas.
@@ -82,9 +83,9 @@ Antes de aceitar uma pergunta, avalie internamente:
 Se qualquer resposta for "não", descarte e gere outra pergunta.
 `,
    topicModes: [
-      { value: 'GENERAL', label: 'Geral', icon: <SquaresFour weight="duotone" className="w-10 h-10" /> },
+      { value: 'GENERAL', label: 'Geral', glosa: 'GERAL', icon: <SquaresFour weight="duotone" className="w-10 h-10" />, subtopics: ["Geral", "Personagens Bíblicos", "Ilustrações de Jesus", "Profecias Bíblicas", "Eventos Marcantes", "Cultura dos Tempos Bíblicos"], subtopicsLabel: "Subtema Bíblico" },
       { value: 'BOOKS', label: 'Livros da Bíblia', glosa: 'BIBLIA LIVRO', icon: <BookOpen weight="duotone" className="w-10 h-10" />, subtopics: ["Escrituras Hebraicas", "Escrituras Gregas Cristãs", "Gênesis", "Êxodo", "Levítico", "Números", "Deuteronômio", "Josué", "Juízes", "Rute", "1 Samuel", "2 Samuel", "1 Reis", "2 Reis", "1 Crônicas", "2 Crônicas", "Esdras", "Neemias", "Ester", "Jó", "Salmos", "Provérbios", "Eclesiastes", "Cântico de Salomão", "Isaías", "Jeremias", "Lamentações", "Ezequiel", "Daniel", "Oseias", "Joel", "Amós", "Obadias", "Jonas", "Miqueias", "Naum", "Habacuque", "Sofonias", "Ageu", "Zacarias", "Malaquias", "Mateus", "Marcos", "Lucas", "João", "Atos", "Romanos", "1 Coríntios", "2 Coríntios", "Gálatas", "Efésios", "Filipenses", "Colossenses", "1 Tessalonicenses", "2 Tessalonicenses", "1 Timóteo", "2 Timóteo", "Tito", "Filemom", "Hebreus", "Tiago", "1 Pedro", "2 Pedro", "1 João", "2 João", "3 João", "Judas", "Apocalipse"], subtopicsLabel: "Selecione o Livro" },
       { value: 'HISTORY_JW', label: 'A História', glosa: 'HISTORIA', icon: <Hourglass weight="duotone" className="w-10 h-10" /> },
-      { value: 'OTHER', label: 'Assunto Específico', icon: <Sparkle weight="duotone" className="w-10 h-10" />, hasCustomInput: true, customInputLabel: "Qual o assunto?", customInputPlaceholder: "Ex: O Sermão do Monte, A Vida de Davi..." }
+      { value: 'OTHER', label: 'Assunto Específico', glosa: 'OUTRO', icon: <Sparkle weight="duotone" className="w-10 h-10" />, hasCustomInput: true, customInputLabel: "Qual o assunto?", customInputPlaceholder: "Ex: O Sermão do Monte, A Vida de Davi..." }
    ]
 };

@@ -2,7 +2,7 @@ import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { QuizConfig, TopicMode, GeneratedQuiz, QuizQuestion, HintType, QuizFormat, EvaluationResult, TTSConfig, AiProvider, shuffleQuizOptions, shuffleQuestionOptions } from "@avalia/core";
 import { getQuestionReadAloudText } from "./tts";
 import { PROMPTS } from "@avalia/core";
-import { buildQuizPrompt } from "@avalia/ai-prompts";
+import { buildQuizPrompt, parseQuizResponse } from "@avalia/ai-prompts";
 import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db, logTelemetryEvent, getClientId } from "./firebase";
 
@@ -727,25 +727,7 @@ const executeSingleQuizRequest = async (
       throw new Error(`O modelo '${model}' do ${displayName} não retornou conteúdo. Os servidores gratuitos desse modelo podem estar temporariamente sobrecarregados no OpenRouter. Tente outro modelo.`);
     }
 
-    const raw = cleanJson(text);
-    const parsedPt = JSON.parse(raw);
-
-    const parsed: GeneratedQuiz = {
-      title: parsedPt.titulo || "Quiz",
-      keywords: parsedPt.palavrasChave || [],
-      focalTheme: parsedPt.palavrasChave?.[0] || "Dinâmico",
-      questions: (parsedPt.perguntas || []).map((p: any) => ({
-        id: p.id || `q-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        question: p.enunciado,
-        options: p.opcoes || [],
-        correctAnswerIndex: p.indiceRespostaCorreta ?? -1,
-        correctAnswerText: p.textoRespostaCorreta,
-        reference: p.referencia || "",
-        explanation: p.justificativa || "",
-        glosa: p.glosa || "",
-        hint: p.dica || ""
-      }))
-    };
+    const parsed: GeneratedQuiz = parseQuizResponse(text);
 
     const promptTokens = data.usage?.prompt_tokens;
     const completionTokens = data.usage?.completion_tokens;
@@ -905,25 +887,7 @@ const executeSingleQuizRequest = async (
   const text = result.text;
   if (!text) throw new Error("Resposta vazia da API do Google AI.");
 
-  const raw = cleanJson(text);
-  const parsedPt = JSON.parse(raw);
-
-  const parsed: GeneratedQuiz = {
-    title: parsedPt.titulo || "Quiz",
-    keywords: parsedPt.palavrasChave || [],
-    focalTheme: parsedPt.palavrasChave?.[0] || "Dinâmico",
-    questions: (parsedPt.perguntas || []).map((p: any) => ({
-      id: p.id,
-      question: p.enunciado,
-      options: p.opcoes,
-      correctAnswerIndex: p.indiceRespostaCorreta,
-      correctAnswerText: p.textoRespostaCorreta,
-      reference: p.referencia,
-      explanation: p.justificativa,
-      glosa: p.glosa,
-      hint: p.dica
-    }))
-  };
+  const parsed: GeneratedQuiz = parseQuizResponse(text);
 
   const promptTokens = result.usageMetadata?.promptTokenCount;
   const completionTokens = result.usageMetadata?.candidatesTokenCount;
@@ -977,7 +941,9 @@ export const generateQuizContent = async (apiKey: string, config: QuizConfig, gl
           subTopic: config.subTopic || config.specificTopic,
           count: config.count,
           temperature: config.temperature,
-          globalExclusions
+          globalExclusions,
+          usedTopics: (config.usedTopics || []).slice(0, 40),
+          allowedPageDomains: (config as any).allowedPageDomains || []
         })
       });
 

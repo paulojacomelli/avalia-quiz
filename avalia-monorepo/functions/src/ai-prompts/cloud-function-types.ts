@@ -4,6 +4,7 @@ import { GeneratedQuiz, QuizQuestion, EvaluationResult } from "./core-types";
 export interface GenerateQuizRequest {
   config: QuizConfig;
   globalExclusions: string[];
+  usedTopics?: string[];
   systemPrompt?: string;
   librasEnabled?: boolean;
 }

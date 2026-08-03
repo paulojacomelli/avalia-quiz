@@ -1,4 +1,4 @@
-import { QuizQuestion } from "./core-types";
+import { QuizQuestion, shuffleQuestionOptions } from "./core-types";
 import { cleanJson } from "./parseQuizResponse";
 
 export function parseReplacementResponse(text: string): QuizQuestion {
@@ -7,7 +7,7 @@ export function parseReplacementResponse(text: string): QuizQuestion {
   const raw = cleanJson(text);
   const p = JSON.parse(raw);
   
-  return {
+  const question: QuizQuestion = {
     id: `sub-${Date.now()}`,
     question: p.enunciado,
     options: p.opcoes || [],
@@ -18,4 +18,6 @@ export function parseReplacementResponse(text: string): QuizQuestion {
     glosa: p.glosa || "",
     hint: p.dica || ""
   };
+
+  return shuffleQuestionOptions(question);
 }

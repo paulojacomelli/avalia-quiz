@@ -71,4 +71,6 @@ export interface QuizConfig {
     librasEnabled?: boolean;
     systemPrompt?: string;
 }
+export declare function shuffleQuestionOptions(question: QuizQuestion): QuizQuestion;
+export declare function shuffleQuizOptions(quiz: GeneratedQuiz, format?: QuizFormat): GeneratedQuiz;
 //# sourceMappingURL=core-types.d.ts.map
