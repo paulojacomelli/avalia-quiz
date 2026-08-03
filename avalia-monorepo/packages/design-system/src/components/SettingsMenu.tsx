@@ -137,15 +137,23 @@ export function SettingsMenu(props: SettingsMenuProps) {
                         <div className="flex flex-col gap-2 p-3 bg-black/20 rounded-xl mt-1">
                             <span className="px-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Aparência</span>
                             <div className="grid grid-cols-3 gap-1">
-                                {(['light', 'dark', 'system'] as ThemeMode[]).map((m) => (
-                                    <button
-                                        key={m}
-                                        onClick={() => handleAction(() => onThemeChange(m))}
-                                        className={`text-[10px] py-2 rounded-lg font-bold border transition-all ${theme === m ? 'bg-brand-blue border-brand-blue text-white shadow-lg' : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'}`}
-                                    >
-                                        {m === 'light' ? 'Claro' : m === 'dark' ? 'Escuro' : 'Auto'}
-                                    </button>
-                                ))}
+                                {(['light', 'dark', 'system'] as ThemeMode[]).map((m) => {
+                                    const isDisabled = m !== 'dark';
+                                    return (
+                                        <button
+                                            key={m}
+                                            disabled={isDisabled}
+                                            onClick={() => !isDisabled && handleAction(() => onThemeChange(m))}
+                                            className={`text-[10px] py-2 rounded-lg font-bold border transition-all ${
+                                                m === 'dark' 
+                                                    ? 'bg-brand-blue border-brand-blue text-white shadow-lg cursor-default' 
+                                                    : 'bg-white/5 border-transparent text-gray-500 opacity-40 cursor-not-allowed pointer-events-none'
+                                            }`}
+                                        >
+                                            {m === 'light' ? 'Claro' : m === 'dark' ? 'Escuro' : 'Auto'}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 

@@ -8,9 +8,7 @@ interface UseGameSettingsProps {
 }
 
 export function useGameSettings({ storagePrefix, onInactivityTimeout }: UseGameSettingsProps) {
-  const [theme, setTheme] = useState<ThemeMode>(() => 
-    (localStorage.getItem(`${storagePrefix}-theme`) as ThemeMode) || 'system'
-  );
+  const [theme, setTheme] = useState<ThemeMode>('dark');
   
   const [soundEnabled, setSoundEnabled] = useState(() => 
     localStorage.getItem(`${storagePrefix}-soundEnabled`) !== 'false'
@@ -26,27 +24,10 @@ export function useGameSettings({ storagePrefix, onInactivityTimeout }: UseGameS
   // --- Theme Logic ---
   useEffect(() => {
     const root = document.documentElement;
-    const applyTheme = (isDark: boolean) => {
-      if (isDark) {
-        root.classList.add('dark');
-        document.body.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-        document.body.classList.remove('dark');
-      }
-    };
-
-    if (theme === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      applyTheme(mediaQuery.matches);
-      const handler = (e: MediaQueryListEvent) => applyTheme(e.matches);
-      mediaQuery.addEventListener('change', handler);
-      return () => mediaQuery.removeEventListener('change', handler);
-    } else {
-      applyTheme(theme === 'dark');
-    }
-    localStorage.setItem(`${storagePrefix}-theme`, theme);
-  }, [theme, storagePrefix]);
+    root.classList.add('dark');
+    document.body.classList.add('dark');
+    localStorage.setItem(`${storagePrefix}-theme`, 'dark');
+  }, [storagePrefix]);
 
   // --- Sound Logic ---
   const toggleSound = useCallback(() => {
