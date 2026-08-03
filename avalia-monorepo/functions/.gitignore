@@ -1,0 +1,7 @@
+# Build output
+lib/
+
+# Auto-generated prompts (synced from packages/ai-prompts/src via sync-prompts.js script)
+# Ignores everything under src/ai-prompts/ EXCEPT core-types.ts
+src/ai-prompts/*
+!src/ai-prompts/core-types.ts
