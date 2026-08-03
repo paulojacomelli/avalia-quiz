@@ -119,23 +119,23 @@ describe('quizUtils - validateUrlDomain', () => {
   });
 
   it('valida domínios permitidos corretamente (incluindo subdomínios)', () => {
-    const allowed = ['jw.org'];
-    expect(validateUrlDomain('https://www.jw.org/pt/biblioteca', allowed)).toBe(true);
-    expect(validateUrlDomain('https://jw.org', allowed)).toBe(true);
-    expect(validateUrlDomain('www.jw.org/en', allowed)).toBe(true);
+    const allowed = ['example.com'];
+    expect(validateUrlDomain('https://www.example.com/pt/biblioteca', allowed)).toBe(true);
+    expect(validateUrlDomain('https://example.com', allowed)).toBe(true);
+    expect(validateUrlDomain('www.example.com/en', allowed)).toBe(true);
   });
 
   it('rejeita esquemas de protocolo inseguros ou proibidos (javascript:, ftp:, file:)', () => {
-    const allowed = ['jw.org'];
+    const allowed = ['example.com'];
     expect(validateUrlDomain('javascript:alert(1)', allowed)).toBe(false);
-    expect(validateUrlDomain('ftp://jw.org/files', allowed)).toBe(false);
-    expect(validateUrlDomain('file:///C:/jw.org', allowed)).toBe(false);
+    expect(validateUrlDomain('ftp://example.com/files', allowed)).toBe(false);
+    expect(validateUrlDomain('file:///C:/example.com', allowed)).toBe(false);
   });
 
   it('rejeita domínios não permitidos ou URLs malformadas', () => {
-    const allowed = ['jw.org'];
+    const allowed = ['example.com'];
     expect(validateUrlDomain('https://wikipedia.org', allowed)).toBe(false);
-    expect(validateUrlDomain('https://jw.org.phishing.com', allowed)).toBe(false);
+    expect(validateUrlDomain('https://example.com.phishing.com', allowed)).toBe(false);
     expect(validateUrlDomain('', allowed)).toBe(false);
   });
 });

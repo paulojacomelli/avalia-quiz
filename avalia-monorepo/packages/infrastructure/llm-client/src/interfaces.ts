@@ -20,7 +20,7 @@ export interface LLMResponsePayload {
 
 /**
  * Interface estrita do Cliente LLM.
- * Não possui conhecimento de domínio (Quiz, JW, Regras).
+ * Não possui conhecimento de domínio
  * Recebe instruções puras e retorna texto puro.
  */
 export interface ILlmClient {

@@ -85,7 +85,7 @@ export interface QuizConfig {
   // Configuração de Libras (Geração de Glosa)
   librasEnabled?: boolean;
 
-  // System prompt customizado injetado pelo app consumidor (ex: JW Quiz)
+  // System prompt customizado injetado pelo app consumidor
   systemPrompt?: string;
 
   // Modos de tópico com rótulos amigáveis passados pelas configurações dos apps
@@ -114,14 +114,14 @@ export interface ApiErrorDetail {
 
 export type AiProvider = 'auto' | 'google-ai' | 'vertex' | 'deepseek' | 'groq' | 'openrouter' | 'openai' | 'claude';
 
-export type TelemetryEventType = 
+export type TelemetryEventType =
   | 'app_accessed'
   | 'session_start'
-  | 'error' 
-  | 'quiz_generated' 
-  | 'question_answered' 
-  | 'question_skipped' 
-  | 'question_voided' 
+  | 'error'
+  | 'quiz_generated'
+  | 'question_answered'
+  | 'question_skipped'
+  | 'question_voided'
   | 'hint_used'
   | 'ai_chat_response'
   | 'model_validation';
