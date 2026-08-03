@@ -2,6 +2,7 @@
     "name": "avalia-monorepo",
     "version": "1.9.58",
     "private": true,
+    "license": "GPL-3.0-only",
     "workspaces": [
         "packages/*",
         "apps/*",

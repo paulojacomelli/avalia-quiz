@@ -481,7 +481,7 @@ const getFormatInstruction = (config: QuizConfig) => {
   return `FORMATO: MÚLTIPLA ESCOLHA. 4 alternativas.`;
 };
 
-export const validateApiKey = async (apiKey: string, provider: AiProvider, model: string): Promise<boolean> => {
+const validateApiKeyCore = async (apiKey: string, provider: AiProvider, model: string): Promise<boolean> => {
   if (!apiKey) return false;
   if (!model) throw new Error(`Modelo de IA para o provedor '${provider}' não foi fornecido.`);
 
@@ -630,6 +630,35 @@ export const validateApiKey = async (apiKey: string, provider: AiProvider, model
   }
 
   throw new Error(`Provedor de IA desconhecido: '${provider}'.`);
+};
+
+/**
+ * Valida a chave de API de um provedor de IA e emite evento de telemetria 'model_validation'.
+ * A telemetria é fire-and-forget — erros de log não afetam o resultado da validação.
+ */
+export const validateApiKey = async (apiKey: string, provider: AiProvider, model: string): Promise<boolean> => {
+  const startTime = Date.now();
+  try {
+    const result = await validateApiKeyCore(apiKey, provider, model);
+    logTelemetryEvent({
+      eventType: 'model_validation',
+      appName: 'system',
+      aiModel: `${provider}/${model}`,
+      errorCode: '200',
+      durationMs: Date.now() - startTime
+    }).catch(() => {});
+    return result;
+  } catch (error: any) {
+    logTelemetryEvent({
+      eventType: 'model_validation',
+      appName: 'system',
+      aiModel: `${provider}/${model}`,
+      errorCode: 'error',
+      errorMessage: error.message,
+      durationMs: Date.now() - startTime
+    }).catch(() => {});
+    throw error;
+  }
 };
 
 const executeSingleQuizRequest = async (
