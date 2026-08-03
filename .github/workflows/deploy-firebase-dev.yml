@@ -66,6 +66,10 @@ jobs:
         working-directory: ./avalia-monorepo
         run: npm run build
 
+      - name: Authenticate Google Cloud (Service Account)
+        run: |
+          echo '${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}' > ${{ runner.temp }}/gcp-sa.json
+
       - name: Provision GCP Secret Manager Secrets
         working-directory: ./avalia-monorepo
         run: |
@@ -78,15 +82,11 @@ jobs:
           echo "${{ secrets.OPENROUTER_KEY }}" | npx firebase-tools functions:secrets:set OPENROUTER_KEY --force
           echo "${{ secrets.AVALIA_SECRET_CODE }}" | npx firebase-tools functions:secrets:set AVALIA_SECRET_CODE --force
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
 
       - name: Deploy to Firebase (Dev Sites)
         working-directory: ./avalia-monorepo
         run: |
-          if [ -z "$FIREBASE_TOKEN" ]; then
-            echo "ERROR: FIREBASE_TOKEN is not set"
-            exit 1
-          fi
           firebase deploy --only hosting:avaliaquizdev,hosting:avaliajwquizdev,functions --force --non-interactive
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
