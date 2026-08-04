@@ -7,7 +7,8 @@
  * {isCanary && <img src={logoPath} alt="Logo Canary" />}
  */
 
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
+
 
 interface CanaryLogoConfig {
   enabled: boolean;

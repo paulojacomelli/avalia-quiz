@@ -17,7 +17,7 @@ import {
   TourOverlay, TourStep,
   SettingsMenu, ThemeMode,
   VLibras, VLibrasTest, AdminDashboard,
-  AppLogo, renderFormattedAppTitle
+  AppLogo, renderFormattedAppTitle, FormattedTitle, useCanaryLogo
 } from '@avalia/design-system';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -30,6 +30,7 @@ import { useGameLoop } from './hooks/useGameLoop';
 
 interface GameEngineProps {
   appConfig?: QuizConfig;
+  isCanary?: boolean;
 }
 
 const TOUR_STEPS: TourStep[] = [
@@ -37,7 +38,8 @@ const TOUR_STEPS: TourStep[] = [
   { target: '[data-tour="tts"]', content: "Ative a narração para uma experiência mais acessível." }
 ];
 
-export default function GameEngine({ appConfig }: GameEngineProps) {
+export default function GameEngine({ appConfig, isCanary: isCanaryProp }: GameEngineProps) {
+
   const isRestrictPath = typeof window !== 'undefined' && (
     window.location.pathname.includes('/restrict') || 
     window.location.hash.includes('/restrict') ||
@@ -100,6 +102,10 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
   };
 
   const { isAuthenticated, apiKey, clientId, provider, model, login, logout } = useAuth();
+  const { isCanary: isCanaryHook } = useCanaryLogo();
+  const isCanary = isCanaryProp ?? isCanaryHook ?? true;
+
+
 
   // --- Registra Acesso do Visitante (Analytics / GA4 style) ---
   useEffect(() => {
@@ -281,9 +287,11 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
         <div className="min-h-screen flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-[#1a1a1a] w-full max-w-md p-10 md:p-12 rounded-[2rem] shadow-2xl border border-white/5 flex flex-col items-center relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-[var(--accent-primary,#4287f5)] shadow-[0_0_15px_var(--accent-primary,rgba(66,135,245,0.5))]"></div>
-            <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight mt-2">
-              {renderFormattedAppTitle(appName)}
+            <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight mt-2 flex items-center justify-center gap-3">
+              <img src="/logo.svg" alt="Logo" className="w-9 h-9 object-contain" />
+              <span>{renderFormattedAppTitle(appName)}</span>
             </h1>
+
             <p className="text-sm text-gray-400 mb-10">Selecione o idioma para começar.</p>
             
             <div className="w-full bg-black/40 p-2 rounded-3xl flex gap-3 mb-8 border border-white/5">
@@ -315,9 +323,11 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
             <div className="container mx-auto px-4 flex items-center justify-between">
               {/* Lado Esquerdo: Título + Modelo + Tutorial */}
               <div className="flex items-center gap-3">
-                <h1 className="text-base font-semibold truncate">
-                  {renderFormattedAppTitle(appName)}
+                <h1 className="text-base font-semibold truncate flex items-center gap-2">
+                  <img src="/logo.svg" alt="Logo" className="w-6 h-6 object-contain" />
+                  <span>{renderFormattedAppTitle(appName)}</span>
                 </h1>
+
                 {provider && model && (
                   <span className="bg-white/10 text-gray-300 text-xs font-mono font-medium px-2.5 py-0.5 rounded-md border border-white/10 shadow-xs flex items-center gap-1.5 shrink-0 hidden md:flex">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -702,11 +712,11 @@ export default function GameEngine({ appConfig }: GameEngineProps) {
 
               {/* FOOTER */}
               <footer className="w-full shrink-0 py-6 text-center text-[10px] opacity-40 hover:opacity-100 transition-opacity flex flex-col gap-1 pb-24 md:pb-12 border-t border-white/5 font-sans mt-auto">
-                <button onClick={() => game.setPendingAction('LOGOUT')} className="hover:text-red-400 underline transition-colors">Alterar Chave API / Sair</button>
                 <div className="flex flex-col gap-0.5">
-                  <span>Versão: {appConfig?.version || '1.4.96'}</span>
+                  <span>Versão: {appConfig?.version || '1.4.96'}{isCanary ? ' (Canary)' : ''}</span>
                   <span>Copyright © Paulo Jacomelli 2026</span>
                 </div>
+
               </footer>
             </div>
           </div>

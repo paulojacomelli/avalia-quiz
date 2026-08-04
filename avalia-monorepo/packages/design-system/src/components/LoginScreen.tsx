@@ -512,10 +512,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-[var(--accent-primary)] shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
 
         {title || (
-          <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight mt-2">
-            {renderFormattedAppTitle(appName)}
+          <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight mt-2 flex items-center justify-center gap-3">
+            <img src="/logo.svg" alt="Logo" className="w-9 h-9 object-contain" />
+            <span>{renderFormattedAppTitle(appName)}</span>
           </h1>
         )}
+
         <p className="text-sm text-gray-400 font-medium mb-10 text-center opacity-80">Acesse o sistema para começar o quiz.</p>
 
         {/* Barra de Abas: Alterna entre Login por Código ou Chave de API */}

@@ -38,6 +38,9 @@ const https_1 = require("firebase-functions/v2/https");
 const params_1 = require("firebase-functions/params");
 const admin = __importStar(require("firebase-admin"));
 const crypto = __importStar(require("node:crypto"));
+const buildQuizPrompt_1 = require("./ai-prompts/buildQuizPrompt");
+const core_types_1 = require("./ai-prompts/core-types");
+const pageFetcher_1 = require("./utils/pageFetcher");
 // Declaracao oficial de Secrets gerenciados nativamente pelo GCP Secret Manager
 const googleAiKey = (0, params_1.defineSecret)("GOOGLE_AI_KEY");
 const openaiKey = (0, params_1.defineSecret)("OPENAI_KEY");
@@ -149,7 +152,7 @@ exports.generateQuizProxy = (0, https_1.onRequest)({
         return;
     }
     const clientIp = getTrustedClientIp(req);
-    const { secretCode, provider, model, theme, subTopic, temperature, generationId, globalExclusions, count } = req.body || {};
+    const { secretCode, provider, model, theme, subTopic, temperature, generationId, globalExclusions, usedTopics, count } = req.body || {};
     const activeGenId = generationId || `gen-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const questionCount = (typeof count === 'number' && count > 0 && count <= 50) ? count : 10;
     const SUPPORTED_PROVIDERS = ["google-ai", "vertex", "openai", "groq", "deepseek", "openrouter", "claude"];
@@ -209,34 +212,64 @@ exports.generateQuizProxy = (0, https_1.onRequest)({
             res.status(500).json({ error: `Chave secreta do provedor '${targetProvider}' não configurada no servidor.` });
             return;
         }
-        const exclusionText = Array.isArray(globalExclusions) && globalExclusions.length > 0
-            ? `\nTERMOS/TÓPICOS JÁ ABORDADOS ANTERIORMENTE (EVITAR REPETIÇÕES): [${globalExclusions.slice(0, 30).join(", ")}].`
-            : "";
         if (!theme || typeof theme !== "string" || !theme.trim()) {
             res.status(400).json({ error: "Campo obrigatório ausente: theme. Informe o tema do quiz." });
             return;
         }
-        const subTopicClause = subTopic && typeof subTopic === "string" && subTopic.trim()
-            ? ` (Subtópico: '${subTopic.trim()}')`
-            : "";
-        // 5. Integração REAL de IA Serverless: Chamada à API oficial utilizando a apiKey do GCP Secret Manager
-        const prompt = `Gere um quiz com ${questionCount} perguntas sobre o tema '${theme.trim()}'${subTopicClause}.${exclusionText}
-IMPORTANTE: Responda APENAS em formato JSON estrito respeitando a estrutura:
-{
-  "titulo": "Título do Quiz",
-  "palavrasChave": ["Tema1", "Tema2"],
-  "perguntas": [
-    {
-      "id": "q1",
-      "enunciado": "Pergunta aqui...",
-      "opcoes": ["Opção A", "Opção B", "Opção C", "Opção D"],
-      "indiceRespostaCorreta": 0,
-      "textoRespostaCorreta": "Opção A",
-      "justificativa": "Explicação curta",
-      "dica": "Dica útil"
-    }
-  ]
-}`;
+        const userExcl = Array.isArray(usedTopics) ? usedTopics : [];
+        const globalExcl = Array.isArray(globalExclusions) ? globalExclusions : [];
+        const combinedExclusions = Array.from(new Set([...userExcl, ...globalExcl]))
+            .filter((t) => typeof t === 'string' && !!t.trim())
+            .slice(0, 40);
+        const quizConfig = {
+            mode: theme.trim(),
+            subTopic: (subTopic && typeof subTopic === "string" && subTopic.trim()) ? subTopic.trim() : "Geral",
+            count: questionCount,
+            difficulty: core_types_1.Difficulty.MEDIUM,
+            temperature: (typeof temperature === 'number' && temperature >= 0 && temperature <= 2) ? temperature : 1.0,
+            quizFormat: core_types_1.QuizFormat.MULTIPLE_CHOICE,
+            usedTopics: combinedExclusions,
+            timeLimit: 60,
+            maxHints: 3,
+            hintTypes: [],
+            enableTimer: true,
+            enableTimerSound: true,
+            isTeamMode: false,
+            teams: [],
+            questionsPerRound: questionCount,
+            tts: {
+                enabled: false,
+                autoRead: false,
+                engine: 'gemini',
+                gender: 'female',
+                rate: 1.0,
+                volume: 1.0
+            }
+        };
+        // 4.5. Detecção de URL para extração server-side com proteção SSRF e sanitização Cheerio
+        let pageExtractedText;
+        const rawTargetUrl = (subTopic && typeof subTopic === "string") ? subTopic.trim() : "";
+        const isUrlTarget = rawTargetUrl.startsWith("http://") || rawTargetUrl.startsWith("https://");
+        if (isUrlTarget) {
+            try {
+                const allowedDomains = Array.isArray(req.body.allowedDomains)
+                    ? req.body.allowedDomains.filter((d) => typeof d === 'string' && !!d.trim())
+                    : (Array.isArray(req.body.allowedPageDomains)
+                        ? req.body.allowedPageDomains.filter((d) => typeof d === 'string' && !!d.trim())
+                        : []);
+                pageExtractedText = await (0, pageFetcher_1.fetchAndCleanPageContent)(rawTargetUrl, allowedDomains);
+            }
+            catch (fetchErr) {
+                console.error(`[pageFetcher Error] Falha ao extrair URL '${rawTargetUrl}':`, fetchErr.message);
+                res.status(400).json({ error: `Falha ao processar a página informada: ${fetchErr.message}` });
+                return;
+            }
+        }
+        if (pageExtractedText) {
+            quizConfig.systemPrompt = `CONTEÚDO EXTRAÍDO DA PÁGINA (FONTE OBRIGATÓRIA DA URL: ${rawTargetUrl}):\n"""\n${pageExtractedText}\n"""\n\nREGRA MANDATÓRIA: Crie todas as perguntas baseando-se EXCLUSIVAMENTE nas informações contidas no CONTEÚDO EXTRAÍDO acima.`;
+        }
+        // 5. Integração REAL de IA Serverless: Montagem estruturada do prompt com garantia de especificidade
+        const prompt = (0, buildQuizPrompt_1.buildQuizPrompt)(quizConfig, combinedExclusions);
         const promptHash = crypto.createHash("sha256").update(prompt).digest("hex").substring(0, 12);
         console.log("[generateQuizProxy INITIATED]", JSON.stringify({
             generationId: activeGenId,
