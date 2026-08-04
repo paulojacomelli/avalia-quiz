@@ -512,8 +512,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-[var(--accent-primary)] shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
 
         {title || (
-          <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight mt-2 flex items-center justify-center gap-3">
-            <img src="/logo.svg" alt="Logo" className="w-9 h-9 object-contain" />
+          <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight mt-2 flex flex-col items-center justify-center gap-4">
+            {logo || <img src="/logo.svg" alt="Logo" className="w-16 h-16 object-contain shrink-0 drop-shadow-xl" />}
             <span>{renderFormattedAppTitle(appName)}</span>
           </h1>
         )}
