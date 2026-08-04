@@ -1,35 +1,32 @@
 {
-    "name":  "@avalia/jw-quiz",
-    "private":  true,
-    "version": "1.9.61",
-
-
-
-    "type":  "module",
-    "scripts":  {
-                    "dev":  "vite",
-                    "build":  "vite build",
-                    "deploy":  "npm run build \u0026\u0026 firebase deploy",
-                    "preview":  "vite preview"
-                },
-    "dependencies":  {
-                         "@avalia/core":  "*",
-                         "@avalia/design-system":  "*",
-                         "@avalia/game-engine":  "*",
-                         "@avalia/services":  "*",
-                         "@google/genai":  "^1.33.0",
-                         "@phosphor-icons/react":  "^2.1.10",
-                         "firebase":  "^12.8.0",
-                         "react":  "^19.2.3",
-                         "react-dom":  "^19.2.3",
-                         "turbo":  "^2.9.17"
-                     },
-    "devDependencies":  {
-                            "@types/node":  "^22.14.0",
-                            "@vitejs/plugin-react":  "^5.1.2",
-                            "typescript":  "~5.8.2",
-                            "vite":  "^7.3.0",
-                            "vite-plugin-pwa":  "^1.2.0"
-                        },
-    "license":  "GPL-3.0-only"
+    "name": "@avalia/jw-quiz",
+    "private": true,
+    "version": "1.9.62",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "deploy": "npm run build && firebase deploy",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "@avalia/core": "*",
+        "@avalia/design-system": "*",
+        "@avalia/game-engine": "*",
+        "@avalia/services": "*",
+        "@google/genai": "^1.33.0",
+        "@phosphor-icons/react": "^2.1.10",
+        "firebase": "^12.8.0",
+        "react": "^19.2.3",
+        "react-dom": "^19.2.3",
+        "turbo": "^2.9.17"
+    },
+    "devDependencies": {
+        "@types/node": "^22.14.0",
+        "@vitejs/plugin-react": "^5.1.2",
+        "typescript": "~5.8.2",
+        "vite": "^7.3.0",
+        "vite-plugin-pwa": "^1.2.0"
+    },
+    "license": "GPL-3.0-only"
 }
