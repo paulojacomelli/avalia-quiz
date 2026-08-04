@@ -31,6 +31,7 @@ import { useGameLoop } from './hooks/useGameLoop';
 interface GameEngineProps {
   appConfig?: QuizConfig;
   isCanary?: boolean;
+  onGameStateChange?: (state: string) => void;
 }
 
 const TOUR_STEPS: TourStep[] = [
@@ -38,7 +39,7 @@ const TOUR_STEPS: TourStep[] = [
   { target: '[data-tour="tts"]', content: "Ative a narração para uma experiência mais acessível." }
 ];
 
-export default function GameEngine({ appConfig, isCanary: isCanaryProp }: GameEngineProps) {
+export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameStateChange }: GameEngineProps) {
 
   const isRestrictPath = typeof window !== 'undefined' && (
     window.location.pathname.includes('/restrict') || 
@@ -162,6 +163,12 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp }: GameEn
     speakText,
     logout
   });
+
+  useEffect(() => {
+    if (onGameStateChange) {
+      onGameStateChange(game.gameState);
+    }
+  }, [game.gameState, onGameStateChange]);
 
   // Hook de Narração Reativo
   const narration = useNarration({

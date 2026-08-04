@@ -10,7 +10,8 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
-        registerType: 'autoUpdate',
+        registerType: 'prompt',
+        workbox: { importScripts: ['/custom-sw.js'] },
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
         manifest: {
           name: env.VITE_APP_TITLE || 'Avalia Quiz',

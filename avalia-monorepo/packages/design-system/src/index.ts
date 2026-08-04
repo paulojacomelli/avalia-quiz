@@ -18,4 +18,5 @@ export { default as VLibrasControls } from './components/VLibrasControls';
 export type { VLibrasControlsHandle } from './components/VLibrasControls';
 export * from './components/quiz/QuizOptions';
 export * from './hooks/useCanaryLogo';
+export * from './components/NativePwaUpdater';
 
