@@ -81,6 +81,17 @@ const parseApiErrorMessage = (errorText: string, status: number | string): strin
   }
 
   const lowerMsg = String(cleanMsg).toLowerCase();
+  const lowerFullStr = String(errorText).toLowerCase();
+
+  // Tratamento amigável para modelo não encontrado / não suportado (HTTP 404)
+  if (status === 404 || status === '404' || lowerMsg.includes('not found') || lowerMsg.includes('is not found') || lowerFullStr.includes('404')) {
+    const modelMatch = String(errorText).match(/'([^']+)'|models\/([a-zA-Z0-9.\-_]+)/);
+    const modelName = modelMatch ? (modelMatch[1] || modelMatch[2]) : '';
+    return modelName 
+      ? `O modelo de IA "${modelName}" não está disponível ou foi descontinuado pelo provedor. Selecione outro modelo nas configurações.`
+      : 'O modelo de IA selecionado não está disponível ou foi descontinuado. Por favor, escolha outro modelo nas configurações.';
+  }
+
   if (lowerMsg.includes('quota exceeded') || lowerMsg.includes('resource_exhausted') || lowerMsg.includes('rate_limit') || lowerMsg.includes('free_tier_requests')) {
     return 'Cota ou limite de requisições excedido no provedor. Por favor, aguarde alguns segundos ou selecione outro modelo/provedor.';
   }
@@ -94,13 +105,20 @@ const parseApiErrorMessage = (errorText: string, status: number | string): strin
     return 'Limite de requisições excedido no provedor de IA. Aguarde alguns instantes.';
   }
   if (status === 403 || status === 401 || status === '403' || status === '401' || lowerMsg.includes('invalid api key') || lowerMsg.includes('api key not valid')) {
-    return 'Chave de API inválida ou sem permissão de acesso.';
+    return 'Chave de API inválida ou sem permissão de acesso. Verifique sua chave nas configurações.';
   }
   if (typeof status === 'number' && status >= 500) {
-    return 'Servidor do provedor de IA temporariamente indisponível.';
+    return 'Servidor do provedor de IA temporariamente indisponível. Tente novamente em alguns instantes.';
   }
 
-  return cleanMsg ? String(cleanMsg).slice(0, 250) : `Erro na API (${status})`;
+  // Remove formatação JSON / HTTP bruta da mensagem se restou
+  const sanitized = String(cleanMsg)
+    .replace(/^Falha ao validar modelo preconfigurado no Firestore '[^']+':\s*/, '')
+    .replace(/HTTP \d+\.?\s*/g, '')
+    .replace(/\{"error":\s*\{.*\}\}/g, '')
+    .trim();
+
+  return sanitized.length > 5 ? sanitized : 'Ocorreu um erro de comunicação com o provedor de IA. Tente novamente.';
 };
 
 /**
@@ -518,24 +536,8 @@ const validateApiKeyCore = async (apiKey: string, provider: AiProvider, model: s
           apiMessage = errObj.error?.message || errObj.message || "";
         } catch (e) { }
 
-        if (response.status === 401) {
-          throw new Error(`Chave de API incorreta ou inativa no ${displayName}.`);
-        }
-        if (response.status === 402) {
-          throw new Error(`Saldo insuficiente ou pagamento exigido no ${displayName}. Adicione créditos para continuar.`);
-        }
-        if (response.status === 429) {
-          throw new Error(`Limite de requisições excedido ou quota zerada no ${displayName}. Aguarde alguns instantes.`);
-        }
-
-        if (apiMessage) {
-          const lowerMsg = apiMessage.toLowerCase();
-          if (lowerMsg.includes('no :free endpoints') || lowerMsg.includes('no free endpoints') || lowerMsg.includes('no endpoints available')) {
-            throw new Error("Servidores gratuitos do OpenRouter temporariamente ocupados. Aguarde alguns segundos ou altere o provedor.");
-          }
-          throw new Error(`Erro da API do ${displayName}: ${apiMessage}`);
-        }
-        throw new Error(`Erro na API do ${displayName} (${response.status}): ${errorText}`);
+        const friendlyMsg = parseApiErrorMessage(errorText, response.status);
+        throw new Error(friendlyMsg);
       }
 
       const data = await response.json();
@@ -570,20 +572,8 @@ const validateApiKeyCore = async (apiKey: string, provider: AiProvider, model: s
           apiMessage = errObj.error?.message || errObj.message || "";
         } catch (e) { }
 
-        const lowerMsg = apiMessage.toLowerCase();
-        if (response.status === 401 || lowerMsg.includes('invalid x-api-key') || lowerMsg.includes('invalid api key')) {
-          throw new Error("Chave de API do Claude incorreta ou inativa na Anthropic.");
-        }
-        if (response.status === 402 || lowerMsg.includes('credit balance is too low') || lowerMsg.includes('purchase credits') || lowerMsg.includes('insufficient balance')) {
-          throw new Error("Saldo insuficiente na Anthropic (Claude). Acesse Plans & Billing no console da Anthropic para adicionar créditos.");
-        }
-        if (response.status === 429) {
-          throw new Error("Limite de requisições excedido no Claude (Anthropic). Aguarde alguns instantes.");
-        }
-        if (apiMessage) {
-          throw new Error(`Erro na API do Claude: ${apiMessage}`);
-        }
-        throw new Error(`Validação da API do Claude falhou (${response.status}): ${errorText}`);
+        const friendlyMsg = parseApiErrorMessage(errorText, response.status);
+        throw new Error(friendlyMsg);
       }
 
       const data = await response.json();
@@ -636,14 +626,50 @@ const validateApiKeyCore = async (apiKey: string, provider: AiProvider, model: s
  * Valida a chave de API de um provedor de IA e emite evento de telemetria 'model_validation'.
  * A telemetria é fire-and-forget — erros de log não afetam o resultado da validação.
  */
-export const validateApiKey = async (apiKey: string, provider: AiProvider, model: string): Promise<boolean> => {
+export const validateApiKey = async (apiKey: string, provider: AiProvider, model: string, ttsModel?: string): Promise<boolean> => {
   const startTime = Date.now();
   try {
     const result = await validateApiKeyCore(apiKey, provider, model);
+
+    // Se um modelo de TTS específico for informado, realiza também a validação do modelo de áudio
+    if (result && ttsModel && ttsModel.trim()) {
+      const cleanTtsModel = ttsModel.trim();
+      if (provider === 'google-ai' || provider === 'vertex') {
+        const genAI = getSDKInstance(apiKey);
+        await genAI.models.generateContent({
+          model: cleanTtsModel,
+          contents: [{ role: "user", parts: [{ text: "Teste de voz" }] }],
+          config: {
+            responseModalities: [Modality.AUDIO],
+            speechConfig: {
+              voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } }
+            }
+          }
+        });
+        recordModelCompatibilityStatus('google-ai', cleanTtsModel, 'compatible');
+      } else if (provider === 'openai') {
+        const resp = await fetch('https://api.openai.com/v1/audio/speech', {
+          method: 'POST',
+          headers: getFetchHeaders(apiKey, provider),
+          body: JSON.stringify({
+            model: cleanTtsModel,
+            input: "Teste de voz",
+            voice: 'coral'
+          })
+        });
+        if (!resp.ok) {
+          const errText = await resp.text();
+          const friendlyMsg = parseApiErrorMessage(errText, resp.status);
+          throw new Error(`Validação do modelo TTS (${cleanTtsModel}): ${friendlyMsg}`);
+        }
+        recordModelCompatibilityStatus('openai', cleanTtsModel, 'compatible');
+      }
+    }
+
     logTelemetryEvent({
       eventType: 'model_validation',
       appName: 'system',
-      aiModel: `${provider}/${model}`,
+      aiModel: `${provider}/${model}${ttsModel ? ` (TTS: ${ttsModel})` : ''}`,
       errorCode: '200',
       durationMs: Date.now() - startTime
     }).catch(() => {});
@@ -652,7 +678,7 @@ export const validateApiKey = async (apiKey: string, provider: AiProvider, model
     logTelemetryEvent({
       eventType: 'model_validation',
       appName: 'system',
-      aiModel: `${provider}/${model}`,
+      aiModel: `${provider}/${model}${ttsModel ? ` (TTS: ${ttsModel})` : ''}`,
       errorCode: 'error',
       errorMessage: error.message,
       durationMs: Date.now() - startTime
@@ -1417,8 +1443,10 @@ export const generateSpeech = async (apiKey: string, text: string, config: TTSCo
   const ttsModel = getTtsModel();
 
   // Suporte a OpenAI TTS
-  if (provider === 'openai' || ttsModel.startsWith('tts-') || ttsModel.includes('gpt-4o-mini-tts')) {
+  if (provider === 'openai') {
+    if (!ttsModel) return null;
     const voice = config.gender === 'male' ? 'onyx' : 'coral';
+
     try {
       const response = await fetch('https://api.openai.com/v1/audio/speech', {
         method: 'POST',
@@ -1427,14 +1455,14 @@ export const generateSpeech = async (apiKey: string, text: string, config: TTSCo
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: ttsModel || 'gpt-4o-mini-tts',
+          model: ttsModel,
           input: text,
           voice: voice
         })
       });
       if (!response.ok) {
         const errJson = await response.json().catch(() => ({}));
-        console.error("[TTS/OpenAI] Erro na chamada de áudio:", errJson);
+        console.error(`[TTS/OpenAI] Erro no modelo ${ttsModel}:`, errJson);
         return null;
       }
       const arrayBuffer = await response.arrayBuffer();
@@ -1447,7 +1475,7 @@ export const generateSpeech = async (apiKey: string, text: string, config: TTSCo
       recordModelCompatibilityStatus('openai', ttsModel);
       return audioBase64;
     } catch (error) {
-      console.error("[TTS/OpenAI] Falha ao gerar áudio:", error);
+      console.error(`[TTS/OpenAI] Exceção no modelo ${ttsModel}:`, error);
       return null;
     }
   }
@@ -1456,28 +1484,60 @@ export const generateSpeech = async (apiKey: string, text: string, config: TTSCo
     return null;
   }
 
+  if (!ttsModel) return null;
+
   const genAI = getSDKInstance(apiKey);
   const voiceName = config.gender === 'male' ? 'Fenrir' : 'Kore';
+
+  // No modo dinâmico do provedor, busca a lista real de modelos retornados pela API
+  let modelsToTry: string[] = ttsModel ? [ttsModel] : [];
   try {
-    const result = await genAI.models.generateContent({
-      model: ttsModel,
-      contents: [{ role: 'user', parts: [{ text }] }],
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName } }
-        }
-      }
-    });
-    const audioData = (result as any).data || null;
-    if (audioData) {
-      recordModelCompatibilityStatus('google-ai', ttsModel);
+    const fetchedDynamic = await fetchDynamicModels(provider, apiKey, 'tts');
+    let validDynamic: string[] = [];
+    if (fetchedDynamic && fetchedDynamic.length > 0) {
+      validDynamic = fetchedDynamic
+        .filter((m: any) => !m.isBlocked && m.value)
+        .map((m: any) => m.value);
     }
-    return audioData;
-  } catch (error) {
-    console.error("[TTS/Gemini] Falha ao gerar áudio:", error);
-    return null;
+    
+    // Se a busca com filtro 'tts' não trouxer modelos suficientes, busca os modelos de geração de texto/multimodal oficiais da API
+    if (validDynamic.length === 0) {
+      const fetchedText = await fetchDynamicModels(provider, apiKey, 'text');
+      if (fetchedText && fetchedText.length > 0) {
+        validDynamic = fetchedText
+          .filter((m: any) => !m.isBlocked && m.value)
+          .map((m: any) => m.value);
+      }
+    }
+
+    modelsToTry = Array.from(new Set([...modelsToTry, ...validDynamic].filter(Boolean)));
+  } catch {
+    modelsToTry = ttsModel ? [ttsModel] : [];
   }
+
+  for (const currentModel of modelsToTry) {
+    try {
+      const result = await genAI.models.generateContent({
+        model: currentModel,
+        contents: [{ role: 'user', parts: [{ text }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName } }
+          }
+        }
+      });
+      const audioData = (result as any).data || null;
+      if (audioData) {
+        recordModelCompatibilityStatus('google-ai', currentModel);
+        return audioData;
+      }
+    } catch (error) {
+      console.warn(`[TTS/Gemini] Rejeição/cota no modelo ${currentModel}, buscando próximo modelo retornado pela API:`, error);
+    }
+  }
+
+  return null;
 };
 
 export const preGenerateQuizAudio = async (apiKey: string, quiz: GeneratedQuiz, ttsConfig: TTSConfig, teamNames: string[] = [], provider: AiProvider = 'google-ai'): Promise<GeneratedQuiz> => {

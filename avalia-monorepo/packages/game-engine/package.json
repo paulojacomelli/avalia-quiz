@@ -1,6 +1,6 @@
 {
   "name": "@avalia/game-engine",
-  "version": "1.9.59",
+  "version": "1.9.61",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",

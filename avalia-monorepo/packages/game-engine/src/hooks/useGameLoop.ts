@@ -9,7 +9,7 @@ import {
   logTelemetryEvent, resolveAiModelLabel, getClientId, resolveThemeLabel
 } from '@avalia/services';
 
-type GameState = 'START_SCREEN' | 'SETUP' | 'READY_CHECK' | 'COUNTDOWN' | 'PLAYING' | 'ROUND_SUMMARY' | 'FINISHED';
+type GameState = 'START_SCREEN' | 'SETTINGS' | 'SETUP' | 'READY_CHECK' | 'COUNTDOWN' | 'PLAYING' | 'ROUND_SUMMARY' | 'FINISHED';
 
 interface UseGameLoopProps {
   storagePrefix: string;
@@ -350,7 +350,7 @@ export function useGameLoop({
           const needed = data.questions.filter((q: QuizQuestion) => !q.audioUrl);
           if (needed.length > 0) {
             setLoadingMessage("Gerando narrações de IA...");
-            data = await preGenerateQuizAudio(apiKey, data, finalConfig.tts, tempTeams.map(t => t.name));
+            data = await preGenerateQuizAudio(apiKey, data, finalConfig.tts, tempTeams.map(t => t.name), provider as AiProvider);
           }
         }
 
@@ -368,7 +368,7 @@ export function useGameLoop({
         data = await generateQuizContent(apiKey!, finalConfig, globalExclusions, provider as AiProvider, model, appName);
         if (ttsEnabled && finalConfig.tts.engine === 'gemini' && apiKey) {
           setLoadingMessage("Gerando narrações de IA...");
-          data = await preGenerateQuizAudio(apiKey, data, finalConfig.tts, tempTeams.map(t => t.name));
+          data = await preGenerateQuizAudio(apiKey, data, finalConfig.tts, tempTeams.map(t => t.name), provider as AiProvider);
         }
         const aiModel = resolveAiModelLabel(provider, model);
         const themeLabel = resolveThemeLabel(finalConfig.mode, appName, finalConfig.topicModes);

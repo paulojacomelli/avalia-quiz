@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from './contexts/AuthContext';
-import { 
+import {
   GeneratedQuiz, QuizConfig, Team, HintType, ApiErrorDetail,
   TUTORIAL_CONFIG, TUTORIAL_DATA, GLOSAS_VALIDADAS, AiProvider
 } from '@avalia/core';
-import { 
+import {
   playSound, speakText, stopSpeech, db, resolveAiModelLabel, validateApiKey, logTelemetryEvent, getClientId,
   checkAccessCodeLock, registerFailedCodeAttempt, resetFailedCodeAttempts
 } from '@avalia/services';
-import { 
+import {
   Translate, HandsClapping, SpeakerHigh, SpeakerSlash, House, CornersOut
 } from '@phosphor-icons/react';
-import { 
+import {
   CookieBanner, PrivacyPolicyModal, ReadyCheck,
   SetupForm, QuizCard, LoginScreen,
   TourOverlay, TourStep,
@@ -42,7 +42,7 @@ const TOUR_STEPS: TourStep[] = [
 export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameStateChange }: GameEngineProps) {
 
   const isRestrictPath = typeof window !== 'undefined' && (
-    window.location.pathname.includes('/restrict') || 
+    window.location.pathname.includes('/restrict') ||
     window.location.hash.includes('/restrict') ||
     window.location.search.includes('route=restrict')
   );
@@ -80,13 +80,13 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
 
   if (showAdmin) {
     return (
-      <AdminDashboard 
+      <AdminDashboard
         appName={appName}
         themeLabelMap={themeLabelMap}
         onReturnToQuiz={() => {
           setShowAdmin(false);
           if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
-        }} 
+        }}
       />
     );
   }
@@ -123,7 +123,7 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
       clientId: activeClientId
     }).catch(e => console.warn("Falha ao registrar acesso inicial:", e));
   }, [appName]);
-  
+
   const [setupStep, setSetupStep] = useState(1);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isPrivacyPolicyOpen, setIsPrivacyPolicyOpen] = useState(false);
@@ -156,7 +156,7 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
     provider: provider || undefined,
     model: model || '',
     ttsEnabled: initialTTS.ttsEnabled,
-    ttsConfig: initialTTS.ttsConfig, 
+    ttsConfig: initialTTS.ttsConfig,
     usedTopics,
     setUsedTopics,
     stopSpeech,
@@ -300,27 +300,114 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
             </h1>
 
             <p className="text-sm text-gray-400 mb-10">Selecione o idioma para começar.</p>
-            
+
             <div className="w-full bg-black/40 p-2 rounded-3xl flex gap-3 mb-8 border border-white/5">
               <button onClick={() => game.setInterfaceLanguage('pt')} className={`flex-1 flex flex-col items-center justify-center gap-2 py-4 rounded-2xl transition-all font-bold ${game.interfaceLanguage === 'pt' ? 'bg-[#2a2a2a] text-white shadow-lg' : 'text-gray-600'}`}>
                 <svg viewBox="0 0 720 504" className="w-8 h-6 object-contain rounded-xs shadow-xs">
-                  <rect width="720" height="504" fill="#009933"/>
-                  <polygon points="360,54 666,252 360,450 54,252" fill="#ffcc00"/>
-                  <circle cx="360" cy="252" r="126" fill="#002776"/>
+                  <rect width="720" height="504" fill="#009933" />
+                  <polygon points="360,54 666,252 360,450 54,252" fill="#ffcc00" />
+                  <circle cx="360" cy="252" r="126" fill="#002776" />
                 </svg>
                 <span>Português</span>
               </button>
               <button onClick={() => game.setInterfaceLanguage('libras')} className={`flex-1 flex flex-col items-center justify-center gap-2 py-4 rounded-2xl transition-all font-bold ${game.interfaceLanguage === 'libras' ? 'bg-[#2a2a2a] text-white shadow-lg' : 'text-gray-600 hover:text-gray-400'}`}>
-                <img 
-                  src="/libras.svg" 
-                  alt="Libras" 
+                <img
+                  src="/libras.svg"
+                  alt="Libras"
                   className="w-8 h-8 object-contain"
                 />
                 <span>Libras</span>
               </button>
             </div>
 
-            <button onClick={() => game.setGameState('SETUP')} className="w-full text-white font-bold py-4 rounded-xl shadow-xl transition-all" style={{ backgroundColor: 'var(--accent-primary, #4287f5)' }}>Iniciar</button>
+            <button onClick={() => game.setGameState('SETTINGS')} className="w-full text-white font-bold py-4 rounded-xl shadow-xl transition-all hover:brightness-110" style={{ backgroundColor: 'var(--accent-primary, #4287f5)' }}>Avançar</button>
+          </div>
+        </div>
+      ) : game.gameState === 'SETTINGS' ? (
+        <div className="min-h-screen flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#1a1a1a] w-full max-w-md p-8 md:p-10 rounded-[2rem] shadow-2xl border border-white/5 flex flex-col relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-[var(--accent-primary,#4287f5)] shadow-[0_0_15px_var(--accent-primary,rgba(66,135,245,0.5))]"></div>
+
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <SpeakerHigh size={24} className="text-[var(--accent-primary,#4287f5)]" />
+                <span>Configurações de Áudio</span>
+              </h2>
+              <button
+                onClick={() => game.setGameState('START_SCREEN')}
+                className="text-xs text-gray-400 hover:text-white transition-colors"
+              >
+                Voltar
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-400 mb-6">Ajuste os efeitos sonoros e a narração antes de iniciar.</p>
+
+            <div className="flex flex-col gap-4 mb-8">
+              {/* Opção de Efeitos Sonoros */}
+              <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-white/5 text-gray-300">
+                    {settings.soundEnabled ? <SpeakerHigh size={20} /> : <SpeakerSlash size={20} />}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">Efeitos Sonoros</h3>
+                    <p className="text-xs text-gray-400">Sons de cliques, acertos e timer</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    playSound('click');
+                    settings.toggleSound();
+                  }}
+                  className={`w-12 h-6 rounded-full transition-colors relative p-1 flex items-center ${settings.soundEnabled ? 'bg-[var(--accent-primary,#4287f5)]' : 'bg-white/10'
+                    }`}
+                >
+                  <span className={`w-4 h-4 rounded-full bg-white transition-transform ${settings.soundEnabled ? 'translate-x-6' : 'translate-x-0'
+                    }`} />
+                </button>
+              </div>
+
+              {/* Opção de Narração (TTS) */}
+              <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
+                    <SpeakerHigh size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">Narração de IA (TTS)</h3>
+                    <p className="text-xs text-gray-400">Leitura automática de perguntas e opções</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    playSound('click');
+                    narration.handleTTSSelection(narration.ttsEnabled ? 'off' : 'gemini');
+                  }}
+                  className={`w-12 h-6 rounded-full transition-colors relative p-1 flex items-center ${narration.ttsEnabled ? 'bg-purple-600' : 'bg-white/10'
+                    }`}
+                >
+                  <span className={`w-4 h-4 rounded-full bg-white transition-transform ${narration.ttsEnabled ? 'translate-x-6' : 'translate-x-0'
+                    }`} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => game.setGameState('START_SCREEN')}
+                className="flex-1 font-bold py-3.5 rounded-xl border border-white/10 text-gray-300 hover:bg-white/5 transition-all text-sm"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={() => game.setGameState('SETUP')}
+                className="flex-1 text-white font-bold py-3.5 rounded-xl shadow-xl transition-all hover:brightness-110 text-sm"
+                style={{ backgroundColor: 'var(--accent-primary, #4287f5)' }}
+              >
+                Iniciar Quiz
+              </button>
+            </div>
           </div>
         </div>
       ) : (
@@ -359,9 +446,9 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
                   >
                     {game.interfaceLanguage === 'pt' ? (
                       <svg viewBox="0 0 720 504" className="w-5 h-4 object-contain rounded-xs shadow-xs">
-                        <rect width="720" height="504" fill="#009933"/>
-                        <polygon points="360,54 666,252 360,450 54,252" fill="#ffcc00"/>
-                        <circle cx="360" cy="252" r="126" fill="#002776"/>
+                        <rect width="720" height="504" fill="#009933" />
+                        <polygon points="360,54 666,252 360,450 54,252" fill="#ffcc00" />
+                        <circle cx="360" cy="252" r="126" fill="#002776" />
                       </svg>
                     ) : (
                       <img src="/libras.svg" alt="Libras" className="w-5 h-5 object-contain" />
@@ -372,7 +459,7 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
                   </button>
 
                   {isLangDropdownOpen && (
-                    <div 
+                    <div
                       className="absolute right-0 top-full mt-2 w-44 bg-[#1e1e24] border border-white/10 rounded-xl shadow-2xl p-1.5 z-[100] flex flex-col gap-1 animate-fade-in backdrop-blur-md"
                       onMouseLeave={() => setIsLangDropdownOpen(false)}
                     >
@@ -385,14 +472,13 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
                           game.setInterfaceLanguage('pt');
                           setIsLangDropdownOpen(false);
                         }}
-                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                          game.interfaceLanguage === 'pt' ? 'bg-brand-blue text-white' : 'text-gray-300 hover:bg-white/5'
-                        }`}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${game.interfaceLanguage === 'pt' ? 'bg-brand-blue text-white' : 'text-gray-300 hover:bg-white/5'
+                          }`}
                       >
                         <svg viewBox="0 0 720 504" className="w-5 h-4 object-contain rounded-xs shadow-xs">
-                          <rect width="720" height="504" fill="#009933"/>
-                          <polygon points="360,54 666,252 360,450 54,252" fill="#ffcc00"/>
-                          <circle cx="360" cy="252" r="126" fill="#002776"/>
+                          <rect width="720" height="504" fill="#009933" />
+                          <polygon points="360,54 666,252 360,450 54,252" fill="#ffcc00" />
+                          <circle cx="360" cy="252" r="126" fill="#002776" />
                         </svg>
                         <span>Português</span>
                       </button>
@@ -402,9 +488,8 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
                           game.setInterfaceLanguage('libras');
                           setIsLangDropdownOpen(false);
                         }}
-                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                          game.interfaceLanguage === 'libras' ? 'bg-brand-blue text-white' : 'text-gray-300 hover:bg-white/5'
-                        }`}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${game.interfaceLanguage === 'libras' ? 'bg-brand-blue text-white' : 'text-gray-300 hover:bg-white/5'
+                          }`}
                       >
                         <img src="/libras.svg" alt="Libras" className="w-5 h-5 object-contain" />
                         <span>Libras</span>
@@ -422,11 +507,10 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
                       setIsLangDropdownOpen(false);
                     }}
                     title="Configurações de Narração"
-                    className={`p-2 rounded-lg border flex items-center gap-1.5 transition-all ${
-                      narration.ttsEnabled 
-                        ? 'bg-purple-600/20 border-purple-500/40 text-purple-300' 
+                    className={`p-2 rounded-lg border flex items-center gap-1.5 transition-all ${narration.ttsEnabled
+                        ? 'bg-purple-600/20 border-purple-500/40 text-purple-300'
                         : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
-                    }`}
+                      }`}
                   >
                     {narration.ttsEnabled ? <SpeakerHigh size={18} weight="bold" /> : <SpeakerSlash size={18} weight="bold" />}
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-3.5 h-3.5 transition-transform duration-200 ${isTtsDropdownOpen ? 'rotate-180' : ''}`}>
@@ -435,7 +519,7 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
                   </button>
 
                   {isTtsDropdownOpen && (
-                    <div 
+                    <div
                       className="absolute right-0 top-full mt-2 w-48 bg-[#1e1e24] border border-white/10 rounded-xl shadow-2xl p-1.5 z-[100] flex flex-col gap-1 animate-fade-in backdrop-blur-md"
                       onMouseLeave={() => setIsTtsDropdownOpen(false)}
                     >
@@ -448,9 +532,8 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
                           narration.handleTTSSelection('gemini');
                           setIsTtsDropdownOpen(false);
                         }}
-                        className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                          narration.ttsEnabled ? 'bg-purple-600/40 text-purple-200 border border-purple-500/50' : 'text-gray-300 hover:bg-white/5'
-                        }`}
+                        className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${narration.ttsEnabled ? 'bg-purple-600/40 text-purple-200 border border-purple-500/50' : 'text-gray-300 hover:bg-white/5'
+                          }`}
                       >
                         <div className="flex items-center gap-2">
                           <SpeakerHigh size={16} weight="bold" className="text-purple-400" />
@@ -464,9 +547,8 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
                           narration.handleTTSSelection('off');
                           setIsTtsDropdownOpen(false);
                         }}
-                        className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                          !narration.ttsEnabled ? 'bg-white/10 text-white border border-white/20' : 'text-gray-300 hover:bg-white/5'
-                        }`}
+                        className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${!narration.ttsEnabled ? 'bg-white/10 text-white border border-white/20' : 'text-gray-300 hover:bg-white/5'
+                          }`}
                       >
                         <div className="flex items-center gap-2">
                           <SpeakerSlash size={16} weight="bold" className="text-gray-400" />
@@ -573,7 +655,7 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
                     <p className="text-sm text-gray-300 mb-4 leading-relaxed">{game.errorDetail.message}</p>
                     {game.errorDetail.solution && (
                       <div className="text-xs text-gray-300 bg-black/40 p-3.5 rounded-xl border border-gray-800 mb-6 font-mono">
-                        💡 {game.errorDetail.solution}
+                        {game.errorDetail.solution}
                       </div>
                     )}
                     <button
@@ -675,7 +757,7 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
               {game.gameState === 'FINISHED' && game.quizData && (
                 <main className="flex-1 container mx-auto px-4 py-10 flex flex-col items-center">
                   <h2 className="text-4xl font-black mb-10 text-white">Partida Finalizada!</h2>
-                  
+
                   <div className={`w-full max-w-4xl mb-12 ${game.teams.length === 1 ? 'flex justify-center' : 'grid grid-cols-1 md:grid-cols-2 gap-6'}`}>
                     {game.teams.map(t => (
                       <div key={t.id} className={`bg-brand-card p-8 rounded-3xl border-b-8 shadow-2xl overflow-hidden ${game.teams.length === 1 ? 'w-full max-w-md' : ''}`} style={{ borderBottomColor: getTeamColor(t) }}>
@@ -729,7 +811,7 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
           </div>
         </div>
       )}
-      
+
       {/* Footer / Floating Next */}
       {game.gameState === 'PLAYING' && game.isCurrentQuestionAnswered && (
         <div className="fixed bottom-8 right-8 z-50 animate-fade-in-up">

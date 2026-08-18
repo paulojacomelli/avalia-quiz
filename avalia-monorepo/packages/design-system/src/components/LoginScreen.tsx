@@ -486,6 +486,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       }
 
       const selectedModel = textModelOption === 'custom' ? customTextModel : textModelOption;
+      const selectedTtsModel = ttsModelOption === 'custom' ? customTtsModel : ttsModelOption;
       if (!selectedModel || !selectedModel.trim()) {
         setError('Por favor, selecione ou informe um modelo de IA.');
         return;
@@ -493,7 +494,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
       setIsValidating(true);
       try {
-        await validateApiKey(cleanedKey, provider, selectedModel.trim());
+        await validateApiKey(cleanedKey, provider, selectedModel.trim(), selectedTtsModel?.trim());
         recordModelCompatibilityStatus(provider, selectedModel.trim(), 'compatible');
         await onLoginWithApiKey(cleanedKey, provider, selectedModel.trim());
       } catch (err: any) {
