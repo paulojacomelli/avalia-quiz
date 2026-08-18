@@ -87,12 +87,17 @@ jobs:
 
       - name: Setup Environment Variables for Apps
         run: |
+          IS_DEV="${{ steps.env_detector.outputs.IS_DEV }}"
+          
+          QUIZ_NAME="${{ steps.env_detector.outputs.IS_DEV == 'true' && (vars.CAPACITOR_APP_NAME_QUIZ_DEV || 'Avalia Quiz Canary') || (vars.CAPACITOR_APP_NAME_QUIZ_PROD || 'Avalia Quiz') }}"
+          JW_NAME="${{ steps.env_detector.outputs.IS_DEV == 'true' && (vars.CAPACITOR_APP_NAME_JW_DEV || 'Avalia JW Quiz Canary') || (vars.CAPACITOR_APP_NAME_JW_PROD || 'Avalia JW Quiz') }}"
+          KIDS_NAME="${{ steps.env_detector.outputs.IS_DEV == 'true' && (vars.CAPACITOR_APP_NAME_KIDS_DEV || 'Avalia Kids Quiz Canary') || (vars.CAPACITOR_APP_NAME_KIDS_PROD || 'Avalia Kids Quiz') }}"
+          
           cat > ./avalia-monorepo/apps/avalia-quiz/.env << EOF
-          VITE_APP_NAME=Quiz
+          VITE_APP_NAME=$QUIZ_NAME
           VITE_STORAGE_PREFIX=generic-quiz
-          VITE_APP_TITLE=Avalia Quiz
+          VITE_APP_TITLE=$QUIZ_NAME
           VITE_THEME=generic-theme
-          VITE_PROMPT_PROFILE=generic
           VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}
@@ -103,11 +108,10 @@ jobs:
           EOF
 
           cat > ./avalia-monorepo/apps/avalia-jw-quiz/.env << EOF
-          VITE_APP_NAME=JW Quiz
+          VITE_APP_NAME=$JW_NAME
           VITE_STORAGE_PREFIX=jw-quiz
-          VITE_APP_TITLE=Avalia JW Quiz
+          VITE_APP_TITLE=$JW_NAME
           VITE_THEME=jw-theme
-          VITE_PROMPT_PROFILE=jw
           VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}
@@ -118,11 +122,10 @@ jobs:
           EOF
 
           cat > ./avalia-monorepo/apps/avalia-kids-quiz/.env << EOF
-          VITE_APP_NAME=Kids Quiz
+          VITE_APP_NAME=$KIDS_NAME
           VITE_STORAGE_PREFIX=kids-quiz
-          VITE_APP_TITLE=Avalia Kids Quiz
+          VITE_APP_TITLE=$KIDS_NAME
           VITE_THEME=kids-theme
-          VITE_PROMPT_PROFILE=kids
           VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}
