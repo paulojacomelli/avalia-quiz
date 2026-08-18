@@ -7,6 +7,9 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build_and_deploy_fdroid:
     name: Build APKs & Deploy F-Droid
@@ -21,6 +24,8 @@ jobs:
           - name: "avalia-quiz"
             title: "Avalia Quiz"
             title_dev: "Avalia Quiz Canary"
+            var_name_dev: "CAPACITOR_APP_NAME_QUIZ_DEV"
+            var_name_prod: "CAPACITOR_APP_NAME_QUIZ_PROD"
             pkg_id: "app.avalia.quiz"
             pkg_id_dev: "app.avalia.quiz.canary"
             filter: "@avalia/quiz"
@@ -28,6 +33,8 @@ jobs:
           - name: "avalia-jw-quiz"
             title: "Avalia JW Quiz"
             title_dev: "Avalia JW Quiz Canary"
+            var_name_dev: "CAPACITOR_APP_NAME_JW_DEV"
+            var_name_prod: "CAPACITOR_APP_NAME_JW_PROD"
             pkg_id: "app.avalia.jwquiz"
             pkg_id_dev: "app.avalia.jwquiz.canary"
             filter: "@avalia/jw-quiz"
@@ -35,6 +42,8 @@ jobs:
           - name: "avalia-kids-quiz"
             title: "Avalia Kids Quiz"
             title_dev: "Avalia Kids Quiz Canary"
+            var_name_dev: "CAPACITOR_APP_NAME_KIDS_DEV"
+            var_name_prod: "CAPACITOR_APP_NAME_KIDS_PROD"
             pkg_id: "app.avalia.kids"
             pkg_id_dev: "app.avalia.kids.canary"
             filter: "@avalia/kids"
@@ -140,7 +149,7 @@ jobs:
         working-directory: ./avalia-monorepo/${{ matrix.app.dir }}
         run: |
           APP_ID="${{ steps.env_detector.outputs.IS_DEV == 'true' && matrix.app.pkg_id_dev || matrix.app.pkg_id }}"
-          APP_NAME="${{ steps.env_detector.outputs.IS_DEV == 'true' && matrix.app.title_dev || matrix.app.title }}"
+          APP_NAME="${{ steps.env_detector.outputs.IS_DEV == 'true' && vars[matrix.app.var_name_dev] || vars[matrix.app.var_name_prod] }}"
           
           if [ ! -d "android" ]; then
             npx cap add android
@@ -153,18 +162,22 @@ jobs:
         run: |
           VERSION_NAME=$(node -p "require('./package.json').version")
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
-          VERSION_CODE=${{ github.run_number }}
-          APP_ID="${{ steps.env_detector.outputs.IS_DEV == 'true' && matrix.app.pkg_id_dev || matrix.app.pkg_id }}"
-          APP_NAME="${{ steps.env_detector.outputs.IS_DEV == 'true' && matrix.app.title_dev || matrix.app.title }}"
+          APP_NAME="${{ steps.env_detector.outputs.IS_DEV == 'true' && vars[matrix.app.var_name_dev] || vars[matrix.app.var_name_prod] }}"
           
-          # 1. Configura suporte dinâmico no build.gradle para ler propriedades -P ou fallback direto
-          sed -i "s/applicationId .*/applicationId project.findProperty('applicationId') ?: \"$APP_ID\"/" android/app/build.gradle || true
-          sed -i "s/versionName .*/versionName project.findProperty('versionName') ?: \"$VERSION_NAME\"/" android/app/build.gradle || true
-          sed -i "s/versionCode .*/versionCode project.hasProperty('versionCode') ? project.property('versionCode').toInteger() : $VERSION_CODE/" android/app/build.gradle || true
-          
-          # 2. Configura os nomes nos recursos Android
+          # Configura os nomes nos recursos Android (strings.xml)
           sed -i "s/<string name=\"app_name\">.*/<string name=\"app_name\">$APP_NAME<\/string>/" android/app/src/main/res/values/strings.xml || true
           sed -i "s/<string name=\"title_activity_main\">.*/<string name=\"title_activity_main\">$APP_NAME<\/string>/" android/app/src/main/res/values/strings.xml || true
+
+      - name: Generate Android Native App Icons
+        working-directory: ./avalia-monorepo/${{ matrix.app.dir }}
+        run: |
+          mkdir -p assets
+          if [ -f "public/pwa-512x512.png" ]; then
+            cp public/pwa-512x512.png assets/icon.png
+          elif [ -f "public/apple-touch-icon.png" ]; then
+            cp public/apple-touch-icon.png assets/icon.png
+          fi
+          npx @capacitor/assets generate --android || true
 
       - name: Build Android APK
         working-directory: ./avalia-monorepo/${{ matrix.app.dir }}/android
@@ -222,8 +235,15 @@ jobs:
           
           mkdir -p fdroid/repo
           
-          # Coleta todos os APKs baixados dos artefatos
-          find downloaded-apks -name "*.apk" -exec cp {} fdroid/repo/ \;
+          # Coleta e renomeia individualmente cada APK para que os 3 fiquem no repositório F-Droid
+          for dir in downloaded-apks/*; do
+            if [ -d "$dir" ]; then
+              APP_NAME=$(basename "$dir")
+              cp "$dir"/app-debug.apk "fdroid/repo/${APP_NAME}.apk" || cp "$dir"/*.apk "fdroid/repo/" || true
+            fi
+          done
+          
+          ls -la fdroid/repo/
           
           # Copia ícone do repositório
           if [ -f "public/icon-512x512.png" ]; then
@@ -235,9 +255,12 @@ jobs:
           cd fdroid
           echo "${{ steps.env_detector.outputs.KEYSTORE_SECRET }}" | base64 --decode > keystore.p12
           
+          REPO_NAME="${{ steps.env_detector.outputs.IS_DEV == 'true' && vars.CAPACITOR_REPO_NAME_DEV || vars.CAPACITOR_REPO_NAME_PROD }}"
+          REPO_DESC="${{ steps.env_detector.outputs.IS_DEV == 'true' && 'Avalia Apps Dev Repository' || 'Avalia Apps Repository' }}"
+          
           echo "repo_url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ steps.env_detector.outputs.REPO_DEST }}" > config.yml
-          echo "repo_name: ${{ steps.env_detector.outputs.REPO_NAME }}" >> config.yml
-          echo "repo_description: Avalia Apps Repository" >> config.yml
+          echo "repo_name: $REPO_NAME" >> config.yml
+          echo "repo_description: $REPO_DESC" >> config.yml
           echo "repo_icon: icon.png" >> config.yml
           echo "keystore: keystore.p12" >> config.yml
           echo "repo_keyalias: fdroid" >> config.yml

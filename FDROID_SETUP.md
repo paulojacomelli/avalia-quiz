@@ -58,6 +58,23 @@ Acesse o repositório no GitHub: **Settings > Secrets and variables > Actions > 
 
 ---
 
+## 5. Variáveis Obrigatórias no GitHub Actions (Variables)
+
+Acesse **Settings > Secrets and variables > Actions > Variables**:
+
+| Nome da Variável | Valor Recomendado |
+|---|---|
+| `CAPACITOR_REPO_NAME_DEV` | `Avalia Apps Dev` |
+| `CAPACITOR_REPO_NAME_PROD` | `Avalia Apps` |
+| `CAPACITOR_APP_NAME_QUIZ_DEV` | `Avalia Quiz Canary` |
+| `CAPACITOR_APP_NAME_QUIZ_PROD` | `Avalia Quiz` |
+| `CAPACITOR_APP_NAME_JW_DEV` | `Avalia JW Quiz Canary` |
+| `CAPACITOR_APP_NAME_JW_PROD` | `Avalia JW Quiz` |
+| `CAPACITOR_APP_NAME_KIDS_DEV` | `Avalia Kids Quiz Canary` |
+| `CAPACITOR_APP_NAME_KIDS_PROD` | `Avalia Kids Quiz` |
+
+---
+
 ## 6. Checklist de Homologação em Execução Real
 
 Execute os seguintes testes após o primeiro disparo do workflow:
