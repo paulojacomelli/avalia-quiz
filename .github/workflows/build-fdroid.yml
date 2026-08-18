@@ -1,0 +1,256 @@
+name: Build Android APKs & Deploy F-Droid
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy_fdroid:
+    name: Build APKs & Deploy F-Droid
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - name: "avalia-quiz"
+            title: "Avalia Quiz"
+            title_dev: "Avalia Quiz Canary"
+            pkg_id: "app.avalia.quiz"
+            pkg_id_dev: "app.avalia.quiz.canary"
+            filter: "@avalia/quiz"
+            dir: "apps/avalia-quiz"
+          - name: "avalia-jw-quiz"
+            title: "Avalia JW Quiz"
+            title_dev: "Avalia JW Quiz Canary"
+            pkg_id: "app.avalia.jwquiz"
+            pkg_id_dev: "app.avalia.jwquiz.canary"
+            filter: "@avalia/jw-quiz"
+            dir: "apps/avalia-jw-quiz"
+          - name: "avalia-kids-quiz"
+            title: "Avalia Kids Quiz"
+            title_dev: "Avalia Kids Quiz Canary"
+            pkg_id: "app.avalia.kids"
+            pkg_id_dev: "app.avalia.kids.canary"
+            filter: "@avalia/kids"
+            dir: "apps/avalia-kids-quiz"
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Detect Environment
+        id: env_detector
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/dev" ]; then
+            echo "IS_DEV=true" >> $GITHUB_OUTPUT
+            echo "ENV_NAME=Dev" >> $GITHUB_OUTPUT
+            echo "REPO_DEST=repo-dev/repo" >> $GITHUB_OUTPUT
+            echo "REPO_NAME=Avalia Apps Dev" >> $GITHUB_OUTPUT
+          else
+            echo "IS_DEV=false" >> $GITHUB_OUTPUT
+            echo "ENV_NAME=Production" >> $GITHUB_OUTPUT
+            echo "REPO_DEST=repo" >> $GITHUB_OUTPUT
+            echo "REPO_NAME=Avalia Apps" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: 'avalia-monorepo/package-lock.json'
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Install Dependencies
+        working-directory: ./avalia-monorepo
+        run: npm ci
+
+      - name: Setup Environment Variables for Apps
+        run: |
+          cat > ./avalia-monorepo/apps/avalia-quiz/.env << EOF
+          VITE_APP_NAME=Quiz
+          VITE_STORAGE_PREFIX=generic-quiz
+          VITE_APP_TITLE=Avalia Quiz
+          VITE_THEME=generic-theme
+          VITE_PROMPT_PROFILE=generic
+          VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          EOF
+
+          cat > ./avalia-monorepo/apps/avalia-jw-quiz/.env << EOF
+          VITE_APP_NAME=JW Quiz
+          VITE_STORAGE_PREFIX=jw-quiz
+          VITE_APP_TITLE=Avalia JW Quiz
+          VITE_THEME=jw-theme
+          VITE_PROMPT_PROFILE=jw
+          VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          EOF
+
+          cat > ./avalia-monorepo/apps/avalia-kids-quiz/.env << EOF
+          VITE_APP_NAME=Kids Quiz
+          VITE_STORAGE_PREFIX=kids-quiz
+          VITE_APP_TITLE=Avalia Kids Quiz
+          VITE_THEME=kids-theme
+          VITE_PROMPT_PROFILE=kids
+          VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          EOF
+
+      - name: Apply Assets (Canary vs Official)
+        working-directory: ./avalia-monorepo
+        run: |
+          if [ "${{ steps.env_detector.outputs.IS_DEV }}" = "true" ]; then
+            node scripts/apply-canary-assets.js
+          else
+            node scripts/apply-official-assets.js
+          fi
+
+      - name: Build Web App
+        working-directory: ./avalia-monorepo
+        run: npx turbo run build --filter=${{ matrix.app.filter }}
+
+      - name: Initialize / Sync Capacitor Android
+        working-directory: ./avalia-monorepo/${{ matrix.app.dir }}
+        run: |
+          APP_ID="${{ steps.env_detector.outputs.IS_DEV == 'true' && matrix.app.pkg_id_dev || matrix.app.pkg_id }}"
+          APP_NAME="${{ steps.env_detector.outputs.IS_DEV == 'true' && matrix.app.title_dev || matrix.app.title }}"
+          
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          
+          CAPACITOR_APP_ID="$APP_ID" CAPACITOR_APP_NAME="$APP_NAME" npx cap sync android
+
+      - name: Configure Android Package ID, Version & Manifest
+        working-directory: ./avalia-monorepo/${{ matrix.app.dir }}
+        run: |
+          VERSION_NAME=$(node -p "require('./package.json').version")
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          VERSION_CODE=${{ github.run_number }}
+          APP_ID="${{ steps.env_detector.outputs.IS_DEV == 'true' && matrix.app.pkg_id_dev || matrix.app.pkg_id }}"
+          APP_NAME="${{ steps.env_detector.outputs.IS_DEV == 'true' && matrix.app.title_dev || matrix.app.title }}"
+          
+          # 1. Configura suporte dinâmico no build.gradle para ler propriedades -P ou fallback direto
+          sed -i "s/applicationId .*/applicationId project.findProperty('applicationId') ?: \"$APP_ID\"/" android/app/build.gradle || true
+          sed -i "s/versionName .*/versionName project.findProperty('versionName') ?: \"$VERSION_NAME\"/" android/app/build.gradle || true
+          sed -i "s/versionCode .*/versionCode project.hasProperty('versionCode') ? project.property('versionCode').toInteger() : $VERSION_CODE/" android/app/build.gradle || true
+          
+          # 2. Configura os nomes nos recursos Android
+          sed -i "s/<string name=\"app_name\">.*/<string name=\"app_name\">$APP_NAME<\/string>/" android/app/src/main/res/values/strings.xml || true
+          sed -i "s/<string name=\"title_activity_main\">.*/<string name=\"title_activity_main\">$APP_NAME<\/string>/" android/app/src/main/res/values/strings.xml || true
+
+      - name: Build Android APK
+        working-directory: ./avalia-monorepo/${{ matrix.app.dir }}/android
+        env:
+          CAPACITOR_APP_ID: ${{ steps.env_detector.outputs.IS_DEV == 'true' && matrix.app.pkg_id_dev || matrix.app.pkg_id }}
+          CAPACITOR_APP_NAME: ${{ steps.env_detector.outputs.IS_DEV == 'true' && matrix.app.title_dev || matrix.app.title }}
+        run: |
+          chmod +x gradlew
+          APP_ID="${{ steps.env_detector.outputs.IS_DEV == 'true' && matrix.app.pkg_id_dev || matrix.app.pkg_id }}"
+          ./gradlew assembleDebug -PversionCode=${{ github.run_number }} -PversionName="${{ env.VERSION_NAME }}" -PapplicationId="$APP_ID"
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app.name }}-${{ steps.env_detector.outputs.ENV_NAME }}-v${{ env.VERSION_NAME }}-APK
+          path: avalia-monorepo/${{ matrix.app.dir }}/android/app/build/outputs/apk/debug/app-debug.apk
+
+  publish_fdroid:
+    name: Package and Deploy F-Droid Repository
+    needs: build_and_deploy_fdroid
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Detect Environment
+        id: env_detector
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/dev" ]; then
+            echo "IS_DEV=true" >> $GITHUB_OUTPUT
+            echo "REPO_DEST=repo-dev/repo" >> $GITHUB_OUTPUT
+            echo "REPO_NAME=Avalia Apps Dev" >> $GITHUB_OUTPUT
+            echo "KEYSTORE_SECRET=${{ secrets.FDROID_KEYSTORE_DEV_B64 }}" >> $GITHUB_OUTPUT
+          else
+            echo "IS_DEV=false" >> $GITHUB_OUTPUT
+            echo "REPO_DEST=repo" >> $GITHUB_OUTPUT
+            echo "REPO_NAME=Avalia Apps" >> $GITHUB_OUTPUT
+            echo "KEYSTORE_SECRET=${{ secrets.FDROID_KEYSTORE_PROD_B64 }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download all APK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-apks
+
+      - name: Setup F-Droid Server
+        run: |
+          sudo add-apt-repository -y ppa:fdroid/fdroidserver
+          sudo apt-get update
+          sudo apt-get install -y fdroidserver
+          sudo sed -i 's/raise ResParserError("res1 must be zero!")/pass/g' /usr/lib/python3/dist-packages/androguard/core/bytecodes/axml/__init__.py
+          
+          mkdir -p fdroid/repo
+          
+          # Coleta todos os APKs baixados dos artefatos
+          find downloaded-apks -name "*.apk" -exec cp {} fdroid/repo/ \;
+          
+          # Copia ícone do repositório
+          if [ -f "public/icon-512x512.png" ]; then
+            cp public/icon-512x512.png fdroid/icon.png
+          elif [ -f "avalia-monorepo/apps/avalia-quiz/public/pwa-512x512.png" ]; then
+            cp avalia-monorepo/apps/avalia-quiz/public/pwa-512x512.png fdroid/icon.png
+          fi
+
+          cd fdroid
+          echo "${{ steps.env_detector.outputs.KEYSTORE_SECRET }}" | base64 --decode > keystore.p12
+          
+          echo "repo_url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ steps.env_detector.outputs.REPO_DEST }}" > config.yml
+          echo "repo_name: ${{ steps.env_detector.outputs.REPO_NAME }}" >> config.yml
+          echo "repo_description: Avalia Apps Repository" >> config.yml
+          echo "repo_icon: icon.png" >> config.yml
+          echo "keystore: keystore.p12" >> config.yml
+          echo "repo_keyalias: fdroid" >> config.yml
+          echo "keystorepass: ${{ secrets.FDROID_KEYSTORE_PASSWORD }}" >> config.yml
+          echo "keypass: ${{ secrets.FDROID_KEYSTORE_PASSWORD }}" >> config.yml
+          chmod 600 config.yml
+          
+          fdroid update -c
+
+      - name: Deploy F-Droid Repo to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./fdroid/repo
+          destination_dir: ${{ steps.env_detector.outputs.REPO_DEST }}
+          keep_files: true
