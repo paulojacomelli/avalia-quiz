@@ -83,7 +83,7 @@ jobs:
 
       - name: Install Dependencies
         working-directory: ./avalia-monorepo
-        run: npm ci
+        run: npm ci || npm install
 
       - name: Setup Environment Variables for Apps
         run: |
