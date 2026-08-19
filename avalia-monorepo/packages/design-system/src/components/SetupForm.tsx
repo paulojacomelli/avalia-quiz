@@ -14,6 +14,7 @@ interface SetupFormProps {
   usedTopics?: string[];
   onClearHistory?: () => void;
   isPrebuiltQuiz?: boolean;
+  onTogglePrebuilt?: (isPrebuilt: boolean) => void;
   availableThemes?: Record<string, string[]>;
   interfaceLanguage?: 'pt' | 'libras';
   highlightedValue?: string;
@@ -55,6 +56,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
   usedTopics = [],
   onClearHistory,
   isPrebuiltQuiz = false,
+  onTogglePrebuilt,
   availableThemes = {},
   interfaceLanguage = 'pt',
   highlightedValue,
@@ -258,6 +260,45 @@ export const SetupForm: React.FC<SetupFormProps> = ({
         {/* STEP 1: CONTEÚDO */}
         {((interfaceLanguage === 'pt' && currentStep === 1) || (interfaceLanguage === 'libras' && (currentStep === 1 || currentStep === 3))) && (
           <div className="space-y-6 animate-fade-in">
+            {onTogglePrebuilt && (
+              <div className="flex bg-brand-hover p-1 rounded-xl border border-gray-700/40 gap-1 mb-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    playSound('click');
+                    onTogglePrebuilt(false);
+                  }}
+                  className={`flex-1 py-2.5 px-3 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                    !isPrebuiltQuiz
+                      ? 'bg-brand-blue text-white shadow-md'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-purple-400">
+                    <path fillRule="evenodd" d="M9 4.5a.75.75 0 01.721.544l.813 2.846a3.75 3.75 0 002.576 2.576l2.846.813a.75.75 0 010 1.442l-2.846.813a3.75 3.75 0 00-2.576 2.576l-.813 2.846a.75.75 0 01-1.442 0l-.813-2.846a3.75 3.75 0 00-2.576-2.576l-2.846-.813a.75.75 0 010-1.442l2.846-.813A3.75 3.75 0 007.466 7.89l.813-2.846A.75.75 0 019 4.5z" clipRule="evenodd" />
+                  </svg>
+                  Criar Novo (IA)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playSound('click');
+                    onTogglePrebuilt(true);
+                  }}
+                  className={`flex-1 py-2.5 px-3 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                    isPrebuiltQuiz
+                      ? 'bg-brand-blue text-white shadow-md'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-amber-400">
+                    <path d="M11.584 2.376a.75.75 0 01.832 0l8.32 5.547a.75.75 0 01.416.677V20.25a.75.75 0 01-.75.75h-15a.75.75 0 01-.75-.75V8.6a.75.75 0 01.416-.677l8.32-5.547zM12 4.732 5.25 9.232V19.5h13.5V9.232L12 4.732z" />
+                  </svg>
+                  Quizzes da Biblioteca
+                </button>
+              </div>
+            )}
+
             {isPrebuiltQuiz ? (
               <>
                 <div id="field-mode">

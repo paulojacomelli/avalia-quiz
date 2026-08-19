@@ -675,10 +675,26 @@ export default function GameEngine({ appConfig, isCanary: isCanaryProp, onGameSt
                     <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Configurar Quiz</h2>
                     <p className="text-gray-400">Personalize seu desafio abaixo.</p>
                   </div>
-                  <SetupForm appConfig={appConfig} onGenerate={game.handleGenerate} isLoading={game.loading} ttsEnabled={narration.ttsEnabled}
-                    forcedStep={setupStep} onStepChange={setSetupStep}
-                    usedTopics={usedTopics} onClearHistory={() => game.setPendingAction('CLEAR_HISTORY')}
-                    isPrebuiltQuiz={game.isPrebuiltQuiz} availableThemes={game.availableThemes} onPlayGlosa={libras.playGlosaSegura} />
+                  <SetupForm 
+                    appConfig={appConfig} 
+                    onGenerate={game.handleGenerate} 
+                    isLoading={game.loading} 
+                    ttsEnabled={narration.ttsEnabled}
+                    forcedStep={setupStep} 
+                    onStepChange={setSetupStep}
+                    usedTopics={usedTopics} 
+                    onClearHistory={() => game.setPendingAction('CLEAR_HISTORY')}
+                    isPrebuiltQuiz={game.isPrebuiltQuiz}
+                    onTogglePrebuilt={async (isPrebuilt) => {
+                      if (isPrebuilt) {
+                        await game.handlePlayPrebuilt();
+                      } else {
+                        game.setIsPrebuiltQuiz(false);
+                      }
+                    }}
+                    availableThemes={game.availableThemes} 
+                    onPlayGlosa={libras.playGlosaSegura} 
+                  />
                 </main>
               )}
 
