@@ -303,50 +303,83 @@ export const SetupForm: React.FC<SetupFormProps> = ({
             {isPrebuiltQuiz ? (
               <>
                 <div id="field-mode">
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 italic text-brand-blue">Biblioteca da Comunidade: Escolha uma Categoria</label>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 italic text-brand-blue">
+                    Biblioteca da Comunidade: Escolha uma Categoria
+                  </label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {(appConfig?.topicModes || MODE_OPTIONS).filter((opt: any) =>
-                      availableThemes[opt.value] !== undefined || Object.keys(availableThemes).length === 0
-                    ).map((opt: any) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onMouseEnter={() => playSound('hover')}
-                        onClick={() => {
-                          setMode(opt.value as TopicMode);
-                          if (availableThemes[opt.value] && availableThemes[opt.value].length > 0) {
-                            setSubTopic(availableThemes[opt.value][0]);
-                          } else if (opt.subtopics && opt.subtopics.length > 0) {
-                            setSubTopic(opt.subtopics[0]);
-                          } else {
-                            setSubTopic('Geral');
-                          }
-                          if (interfaceLanguage === 'libras') {
-                            if (onPlayGlosa) {
-                              const glosa = opt.glosa || OPTION_GLOSAS[opt.value] || opt.label.toUpperCase();
-                              onPlayGlosa(glosa, 'feliz');
+                    {(appConfig?.topicModes || MODE_OPTIONS).filter((opt: any) => {
+                      if (!availableThemes || Object.keys(availableThemes).length === 0) return true;
+                      return (
+                        availableThemes[opt.value] !== undefined ||
+                        availableThemes[opt.label] !== undefined ||
+                        availableThemes[opt.value?.toLowerCase()] !== undefined ||
+                        availableThemes[opt.label?.toLowerCase()] !== undefined
+                      );
+                    }).map((opt: any) => {
+                      const matchedKey = Object.keys(availableThemes || {}).find(k => 
+                        k.toLowerCase() === opt.value?.toLowerCase() || 
+                        k.toLowerCase() === opt.label?.toLowerCase()
+                      );
+                      const subtopicsForThis = matchedKey ? availableThemes[matchedKey] : (opt.subtopics || []);
+
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onMouseEnter={() => playSound('hover')}
+                          onClick={() => {
+                            setMode(opt.value as TopicMode);
+                            if (subtopicsForThis && subtopicsForThis.length > 0) {
+                              setSubTopic(subtopicsForThis[0]);
+                            } else {
+                              setSubTopic('Geral');
                             }
-                            handleNextStep();
-                          }
-                        }}
-                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-300 ${mode === opt.value
-                          ? 'bg-brand-blue border-brand-blue text-white shadow-lg shadow-brand-blue/30 transform scale-[1.02]'
-                          : 'border-gray-700/20 bg-brand-hover/50 text-gray-400 dark:text-gray-500 hover:border-gray-500/50'
+                            if (interfaceLanguage === 'libras') {
+                              if (onPlayGlosa) {
+                                const glosa = opt.glosa || OPTION_GLOSAS[opt.value] || opt.label.toUpperCase();
+                                onPlayGlosa(glosa, 'feliz');
+                              }
+                              handleNextStep();
+                            }
+                          }}
+                          className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-300 ${
+                            mode === opt.value
+                              ? 'bg-brand-blue border-brand-blue text-white shadow-lg shadow-brand-blue/30 transform scale-[1.02]'
+                              : 'border-gray-700/20 bg-brand-hover/50 text-gray-400 dark:text-gray-500 hover:border-gray-500/50'
                           } ${highlightedValue === opt.value ? 'ring-4 ring-yellow-400 animate-pulse' : ''}`}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-8 h-8 mb-2 ${mode === opt.value ? 'text-white' : 'opacity-60'}`}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d={opt.icon} />
-                        </svg>
-                        <span className={`text-xs font-bold text-center ${mode === opt.value ? 'text-white' : ''}`}>{opt.label}</span>
-                      </button>
-                    ))}
+                        >
+                          {React.isValidElement(opt.icon) ? (
+                            <div className={`w-7 h-7 mb-2 flex items-center justify-center text-xl shrink-0 ${mode === opt.value ? 'text-white [&_svg_g]:!fill-white [&_svg_path]:!stroke-white' : ''}`}>
+                              {opt.icon}
+                            </div>
+                          ) : typeof opt.icon === 'function' ? (
+                            <div className={`w-7 h-7 mb-2 flex items-center justify-center text-xl shrink-0 ${mode === opt.value ? 'text-white [&_svg_g]:!fill-white [&_svg_path]:!stroke-white' : ''}`}>
+                              {React.createElement(opt.icon, { className: "w-7 h-7" })}
+                            </div>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-7 h-7 mb-2 ${mode === opt.value ? 'text-white' : 'opacity-60'}`}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d={opt.icon} />
+                            </svg>
+                          )}
+                          <span className={`text-xs font-bold text-center ${mode === opt.value ? 'text-white' : ''}`}>{opt.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {(() => {
                   const selectedModeConfig = (appConfig?.topicModes || MODE_OPTIONS).find((m: any) => m.value === mode);
                   const isCustomInput = selectedModeConfig?.hasCustomInput || mode === TopicMode.OTHER;
-                  const themes = mode ? availableThemes[mode] : undefined;
+                  
+                  const matchedKey = Object.keys(availableThemes || {}).find(k => 
+                    mode && (
+                      k.toLowerCase() === mode.toLowerCase() || 
+                      (selectedModeConfig && k.toLowerCase() === selectedModeConfig.label.toLowerCase())
+                    )
+                  );
+                  const themes = matchedKey ? availableThemes[matchedKey] : (selectedModeConfig?.subtopics || []);
+
                   if (!isCustomInput && themes && themes.length > 0) {
                     return (
                       <div className="animate-fade-in">

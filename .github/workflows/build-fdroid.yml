@@ -249,9 +249,7 @@ jobs:
           ls -la fdroid/repo/
           
           # Copia ícone do repositório
-          if [ -f "public/icon-512x512.png" ]; then
-            cp public/icon-512x512.png fdroid/icon.png
-          elif [ -f "avalia-monorepo/apps/avalia-quiz/public/pwa-512x512.png" ]; then
+          if [ -f "avalia-monorepo/apps/avalia-quiz/public/pwa-512x512.png" ]; then
             cp avalia-monorepo/apps/avalia-quiz/public/pwa-512x512.png fdroid/icon.png
           fi
 

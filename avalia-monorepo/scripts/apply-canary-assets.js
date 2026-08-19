@@ -12,19 +12,11 @@ const appsDir = path.resolve(__dirname, '../apps');
 const CANARY_APPS = fs.readdirSync(appsDir)
   .filter(name => fs.statSync(path.join(appsDir, name)).isDirectory())
   .map(name => ({
-    source: path.resolve(__dirname, `../../public/${name}-canary`),
+    source: path.join(appsDir, name, 'canary-assets'),
     target: path.join(appsDir, name, 'public'),
     configTarget: path.join(appsDir, name, 'src/config'),
     name
   }));
-
-const GLOBAL_PUBLIC_DIR = path.resolve(__dirname, '../../public');
-
-const PROVIDER_LOGOS = [
-  'deepseek-01.svg',
-  'groq.svg',
-  'openrouter.svg'
-];
 
 const ICON_FILES = [
   'apple-touch-icon.png',
@@ -103,19 +95,6 @@ CANARY_APPS.forEach(app => {
     if (fs.existsSync(sourceFile)) {
       copyFile(sourceFile, targetFile);
       hasLogoAssets = true;
-    }
-  });
-
-  // Copiar logos oficiais dos provedores de IA
-  console.log('  🤖 Logos dos Provedores de IA:');
-  PROVIDER_LOGOS.forEach(file => {
-    const sourceFile = path.join(GLOBAL_PUBLIC_DIR, file);
-    const targetFile = path.join(publicDir, file);
-    
-    if (fs.existsSync(sourceFile)) {
-      copyFile(sourceFile, targetFile);
-    } else {
-      console.warn(`  ⚠ Logo do provedor não encontrado no caminho global: ${file}`);
     }
   });
   
