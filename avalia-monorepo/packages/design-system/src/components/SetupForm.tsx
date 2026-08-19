@@ -261,40 +261,41 @@ export const SetupForm: React.FC<SetupFormProps> = ({
         {((interfaceLanguage === 'pt' && currentStep === 1) || (interfaceLanguage === 'libras' && (currentStep === 1 || currentStep === 3))) && (
           <div className="space-y-6 animate-fade-in">
             {onTogglePrebuilt && (
-              <div className="flex bg-brand-hover p-1 rounded-xl border border-gray-700/40 gap-1 mb-6">
+              <div className="flex bg-[#161618] p-1.5 rounded-2xl border border-white/10 gap-2 mb-6">
                 <button
                   type="button"
                   onClick={() => {
                     playSound('click');
                     onTogglePrebuilt(false);
                   }}
-                  className={`flex-1 py-2.5 px-3 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                  className={`flex-1 py-3 px-4 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center gap-2.5 transition-all duration-200 ${
                     !isPrebuiltQuiz
-                      ? 'bg-brand-blue text-white shadow-md'
-                      : 'text-gray-400 hover:text-white'
+                      ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20'
+                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
                   }`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-purple-400">
-                    <path fillRule="evenodd" d="M9 4.5a.75.75 0 01.721.544l.813 2.846a3.75 3.75 0 002.576 2.576l2.846.813a.75.75 0 010 1.442l-2.846.813a3.75 3.75 0 00-2.576 2.576l-.813 2.846a.75.75 0 01-1.442 0l-.813-2.846a3.75 3.75 0 00-2.576-2.576l-2.846-.813a.75.75 0 010-1.442l2.846-.813A3.75 3.75 0 007.466 7.89l.813-2.846A.75.75 0 019 4.5z" clipRule="evenodd" />
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
                   </svg>
-                  Criar Novo (IA)
+                  <span>Criar com IA</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => {
                     playSound('click');
                     onTogglePrebuilt(true);
                   }}
-                  className={`flex-1 py-2.5 px-3 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                  className={`flex-1 py-3 px-4 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center gap-2.5 transition-all duration-200 ${
                     isPrebuiltQuiz
-                      ? 'bg-brand-blue text-white shadow-md'
-                      : 'text-gray-400 hover:text-white'
+                      ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
                   }`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-amber-400">
-                    <path d="M11.584 2.376a.75.75 0 01.832 0l8.32 5.547a.75.75 0 01.416.677V20.25a.75.75 0 01-.75.75h-15a.75.75 0 01-.75-.75V8.6a.75.75 0 01.416-.677l8.32-5.547zM12 4.732 5.25 9.232V19.5h13.5V9.232L12 4.732z" />
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
                   </svg>
-                  Quizzes da Biblioteca
+                  <span>Biblioteca Comunitária</span>
                 </button>
               </div>
             )}
