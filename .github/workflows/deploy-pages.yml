@@ -88,11 +88,3 @@ jobs:
       - name: Deploy to GitHub Pages Native
         id: deployment
         uses: actions/deploy-pages@v4
-
-      - name: Deploy to gh-pages branch (Backup)
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./avalia-monorepo/apps/avalia-quiz/dist
-          publish_branch: gh-pages
-          force_orphan: true
