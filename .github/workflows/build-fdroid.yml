@@ -164,6 +164,7 @@ jobs:
           VERSION_NAME=$(node -p "require('./package.json').version")
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           APP_ID="${{ steps.env_detector.outputs.IS_DEV == 'true' && matrix.app.pkg_id_dev || matrix.app.pkg_id }}"
+          APP_NAME="${{ steps.env_detector.outputs.IS_DEV == 'true' && matrix.app.title_dev || matrix.app.title }}"
           
           # Configura os nomes nos recursos Android (strings.xml)
           sed -i "s/<string name=\"app_name\">.*/<string name=\"app_name\">$APP_NAME<\/string>/" android/app/src/main/res/values/strings.xml || true
