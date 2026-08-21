@@ -169,6 +169,11 @@ jobs:
           sed -i "s/<string name=\"app_name\">.*/<string name=\"app_name\">$APP_NAME<\/string>/" android/app/src/main/res/values/strings.xml || true
           sed -i "s/<string name=\"title_activity_main\">.*/<string name=\"title_activity_main\">$APP_NAME<\/string>/" android/app/src/main/res/values/strings.xml || true
 
+          # Atualiza versionCode e versionName diretamente no build.gradle do app
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" android/app/build.gradle || true
+          sed -i "s/versionName \"1.0\"/versionName \"$VERSION_NAME\"/" android/app/build.gradle || true
+          sed -i "s/applicationId \".*\"/applicationId \"$APP_ID\"/" android/app/build.gradle || true
+
       - name: Generate Android Native App Icons
         working-directory: ./avalia-monorepo/${{ matrix.app.dir }}
         run: |
