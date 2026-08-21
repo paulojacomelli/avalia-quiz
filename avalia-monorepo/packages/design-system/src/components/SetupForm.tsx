@@ -243,14 +243,14 @@ export const SetupForm: React.FC<SetupFormProps> = ({
     <div id="setup-form-container" className="w-full max-w-2xl mx-auto bg-brand-card p-4 md:p-8 rounded-xl shadow-2xl border border-gray-700/30 transition-colors duration-300">
       <div className="mb-8">
         <div className="flex justify-between text-xs font-bold uppercase tracking-widest mb-2 text-gray-500">
-          <span className={currentStep >= 1 ? 'text-brand-blue' : ''}>{isPrebuiltQuiz ? '1. Iniciar' : '1. Conteúdo'}</span>
+          <span className={currentStep >= 1 ? 'text-brand-blue' : ''}>1. Conteúdo</span>
           <span className={currentStep >= 2 ? 'text-brand-blue' : ''}>2. IA & Formato</span>
           <span className={currentStep >= 3 ? 'text-brand-blue' : ''}>3. Dinâmica</span>
           <span className={currentStep >= 4 ? 'text-brand-blue' : ''}>4. Ajudas</span>
         </div>
-        <div className="h-2 w-full bg-gray-300 dark:bg-gray-700 rounded-full overflow-hidden">
+        <div className="w-full bg-gray-700/40 h-2 rounded-full overflow-hidden">
           <div
-            className="h-full bg-brand-blue transition-all duration-300 ease-out"
+            className="bg-brand-blue h-full transition-all duration-300"
             style={{ width: `${(currentStep / TOTAL_STEPS) * 100}%` }}
           />
         </div>
@@ -275,7 +275,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                   }`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 00-2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
                   </svg>
                   <span>Criar com IA</span>
                 </button>
@@ -288,7 +288,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                   }}
                   className={`flex-1 py-3 px-4 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center gap-2.5 transition-all duration-200 ${
                     isPrebuiltQuiz
-                      ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                      ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20'
                       : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
                   }`}
                 >
@@ -303,11 +303,12 @@ export const SetupForm: React.FC<SetupFormProps> = ({
             {isPrebuiltQuiz ? (
               <>
                 <div id="field-mode">
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 italic text-brand-blue">
-                    Biblioteca da Comunidade: Escolha uma Categoria
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-4">
+                    Escolha um Tema Principal
                   </label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     {(appConfig?.topicModes || MODE_OPTIONS).filter((opt: any) => {
+                      if (opt.value === TopicMode.OTHER) return false;
                       if (!availableThemes || Object.keys(availableThemes).length === 0) return true;
                       return (
                         availableThemes[opt.value] !== undefined ||
@@ -342,29 +343,55 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                               handleNextStep();
                             }
                           }}
-                          className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-300 ${
+                          className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all duration-300 ${
                             mode === opt.value
                               ? 'bg-brand-blue border-brand-blue text-white shadow-lg shadow-brand-blue/30 transform scale-[1.02]'
-                              : 'border-gray-700/20 bg-brand-hover/50 text-gray-400 dark:text-gray-500 hover:border-gray-500/50'
+                              : 'border-gray-700/20 bg-brand-hover/50 text-gray-400'
                           } ${highlightedValue === opt.value ? 'ring-4 ring-yellow-400 animate-pulse' : ''}`}
                         >
                           {React.isValidElement(opt.icon) ? (
-                            <div className={`w-7 h-7 mb-2 flex items-center justify-center text-xl shrink-0 ${mode === opt.value ? 'text-white [&_svg_g]:!fill-white [&_svg_path]:!stroke-white' : ''}`}>
+                            <div className={`w-9 h-9 mb-3 flex items-center justify-center text-2xl shrink-0 ${mode === opt.value ? 'text-white [&_svg_g]:!fill-white [&_svg_path]:!stroke-white' : ''}`}>
                               {opt.icon}
                             </div>
                           ) : typeof opt.icon === 'function' ? (
-                            <div className={`w-7 h-7 mb-2 flex items-center justify-center text-xl shrink-0 ${mode === opt.value ? 'text-white [&_svg_g]:!fill-white [&_svg_path]:!stroke-white' : ''}`}>
-                              {React.createElement(opt.icon, { className: "w-7 h-7" })}
+                            <div className={`w-9 h-9 mb-3 flex items-center justify-center text-2xl shrink-0 ${mode === opt.value ? 'text-white [&_svg_g]:!fill-white [&_svg_path]:!stroke-white' : ''}`}>
+                              {React.createElement(opt.icon, { className: "w-9 h-9" })}
                             </div>
                           ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-7 h-7 mb-2 ${mode === opt.value ? 'text-white' : 'opacity-60'}`}>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-8 h-8 mb-3 ${mode === opt.value ? 'text-white' : 'opacity-60'}`}>
                               <path strokeLinecap="round" strokeLinejoin="round" d={opt.icon} />
                             </svg>
                           )}
-                          <span className={`text-xs font-bold text-center ${mode === opt.value ? 'text-white' : ''}`}>{opt.label}</span>
+                          <span className="text-sm font-bold">{opt.label}</span>
                         </button>
                       );
                     })}
+
+                    {/* OPÇÃO ALEATÓRIA */}
+                    <button
+                      type="button"
+                      onMouseEnter={() => playSound('hover')}
+                      onClick={() => {
+                        setMode(TopicMode.OTHER);
+                        setSubTopic('Aleatório');
+                        if (interfaceLanguage === 'libras') {
+                          if (onPlayGlosa) {
+                            onPlayGlosa('ALEATÓRIO', 'feliz');
+                          }
+                          handleNextStep();
+                        }
+                      }}
+                      className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all duration-300 ${
+                        mode === TopicMode.OTHER
+                          ? 'bg-brand-blue border-brand-blue text-white shadow-lg shadow-brand-blue/30 transform scale-[1.02]'
+                          : 'border-gray-700/20 bg-brand-hover/50 text-gray-400'
+                      } ${highlightedValue === TopicMode.OTHER ? 'ring-4 ring-yellow-400 animate-pulse' : ''}`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-9 h-9 mb-3 ${mode === TopicMode.OTHER ? 'text-white' : 'opacity-60'}`}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.678 48.678 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3l-3 3" />
+                      </svg>
+                      <span className="text-sm font-bold">Aleatório</span>
+                    </button>
                   </div>
                 </div>
 
@@ -383,7 +410,7 @@ export const SetupForm: React.FC<SetupFormProps> = ({
                   if (!isCustomInput && themes && themes.length > 0) {
                     return (
                       <div className="animate-fade-in">
-                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Subtemas Disponíveis</label>
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Escolha um Subtema</label>
                         <div className="relative">
                           <select
                             value={subTopic}

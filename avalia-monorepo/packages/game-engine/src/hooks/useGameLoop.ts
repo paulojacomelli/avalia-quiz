@@ -297,19 +297,19 @@ export function useGameLoop({
   }, [stopSpeech, appName, clientId, provider, model]);
 
   const handlePlayPrebuilt = useCallback(async () => {
-    setLoading(true);
-    setLoadingMessage("Consultando temas disponíveis...");
-    try {
-      const themes = await getAvailableLibraryThemes(appName);
-      setAvailableThemes(themes);
-      setIsPrebuiltQuiz(true);
-      setGameState('SETUP');
-    } catch (err) {
-      handleApiError(err);
-    } finally {
-      setLoading(false);
+    setIsPrebuiltQuiz(true);
+    setGameState('SETUP');
+    
+    // Busca os temas da biblioteca em background se ainda não foram carregados
+    if (Object.keys(availableThemes).length === 0) {
+      try {
+        const themes = await getAvailableLibraryThemes(appName);
+        setAvailableThemes(themes);
+      } catch (err) {
+        console.warn("Aviso: Falha ao consultar temas da biblioteca em background:", err);
+      }
     }
-  }, [appName, handleApiError]);
+  }, [appName, availableThemes]);
 
   const handleGenerate = useCallback(async (config: QuizConfig) => {
     setLoading(true);
@@ -342,8 +342,10 @@ export function useGameLoop({
 
       let data;
       if (isPrebuiltQuiz) {
-        data = await getRandomPrebuiltQuiz(appName, finalConfig.mode, finalConfig.subTopic);
-        if (!data) throw new Error("Quiz não encontrado.");
+        const themeToSearch = finalConfig.mode === TopicMode.OTHER ? undefined : finalConfig.mode;
+        const subTopicToSearch = (finalConfig.mode === TopicMode.OTHER || finalConfig.subTopic === 'Aleatório') ? undefined : finalConfig.subTopic;
+        data = await getRandomPrebuiltQuiz(appName, themeToSearch, subTopicToSearch);
+        if (!data) throw new Error("Nenhum quiz disponível na biblioteca para este tema.");
         data.questions = data.questions.slice(0, finalConfig.count);
         
         if (ttsEnabled && finalConfig.tts.engine === 'gemini' && apiKey) {

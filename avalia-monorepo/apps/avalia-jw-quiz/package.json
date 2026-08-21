@@ -1,7 +1,7 @@
 {
     "name": "@avalia/jw-quiz",
     "private": true,
-    "version": "1.9.65",
+    "version": "1.9.69",
     "type": "module",
     "scripts": {
         "dev": "vite",

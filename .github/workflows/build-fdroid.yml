@@ -135,12 +135,10 @@ jobs:
           VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
           EOF
 
-      - name: Apply Assets (Canary vs Official)
+      - name: Apply Official Assets in Production
         working-directory: ./avalia-monorepo
         run: |
-          if [ "${{ steps.env_detector.outputs.IS_DEV }}" = "true" ]; then
-            node scripts/apply-canary-assets.js
-          else
+          if [ "${{ steps.env_detector.outputs.IS_DEV }}" != "true" ]; then
             node scripts/apply-official-assets.js
           fi
 
@@ -175,10 +173,12 @@ jobs:
         working-directory: ./avalia-monorepo/${{ matrix.app.dir }}
         run: |
           mkdir -p assets
-          if [ -f "public/pwa-512x512.png" ]; then
+          if [ -f "public/app-icon.jpg" ]; then
+            cp public/app-icon.jpg assets/icon.jpg
+            cp public/app-icon.jpg assets/icon-only.jpg || true
+            cp public/app-icon.jpg assets/icon-foreground.jpg || true
+          elif [ -f "public/pwa-512x512.png" ]; then
             cp public/pwa-512x512.png assets/icon.png
-          elif [ -f "public/apple-touch-icon.png" ]; then
-            cp public/apple-touch-icon.png assets/icon.png
           fi
           npx @capacitor/assets generate --android || true
 

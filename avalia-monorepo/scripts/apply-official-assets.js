@@ -19,6 +19,7 @@ const APPS = fs.readdirSync(appsDir)
   }));
 
 const ICON_FILES = [
+  'app-icon.jpg',
   'apple-touch-icon.png',
   'favicon.ico',
   'masked-icon.svg',
