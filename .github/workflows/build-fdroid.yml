@@ -254,9 +254,11 @@ jobs:
           
           ls -la fdroid/repo/
           
-          # Copia ícone do repositório
-          if [ -f "avalia-monorepo/apps/avalia-quiz/public/pwa-512x512.png" ]; then
+          # Copia ícone do repositório (oficial em produção, canary em dev)
+          if [ "${{ steps.env_detector.outputs.IS_DEV }}" = "true" ]; then
             cp avalia-monorepo/apps/avalia-quiz/public/pwa-512x512.png fdroid/icon.png
+          else
+            cp avalia-monorepo/apps/avalia-quiz/official-assets/pwa-512x512.png fdroid/icon.png
           fi
 
           cd fdroid
