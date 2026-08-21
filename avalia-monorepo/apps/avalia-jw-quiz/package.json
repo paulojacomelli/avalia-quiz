@@ -19,7 +19,7 @@
         "firebase": "^12.8.0",
         "react": "^19.2.3",
         "react-dom": "^19.2.3",
-        "turbo": "^2.9.17"
+        "turbo": "^2.9.14"
     },
     "devDependencies": {
         "@types/node": "^22.14.0",
