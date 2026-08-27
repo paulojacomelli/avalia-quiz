@@ -180,13 +180,23 @@ jobs:
         working-directory: ./avalia-monorepo/${{ matrix.app.dir }}
         run: |
           mkdir -p assets
-          if [ -f "public/app-icon.jpg" ]; then
-            cp public/app-icon.jpg assets/icon.jpg
-            cp public/app-icon.jpg assets/icon-only.jpg || true
-            cp public/app-icon.jpg assets/icon-foreground.jpg || true
+          # Se for producao, usa official-assets; se for dev, usa public
+          ASSETS_SRC="${{ steps.env_detector.outputs.IS_DEV == 'true' && 'public' || 'official-assets' }}"
+          
+          if [ -f "$ASSETS_SRC/pwa-512x512.png" ]; then
+            cp "$ASSETS_SRC/pwa-512x512.png" assets/icon.png
+            cp "$ASSETS_SRC/pwa-512x512.png" assets/icon-only.png
+            cp "$ASSETS_SRC/pwa-512x512.png" assets/icon-foreground.png
           elif [ -f "public/pwa-512x512.png" ]; then
-            cp public/pwa-512x512.png assets/icon.png
+            cp "public/pwa-512x512.png" assets/icon.png
+            cp "public/pwa-512x512.png" assets/icon-only.png
+            cp "public/pwa-512x512.png" assets/icon-foreground.png
           fi
+          
+          # Remove geracoes antigas de ic_launcher se existirem antes de sincronizar
+          rm -rf android/app/src/main/res/mipmap-* || true
+          
+          # Gera os assets nativos do Android
           npx @capacitor/assets generate --android || true
 
       - name: Build Android APK
